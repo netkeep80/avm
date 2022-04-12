@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 		cout << "            \\_________/    https://github.com/netkeep80/avm                      " << endl;
 		cout << "                                                                                  " << endl;
 		cout << "Licensed under the MIT License <http://opensource.org/licenses/MIT>               " << endl;
-		cout << "Copyright (c) 2016-2022 Vertushkin Roman Pavlovich <https://vk.com/earthbirthbook>" << endl;
+		cout << "Copyright (c) 2022 Vertushkin Roman Pavlovich <https://vk.com/earthbirthbook>     " << endl;
 		cout << "                                                                                  " << endl;
 		cout << "Usage:                                                                            " << endl;
 		cout << "       avm.exe [entry_point]                                                      " << endl;
