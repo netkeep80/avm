@@ -31,47 +31,55 @@ true : { $obj : $ent, $rel : bool }
 (Null: Ent Null)
 */
 
+#define new_ent(name)                                   \
+	auto unique##name = unique_ptr<ent_t>(new ent_t()); \
+	ent_t &name = *unique##name.get();
+
 #define new_obj(name)                                   \
 	auto unique##name = unique_ptr<obj_t>(new obj_t()); \
 	obj_t &name = *unique##name.get();
+
+#define new_rel(name)                                   \
+	auto unique##name = unique_ptr<rel_t>(new rel_t()); \
+	rel_t &name = *unique##name.get();
 
 #define new_sub(name)                                   \
 	auto unique##name = unique_ptr<sub_t>(new sub_t()); \
 	sub_t &name = *unique##name.get();
 
-new_obj(Ent);
-new_sub(Rel);
+new_ent(Ent);	//	root entity
+obj_t &Obj = Ent.as<obj_t>();
+new_rel(Rel);	//	root context
+sub_t &Sub = Rel.as<sub_t>();
 
-new_obj(Null);
-new_sub(NullRel);
+new_ent(Null);
+new_rel(NullRel);
 
-new_obj(Bool);
-new_sub(BoolRel);
-new_obj(True);
-new_sub(TrueRel);
-new_obj(False);
-new_sub(FalseRel);
+new_ent(Bool);
+new_rel(BoolRel);
+new_ent(True);
+new_rel(TrueRel);
+new_ent(False);
+new_rel(FalseRel);
 
 void build_base_vocabulary()
 {
-	//	Configure root entity and relation
-	//	(Ent: Ent Rel)
-	//	(Rel: Rel Ent)
-	Ent.set(Ent, Rel);
-	Rel.set(Rel, Ent);
+	//	Configure root
+	Ent.update(&Rel.as<sub_t>(), &Rel.as<obj_t>());
+	Rel.update(&Ent.as<obj_t>(), &Ent.as<sub_t>());
 
-	Null.set(Ent, NullRel);
-	NullRel.set(Rel, Null);
+	Null.update(&Ent, &NullRel);
+	NullRel.update(&Rel, &Null);
 
 	//	известно что при { $rel : bool } текущее отношение должно быть преобразовано к типу bool
 	//	либо приравлять rel в bool
 	//	bool bool() { $rel = isEnt($rel) ? true : false; }
-	Bool.set(Ent, BoolRel);
-	BoolRel.set(Rel, Bool);
-	True.set(Bool, TrueRel);
-	TrueRel.set(Rel, True);
-	False.set(Bool, FalseRel);
-	FalseRel.set(Rel, False);
+	Bool.update(&Ent, &BoolRel);
+	BoolRel.update(&Rel, &Bool);
+	True.update(&Bool, &TrueRel);
+	TrueRel.update(&Rel, &True);
+	False.update(&Bool, &FalseRel);
+	FalseRel.update(&Rel, &False);
 }
 
 void get_json(json &ent, const string &PathName)
@@ -95,7 +103,7 @@ void import_json(obj_t &e, const json &j)
 	switch (j.type())
 	{
 	case json::value_t::null: //	null - означает отсутствие отношения, т.е. неизменность проекции
-		//e.set()
+		//e.update()
 		return;
 	
 	case json::value_t::boolean:
@@ -162,27 +170,30 @@ int main(int argc, char *argv[])
 		entry_point = argv[1];
 		break;
 	default:
-		cout << "             _________                                                            " << endl;
-		cout << "            /         \\                                                          " << endl;
-		cout << "           /           \\                                                         " << endl;
-		cout << "          +             \\                                                        " << endl;
-		cout << "     ,----O-----------+ E <--.                                                    " << endl;
-		cout << "    /     A             |     \\                                                  " << endl;
-		cout << "   /      |  E = OxSxR  |      \\                                                 " << endl;
-		cout << "   |      |  R = SxOxE  |      |                                                  " << endl;
-		cout << "   |      |  S = RxExO  |      |                                                  " << endl;
-		cout << "   \\      |  O = ExRxS  |      /                                                 " << endl;
-		cout << "    \\     |             V     /     Associative                                  " << endl;
-		cout << "     `--> R +-----------S----`        Virtual                                     " << endl;
-		cout << "          \\             +             Machine                                    " << endl;
-		cout << "           \\           /           [Version 0.0.1]                               " << endl;
-		cout << "            \\_________/    https://github.com/netkeep80/avm                      " << endl;
-		cout << "                                                                                  " << endl;
-		cout << "Licensed under the MIT License <http://opensource.org/licenses/MIT>               " << endl;
-		cout << "Copyright (c) 2022 Vertushkin Roman Pavlovich <https://vk.com/earthbirthbook>     " << endl;
-		cout << "                                                                                  " << endl;
-		cout << "Usage:                                                                            " << endl;
-		cout << "       avm.exe [entry_point]                                                      " << endl;
+		cout << R"(https://github.com/netkeep80/avm
+     Associative Virtual Machine [Version 0.0.1]
+             _____________
+            /             \
+           /               \
+          /                 V
+     ,--> E +---------------O----.
+    /     |                 +     \
+   /      |  E = S x O x R  |      \
+   |      |  R = O x S x E  |      |
+   |      |  S = R x E x O  |      |
+   \      |  O = E x R x S  |      /
+    \     +                 |     /
+     `----S---------------+ R <--`
+          A                 |
+           \               /
+            \_____________/
+
+Licensed under the MIT License <http://opensource.org/licenses/MIT>
+Copyright (c) 2022 Vertushkin Roman Pavlovich <https://vk.com/earthbirthbook>
+
+Usage:
+       avm.exe [entry_point]
+		)";
 		return 0; //	ok
 	}
 

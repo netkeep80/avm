@@ -1,28 +1,30 @@
 # avm
 
 ```
-             _________
-            /         \
-           /           \
-          +             \
-     ,----O-----------+ E <--.
-    /     A             |     \
-   /      |  E = OxSxR  |      \
-   |      |  R = SxOxE  |      |
-   |      |  S = RxExO  |      |
-   \      |  O = ExRxS  |      /
-    \     |             V     /     Associative
-     `--> R +-----------S----`        Virtual
-          \             +             Machine
-           \           /
-            \_________/
+      Associative Virtual Machine
+             _____________
+            /             \
+           /               \
+          /                 V
+     ,--> E +---------------O----.
+    /     |                 +     \
+   /      |  E = S x O x R  |      \
+   |      |  R = O x S x E  |      |
+   |      |  S = R x E x O  |      |
+   \      |  O = E x R x S  |      /
+    \     +                 |     /
+     `----S---------------+ R <--`
+          A                 |
+           \               /
+            \_____________/
+
 ```
 
 ## License
 
 <img align="right" src="https://opensource.org/trademarks/opensource/OSI-Approved-License-100x137.png">
 
-The class is licensed under the [MIT License](https://opensource.org/licenses/MIT):
+[MIT License](https://opensource.org/licenses/MIT)
 
 Copyright &copy; 2022 [Vertushkin Roman Pavlovich](https://vk.com/earthbirthbook)
 
