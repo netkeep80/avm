@@ -57,9 +57,11 @@ new_sub(Sub);
 //	json = null
 new_ent(Null);
 
-new_ent(Bool);
+//new_ent(Bool);
 new_ent(True);
 new_ent(False);
+
+new_ent(Then);
 
 void build_base_vocabulary()
 {
@@ -108,13 +110,15 @@ void import_json(sub_t &s, const json &j)
 			s.update(s.rel, &False);
 		return;
 
-	case json::value_t::string: //	иерархический путь к json значению
+	case json::value_t::string:
 		return;
 
 	case json::value_t::array: //	лямбда вектор, который управляет последовательным изменением проекции сущности
 	{
 		auto it = j.begin();
 		auto end = j.end();
+
+		//Then
 		return;
 	}
 
