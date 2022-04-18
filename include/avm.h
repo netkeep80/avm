@@ -9,38 +9,104 @@ using namespace std;
 using namespace nlohmann;
 
 /*
+МО в теории множеств представляется как множество 4х взаимосвязанных множеств кортежей длины 3:
+
+RM = {E, O, R, S}, где
+R ⊆ O×S×E = {(o,s,e): o ∈ S, s ∈ O, e ∈ E} - множество кортежей отношений
+O ⊆ E×R×S = {(e,r,s): e ∈ E, r ∈ R, s ∈ S} - множество кортежей объектов
+S ⊆ R×E×O = {(r,e,o): r ∈ R, e ∈ E, o ∈ O} - множество кортежей субъектов
+E ⊆ S×O×R = {(s,o,r): s ∈ O, o ∈ S, r ∈ R} - множество кортежей сущностей
+
 МО в теории множеств как множество взаимосвязанных множеств кортежей длины 2:
+
 SO = E = ER - множество сущностей эквивалентно множеству субъектов-объектов
 ER = O = OS - множество объектов эквивалентно множеству сущностей-отношений
 OS = R = RE - множество отношений эквивалентно множеству объектов-субъектов
 RE = S = SO - множество субъектов  эквивалентно множеству отношений-сущностей
 */
 
-//  кэш поиска связей по source
-// var query = new Link<uint>(index: any, source: id, target: any);
-template <typename key_t, typename val_t>
-using linkmap = map<key_t const *, val_t *>;
-// struct linkmap : public map<key_t*, val_t&> {};
-
 struct ent_t; //  субъективация объекта отношения
 struct obj_t; //  сущность отношения субъективации
 struct rel_t; //  объект субъективации сущности
 struct sub_t; //  отношение сущности объекта
 
-//////////////////////////////////////////////////////////////////////
-//      индексные карты использования
+template <typename impl_t, typename m_t>
+struct member_t;
 
-//  карта поиска сущностей субъекта (obj->ent) по объекту
-using entmap_t = linkmap<obj_t, ent_t>;
+template <typename impl_t>
+struct member_t<impl_t, ent_t>
+{
+    union
+    {
+        impl_t *map;
+        ent_t *ent{nullptr};
+        ent_t *val;
+    };
+};
 
-//  карта поиска объектов сущности (obj->ent) по отношению
-using objmap_t = linkmap<rel_t, obj_t>;
+template <typename impl_t>
+struct member_t<impl_t, obj_t>
+{
+    union
+    {
+        impl_t *map;
+        obj_t *obj{nullptr};
+        obj_t *val;
+    };
+};
 
-//  карта поиска отношений объекта (obj->ent) по субъекту
-using relmap_t = linkmap<sub_t, rel_t>;
+template <typename impl_t>
+struct member_t<impl_t, rel_t>
+{
+    union
+    {
+        impl_t *map;
+        rel_t *rel{nullptr};
+        rel_t *val;
+    };
+};
 
-//  карта поиска субъектов отношения (obj->ent) по сущности
-using submap_t = linkmap<ent_t, sub_t>;
+template <typename impl_t>
+struct member_t<impl_t, sub_t>
+{
+    union
+    {
+        impl_t *map;
+        sub_t *sub{nullptr};
+        sub_t *val;
+    };
+};
+
+template <typename c1_t, typename c2_t, typename key_t>
+struct link_t : member_t<link_t<c1_t, c2_t, key_t>, c1_t>, member_t<link_t<c1_t, c2_t, key_t>, c2_t>, map<key_t const *, c2_t *>
+{
+    using m1_t = member_t<link_t<c1_t, c2_t, key_t>, c1_t>;
+    using m2_t = member_t<link_t<c1_t, c2_t, key_t>, c2_t>;
+
+    link_t(c1_t *с1 = nullptr, c2_t *с2 = nullptr)
+    {
+        update(с1 ? с1 : as<c1_t>(), с2 ? с2 : as<c2_t>());
+    }
+
+    ~link_t()
+    {
+        // 1. удаляем все дочерние связи
+        update(); // 2. удаляемся из родителя
+    }
+
+    void update(c1_t *c1 = nullptr, c2_t *c2 = nullptr)
+    {
+        if (m1_t::map)
+            m1_t::map->erase(m1_t::map->find(reinterpret_cast<key_t *>(m2_t::val)));
+        m1_t::val = c1;
+        m2_t::val = c2;
+        if (m1_t::map)
+            (*m1_t::map)[reinterpret_cast<key_t *>(m2_t::val)] = reinterpret_cast<c2_t *>(this);
+    }
+
+    template <typename l_t>
+    l_t *as() { return reinterpret_cast<l_t *>(this); }
+};
 
 //  Множество кортежей - сущностей Модели Отношений
 //  Кортеж сущность эквивалентен кортежу сущность-отношения:
@@ -48,37 +114,15 @@ using submap_t = linkmap<ent_t, sub_t>;
 //  Находим, что множество кортежей субъект-объекта эквивалентно множеству кортежей сущность-отношения:
 //  SO ⊆ S×O = {(s,o): s ∈ S, o ∈ O}
 //  SO = E = ER
-struct ent_t : public objmap_t //  т.е. множество объектов сущности
+//  ent_t наследует карту поиска объектов сущности (obj->ent) по отношению map<rel_t, obj_t>;
+//  т.е. множество объектов сущности
+struct ent_t : link_t<sub_t, obj_t, rel_t>
 {
-    union
+    template <typename... Args>
+    ent_t(Args &&...args)
+        : link_t(std::forward<Args>(args)...)
     {
-        entmap_t *entmap;    // сущности субъекта
-        sub_t *sub{nullptr}; // субъект сущности
-    };
-    obj_t *obj{nullptr}; // объект сущности
-
-    ent_t(sub_t *s = nullptr, obj_t *o = nullptr)
-    {
-        update(s ? s : &as<sub_t>(), o ? o : &as<obj_t>());
     }
-
-    ~ent_t()
-    {
-        // 1. удаляем все дочерние связи
-        update(); // 2. удаляемся из родителя
-    }
-
-    void update(sub_t *s = nullptr, obj_t *o = nullptr)
-    {
-        if (sub)
-            entmap->erase(entmap->find(obj));
-        sub = s;
-        obj = o;
-        (*entmap)[obj] = this;
-    }
-
-    template <typename _T>
-    _T &as() { return *reinterpret_cast<_T *>(this); }
 };
 
 //  Множество кортежей - объектов Модели Отношений
@@ -87,37 +131,15 @@ struct ent_t : public objmap_t //  т.е. множество объектов с
 //  Множество кортежей сущность-отношения эквивалентно множеству кортежей объект-субъекта:
 //  ER ⊆ E×R = {(e,r): e ∈ E, r ∈ R}
 //  ER = O = OS
-struct obj_t : public relmap_t //  т.е. множество отношений объекта
+//  obj_t наследует карту поиска отношений объекта (obj->ent) по субъекту map<sub_t, rel_t>;
+//  т.е. множество отношений объекта
+struct obj_t : link_t<ent_t, rel_t, sub_t>
 {
-    union
+    template <typename... Args>
+    obj_t(Args &&...args)
+        : link_t(std::forward<Args>(args)...)
     {
-        objmap_t *objmap;    // множество объектов сущности
-        ent_t *ent{nullptr}; // сущность объекта
-    };
-    rel_t *rel{nullptr}; // отношение объекта
-
-    obj_t(ent_t *s = nullptr, rel_t *o = nullptr)
-    {
-        update(s ? s : &as<ent_t>(), o ? o : &as<rel_t>());
     }
-
-    ~obj_t()
-    {
-        // 1. удаляем все дочерние связи
-        update(); // 2. удаляемся из родителя
-    }
-
-    void update(ent_t *e = nullptr, rel_t *r = nullptr)
-    {
-        if (ent)
-            objmap->erase(objmap->find(rel));
-        ent = e;
-        rel = r;
-        (*objmap)[rel] = this;
-    }
-
-    template <typename _T>
-    _T &as() { return *reinterpret_cast<_T *>(this); }
 };
 
 //  Множество кортежей - отношений Модели Отношений
@@ -126,37 +148,15 @@ struct obj_t : public relmap_t //  т.е. множество отношений 
 //  Множество кортежей объект-субъекта эквивалентно множеству кортежей отношений-сущностей:
 //  OS ⊆ O×S = {(o,s): o ∈ O, s ∈ S}
 //  OS = R = RE
-struct rel_t : public submap_t //  т.е. множество субъектов отношения
+//  rel_t наследует карту поиска субъектов отношения (obj->ent) по сущности map<ent_t, sub_t>;
+//  т.е. множество субъектов отношения
+struct rel_t : link_t<obj_t, sub_t, ent_t>
 {
-    union
+    template <typename... Args>
+    rel_t(Args &&...args)
+        : link_t(std::forward<Args>(args)...)
     {
-        relmap_t *relmap;    // множество отношений объекта
-        obj_t *obj{nullptr}; // объект отношения
-    };
-    sub_t *sub{nullptr}; // субъект отношения
-
-    rel_t(obj_t *o = nullptr, sub_t *s = nullptr)
-    {
-        update(o ? o : &as<obj_t>(), s ? s : &as<sub_t>());
     }
-
-    ~rel_t()
-    {
-        // 1. удаляем все дочерние связи
-        update(); // 2. удаляемся из родителя
-    }
-
-    void update(obj_t *o = nullptr, sub_t *s = nullptr)
-    {
-        if (obj)
-            relmap->erase(relmap->find(sub));
-        obj = o;
-        sub = s;
-        (*relmap)[sub] = this;
-    }
-
-    template <typename _T>
-    _T &as() { return *reinterpret_cast<_T *>(this); }
 };
 
 //  Множество кортежей - субъектов Модели Отношений
@@ -165,35 +165,13 @@ struct rel_t : public submap_t //  т.е. множество субъектов 
 //  Множество кортежей отношение-сущности эквивалентно множеству кортежей субъект-объекта:
 //  RE ⊆ R×E = {(r,e): r ∈ R, e ∈ E}
 //  RE = S = SO
-struct sub_t : public entmap_t //  т.е. множество сущностей субъекта
+//  sub_t наследует карту поиска сущностей субъекта (obj->ent) по объекту map<obj_t, ent_t>;
+//  т.е. множество сущностей субъекта
+struct sub_t : link_t<rel_t, ent_t, obj_t>
 {
-    union
+    template <typename... Args>
+    sub_t(Args &&...args)
+        : link_t(std::forward<Args>(args)...)
     {
-        submap_t *submap;    // множество субъектов отношения
-        rel_t *rel{nullptr}; // отношение субъекта
-    };
-    ent_t *ent{nullptr}; // сущность субъекта
-
-    sub_t(rel_t *r = nullptr, ent_t *e = nullptr)
-    {
-        update(r ? r : &as<rel_t>(), e ? e : &as<ent_t>());
     }
-
-    ~sub_t()
-    {
-        // 1. удаляем все дочерние связи
-        update(); // 2. удаляемся из родителя
-    }
-
-    void update(rel_t *r = nullptr, ent_t *e = nullptr)
-    {
-        if (rel)
-            submap->erase(submap->find(ent));
-        rel = r;
-        ent = e;
-        (*submap)[ent] = this;
-    }
-
-    template <typename _T>
-    _T &as() { return *reinterpret_cast<_T *>(this); }
 };

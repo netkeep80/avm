@@ -47,39 +47,34 @@ true : { $obj : $ent, $rel : bool }
 	auto unique##name = unique_ptr<sub_t>(new sub_t()); \
 	sub_t &name = *unique##name.get();
 
-new_ent(Ent);	//	root entity
-obj_t &Obj = Ent.as<obj_t>();
-new_rel(Rel);	//	root context
-sub_t &Sub = Rel.as<sub_t>();
+//	root entity
+new_ent(Ent);
+new_obj(Obj);
+//	root relation
+new_rel(Rel);
+new_sub(Sub);
 
+//	json = null
 new_ent(Null);
-new_rel(NullRel);
 
 new_ent(Bool);
-new_rel(BoolRel);
 new_ent(True);
-new_rel(TrueRel);
 new_ent(False);
-new_rel(FalseRel);
 
 void build_base_vocabulary()
 {
-	//	Configure root
-	Ent.update(&Rel.as<sub_t>(), &Rel.as<obj_t>());
-	Rel.update(&Ent.as<obj_t>(), &Ent.as<sub_t>());
-
-	Null.update(&Ent, &NullRel);
-	NullRel.update(&Rel, &Null);
+	//	Configure base vocabulary
+	Ent.update(&Sub, &Obj);
+	Obj.update(&Ent, &Rel);
+	Rel.update(&Obj, &Sub);
+	Sub.update(&Rel, &Ent);
 
 	//	известно что при { $rel : bool } текущее отношение должно быть преобразовано к типу bool
 	//	либо приравлять rel в bool
 	//	bool bool() { $rel = isEnt($rel) ? true : false; }
-	Bool.update(&Ent, &BoolRel);
-	BoolRel.update(&Rel, &Bool);
-	True.update(&Bool, &TrueRel);
-	TrueRel.update(&Rel, &True);
-	False.update(&Bool, &FalseRel);
-	FalseRel.update(&Rel, &False);
+	// Bool.update(&Ent, &BoolRel);
+	// True.update(&Bool, &TrueRel);
+	// False.update(&Bool, &FalseRel);
 }
 
 void get_json(json &ent, const string &PathName)
@@ -98,17 +93,21 @@ void add_json(const json &ent, const string &PathName)
 	out << ent;
 }
 
-void import_json(obj_t &e, const json &j)
+void import_json(sub_t &s, const json &j)
 {
 	switch (j.type())
 	{
 	case json::value_t::null: //	null - означает отсутствие отношения, т.е. неизменность проекции
-		//e.update()
+		//ничего не добавляем
 		return;
-	
+
 	case json::value_t::boolean:
+		if (j.get<json::boolean_t>())
+			s.update(s.rel, &True);
+		else
+			s.update(s.rel, &False);
 		return;
-	
+
 	case json::value_t::string: //	иерархический путь к json значению
 		return;
 
@@ -142,9 +141,9 @@ void import_json(obj_t &e, const json &j)
 		{ //	контроллер это лямбда структура, которая управляет параллельным проецированием сущностей
 			auto it = j.begin();
 
-			//for (auto &it : vct)
-				//if (!it.exc.is_null())
-					// throw json({ {it.key, it.exc} });
+			// for (auto &it : vct)
+			// if (!it.exc.is_null())
+			//  throw json({ {it.key, it.exc} });
 		}
 		return;
 	}
@@ -154,12 +153,18 @@ void import_json(obj_t &e, const json &j)
 	}
 }
 
-void export_json(obj_t &e, const json &j)
+void export_json(sub_t &s, const json &j)
 {
 }
 
 int main(int argc, char *argv[])
 {
+	ent_t so;
+	so.sub = &Sub;
+	so.obj = &Obj;
+	so.update(&Sub, &Obj);
+	so[&Rel] = &Obj;
+
 	json res;
 	char *entry_point = NULL;
 	UnitedMemoryLinks<uint64_t> links64("db.uint64_t.links"s);
@@ -203,11 +208,12 @@ Usage:
 
 	try
 	{
-		auto root_ent = Ent.new_ent();
+		//	создаём субъект для помещения в него корня с дефолтным значением Null
+		auto root_sub = new sub_t(&Rel, &Null);
 
 		get_json(root, entry_point);
-		import_json(*root_ent, root);
-		export_json(*root_ent, res);
+		import_json(*root_sub, root);
+		export_json(*root_sub, res);
 		add_json(res, "res.json"s);
 		return 0; //	ok
 	}
