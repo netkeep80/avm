@@ -98,7 +98,7 @@ void import_json(sub_t &s, const json &j)
 	switch (j.type())
 	{
 	case json::value_t::null: //	null - означает отсутствие отношения, т.е. неизменность проекции
-		//ничего не добавляем
+		s.update(s.rel, &Null);
 		return;
 
 	case json::value_t::boolean:
@@ -153,21 +153,25 @@ void import_json(sub_t &s, const json &j)
 	}
 }
 
-void export_json(sub_t &s, const json &j)
+void export_json(const sub_t &s, json &j)
 {
+	if (s.ent == &Null)
+		j = json();
+	else if (s.ent == &True)
+		j = json(true);
+	else if (s.ent == &False)
+		j = json(false);
+	else
+		j = json("unknown entity");
 }
 
 int main(int argc, char *argv[])
 {
-	ent_t so;
-	so.sub = &Sub;
-	so.obj = &Obj;
-	so.update(&Sub, &Obj);
-	so[&Rel] = &Obj;
+	//	links db test
+	UnitedMemoryLinks<uint64_t> links64("db.uint64_t.links"s);
 
 	json res;
 	char *entry_point = NULL;
-	UnitedMemoryLinks<uint64_t> links64("db.uint64_t.links"s);
 
 	switch (argc)
 	{
@@ -209,11 +213,12 @@ Usage:
 	try
 	{
 		//	создаём субъект для помещения в него корня с дефолтным значением Null
-		auto root_sub = new sub_t(&Rel, &Null);
+		new_sub(root_sub);
+		root_sub.update(&Rel, &Null);
 
 		get_json(root, entry_point);
-		import_json(*root_sub, root);
-		export_json(*root_sub, res);
+		import_json(root_sub, root);
+		export_json(root_sub, res);
 		add_json(res, "res.json"s);
 		return 0; //	ok
 	}
