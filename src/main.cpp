@@ -12,9 +12,11 @@ using namespace Platform::Data::Doublets::Memory::United::Generic;
 /*
 	План:
 
-1. сериализация/десериализация bool
+1. сериализация/десериализация bool................V
 2. сериализация/десериализация number
 3. сериализация/десериализация string
+4. сериализация/десериализация object
+5. сериализация/десериализация array
 
 	Проблемы:
 
@@ -32,20 +34,20 @@ true : { $obj : $ent, $rel : bool }
 */
 
 #define new_ent(name)                                   \
-	auto unique##name = unique_ptr<ent_t>(new ent_t()); \
-	ent_t &name = *unique##name.get();
+	auto unique##name = unique_ptr<ent_os>(new ent_os()); \
+	ent_os &name = *unique##name.get();
 
 #define new_obj(name)                                   \
-	auto unique##name = unique_ptr<obj_t>(new obj_t()); \
-	obj_t &name = *unique##name.get();
+	auto unique##name = unique_ptr<obj_er>(new obj_er()); \
+	obj_er &name = *unique##name.get();
 
 #define new_rel(name)                                   \
-	auto unique##name = unique_ptr<rel_t>(new rel_t()); \
-	rel_t &name = *unique##name.get();
+	auto unique##name = unique_ptr<rel_so>(new rel_so()); \
+	rel_so &name = *unique##name.get();
 
 #define new_sub(name)                                   \
-	auto unique##name = unique_ptr<sub_t>(new sub_t()); \
-	sub_t &name = *unique##name.get();
+	auto unique##name = unique_ptr<sub_re>(new sub_re()); \
+	sub_re &name = *unique##name.get();
 
 //	root entity
 new_ent(Ent);
@@ -66,10 +68,10 @@ new_ent(Then);
 void build_base_vocabulary()
 {
 	//	Configure base vocabulary
-	Ent.update(&Sub, &Obj);
+	Ent.update(&Obj, &Sub);
 	Obj.update(&Ent, &Rel);
-	Rel.update(&Obj, &Sub);
 	Sub.update(&Rel, &Ent);
+	Rel.update(&Sub, &Obj);
 
 	//	известно что при { $rel : bool } текущее отношение должно быть преобразовано к типу bool
 	//	либо приравлять rel в bool
@@ -95,11 +97,11 @@ void add_json(const json &ent, const string &PathName)
 	out << ent;
 }
 
-void import_json(sub_t &s, const json &j)
+void import_json(sub_re &s, const json &j)
 {
 	switch (j.type())
 	{
-	case json::value_t::null: //	null - означает отсутствие отношения, т.е. неизменность проекции
+	case json::value_t::null: //	null - означает отсутствие отношения
 		s.update(s.rel, &Null);
 		return;
 
@@ -157,7 +159,7 @@ void import_json(sub_t &s, const json &j)
 	}
 }
 
-void export_json(const sub_t &s, json &j)
+void export_json(const sub_re &s, json &j)
 {
 	if (s.ent == &Null)
 		j = json();
@@ -188,18 +190,23 @@ int main(int argc, char *argv[])
              _____________
             /             \
            /               \
-          /                 V
+          /                 +
      ,--> E +---------------O----.
-    /     |                 +     \
-   /      |  E = S x O x R  |      \
-   |      |  R = O x S x E  |      |
-   |      |  S = R x E x O  |      |
-   \      |  O = E x R x S  |      /
-    \     +                 |     /
+    /     |                 A     \
+   /      |  E =(O x S)x R  |      \
+   |      |  O =(E x R)x S  |      |
+   |      |  S =(R x E)x O  |      |
+   \      |  R =(S x O)x E  |      /
+    \     V                 |     /
      `----S---------------+ R <--`
-          A                 |
+          +                 |
            \               /
             \_____________/
+
+E = OS = (ER * RE)
+O = ER = (OS * SO)
+S = RE = (SO * OS)
+R = SO = (RE * ER)
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>
 Copyright (c) 2022 Vertushkin Roman Pavlovich <https://vk.com/earthbirthbook>
