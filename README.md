@@ -1,4 +1,4 @@
-<p align="center"><img src="EORS.jpg"></p>
+<p align="center"><img src="EOSR.jpg"></p>
 
 # avm
 
