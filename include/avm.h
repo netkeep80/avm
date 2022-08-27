@@ -92,6 +92,11 @@ struct member_t<impl_t, sub_re> {
     };
 };
 
+template<typename T, typename... Ts>
+concept any_of = (std::same_as<T, Ts> || ...);
+
+//template<typename T>
+//concept any_oers = any_of<T, ent_os, obj_er, sub_re, rel_so>;
 
 template <typename src_t, typename dst_t, typename key_t, typename my_t>
 struct link_t
