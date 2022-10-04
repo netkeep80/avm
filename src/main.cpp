@@ -186,17 +186,17 @@ void export_json(const sub_re &s, json &j)
 		j = json("unknown entity");
 }
 
-json &link_name(json &j, const string &str, size_t start_pos, size_t end_pos)
+json *link_name(json *j, const string &str, size_t start_pos, size_t end_pos)
 {
 	if (end_pos > start_pos)
 	{
 		auto name = str.substr(start_pos, end_pos - start_pos);
-		auto res = j.find(name);
+		auto res = j->find(name);
 
-		if (res == j.end())
-			return j[name] = json::object();
+		if (res == j->end())
+			return &((*j)[name] = json::object());
 		else
-			return res.value();
+			return &res.value();
 	}
 	return j;
 }
@@ -209,30 +209,41 @@ json &link_name(json &j, const string &str, size_t start_pos, size_t end_pos)
 //	после возвращает строку до ] или целиком
 //	функция должна найти или создать все связи внутри строки до ] или целиком
 //	пока что не будем создавать все промежуточные связи в корневом отношении!
-json &parse_string(json &rel, json &sub, const string &str, size_t &pos)
+json &parse_string(json &rel, vector<json *> &sub, const string &str, size_t &pos, vector<size_t> &start_pos, vector<size_t> &last_pos) noexcept
 {
 	json *jptr = &rel;
-	size_t start_pos = pos;
-	size_t last_pos = pos;
 
 	while (true) //	берём следующую букву имени
 		switch (str[pos])
 		{
-		case '[':											//	вложенная ассоциация
-			jptr = &link_name(*jptr, str, last_pos, pos++); //	переключаем указатель на новую связь
-			jptr = &parse_string(rel, *jptr, str, pos); //	переключаем указатель на новую связь
-			last_pos = pos;
+		case '[':												 //	вложенная ассоциация
+			jptr = link_name(jptr, str, last_pos.back(), pos++); //	переключаем указатель на новую связь
+
+			sub.push_back(jptr);
+			start_pos.push_back(pos);
+			last_pos.push_back(pos);
+
+			jptr = &parse_string(rel, sub, str, pos, start_pos, last_pos); //	переключаем указатель на новую связь
 			break;
 
-		case ']': //	конец текущей вложенной ассоциации
+		case ']':														//	конец текущей вложенной ассоциации
+			jptr = link_name(sub.back(), str, start_pos.back(), pos++); //	переключаем указатель на новую связь
+
+			last_pos.pop_back();
+			start_pos.pop_back();
+			sub.pop_back();
+			
+			last_pos.back() = pos;
+			return *jptr;
+			break;
+
 		case '\0':
-			return link_name(sub, str, start_pos, pos++); //	переключаем указатель на новую связь
+			return *link_name(sub.back(), str, start_pos.back(), pos++); //	переключаем указатель на новую связь
 
 		default:
 			pos++;
 		}
 }
-
 
 void parse_json(const json &j, json &r)
 {
@@ -240,8 +251,14 @@ void parse_json(const json &j, json &r)
 	{
 	case json::value_t::string:
 	{
+		vector<json *> sub;
 		size_t pos = 0;
-		parse_string(r, r, j.get_ref<string const &>(), pos);
+		vector<size_t> start_pos;
+		vector<size_t> last_pos;
+		sub.push_back(&r);
+		start_pos.push_back(pos);
+		last_pos.push_back(pos);
+		parse_string(r, sub, j.get_ref<string const &>(), pos, start_pos, last_pos);
 		return;
 	}
 
