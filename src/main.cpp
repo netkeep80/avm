@@ -219,12 +219,20 @@ json &parse_string(json &rel, const string &str) noexcept
 	{
 		switch (str[pos])
 		{
+		case ',': //	следующая ассоциация
+			sub.pop_back();
+			last_pos = link_name(sub, str, start_pos.back(), pos);
+			start_pos.pop_back();
 		case '[': //	вложенная ассоциация
 			start_pos.push_back(link_name(sub, str, last_pos, pos));
 			sub.push_back(&rel);
 			last_pos = start_pos.back();
 			break;
 
+		case '.': //	сущность
+			start_pos.push_back(link_name(sub, str, last_pos, pos));
+			sub.push_back(&rel);
+			last_pos = start_pos.back();
 		case ']': //	конец текущей вложенной ассоциации
 			sub.pop_back();
 			last_pos = link_name(sub, str, start_pos.back(), pos);
