@@ -210,7 +210,7 @@ json &parse_string(json &rel, const string &str) noexcept
 {
 	size_t pos = 0, last_pos = 0;
 	vector<json *> sub;
-	vector<size_t> start_pos;	//	начальная позиция после [
+	vector<size_t> start_pos; //	начальная позиция после [
 
 	sub.push_back(&rel); //	по умолчанию субъектом является корневое отношение
 	start_pos.push_back(pos);
@@ -219,20 +219,16 @@ json &parse_string(json &rel, const string &str) noexcept
 	{
 		switch (str[pos])
 		{
-		case '[':										   //	вложенная ассоциация
-			start_pos.push_back(pos + 1); //	переключаем субъект на новую ассоциацию
-			link_name(sub, str, last_pos, pos);
-			sub.push_back(&rel);						   //	начинаем строить новую ассоциацию от корня
-
-			last_pos = pos + 1;
+		case '[': //	вложенная ассоциация
+			start_pos.push_back(link_name(sub, str, last_pos, pos));
+			sub.push_back(&rel);
+			last_pos = start_pos.back();
 			break;
 
 		case ']': //	конец текущей вложенной ассоциации
 			sub.pop_back();
-			link_name(sub, str, start_pos.back(), pos); //	переключаем субъект на новую ассоциацию
+			last_pos = link_name(sub, str, start_pos.back(), pos);
 			start_pos.pop_back();
-
-			last_pos = pos + 1;
 			break;
 
 		case '\0':
