@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include "str_switch/str_switch.h"
 
 using namespace std;
 using namespace Platform::Data::Doublets::Memory::United::Generic;
@@ -47,19 +48,19 @@ true : { $obj : $ent, $rel : bool }
 (Null: Ent Null)
 */
 
-#define new_ent(name)                                   \
+#define new_ent(name)                                     \
 	auto unique##name = unique_ptr<ent_os>(new ent_os()); \
 	ent_os &name = *unique##name.get();
 
-#define new_obj(name)                                   \
+#define new_obj(name)                                     \
 	auto unique##name = unique_ptr<obj_er>(new obj_er()); \
 	obj_er &name = *unique##name.get();
 
-#define new_rel(name)                                   \
+#define new_rel(name)                                     \
 	auto unique##name = unique_ptr<rel_so>(new rel_so()); \
 	rel_so &name = *unique##name.get();
 
-#define new_sub(name)                                   \
+#define new_sub(name)                                     \
 	auto unique##name = unique_ptr<sub_re>(new sub_re()); \
 	sub_re &name = *unique##name.get();
 
@@ -73,7 +74,7 @@ new_sub(Sub);
 //	json = null
 new_ent(Null);
 
-//new_ent(Bool);
+// new_ent(Bool);
 new_ent(True);
 new_ent(False);
 
@@ -82,19 +83,10 @@ new_ent(Then);
 void build_base_vocabulary()
 {
 	//	Configure base vocabulary
-	Ent.update(&Ent, &Ent);
-
 	Ent.update(&Obj, &Sub);
 	Obj.update(&Ent, &Rel);
 	Sub.update(&Rel, &Ent);
 	Rel.update(&Sub, &Obj);
-
-	Ent.obj->ent->obj;
-	Ent.obj->ent->sub;
-	Ent.obj->rel->sub;
-	Ent.obj->rel->obj;
-	Ent.sub->rel;
-	Ent.sub->ent;
 
 	//	известно что при { $rel : bool } текущее отношение должно быть преобразовано к типу bool
 	//	либо приравлять rel в bool
@@ -143,7 +135,7 @@ void import_json(sub_re &s, const json &j)
 		auto it = j.begin();
 		auto end = j.end();
 
-		//Then
+		// Then
 		return;
 	}
 
@@ -194,10 +186,83 @@ void export_json(const sub_re &s, json &j)
 		j = json("unknown entity");
 }
 
+json &link_name(json &j, const string &str, size_t start_pos, size_t end_pos)
+{
+	if (end_pos > start_pos)
+	{
+		auto name = str.substr(start_pos, end_pos - start_pos);
+		auto res = j.find(name);
+
+		if (res == j.end())
+			return j[name] = json::object();
+		else
+			return res.value();
+	}
+	return j;
+}
+
+//	ent = "." = "[]"
+//	obj = "[" = ".,"
+//	sub = "]" = ",."
+//	rel = "," = "]["
+//	функция парсит строку пока не встретит лишнюю закрывающую скобку ] или конец строки
+//	после возвращает строку до ] или целиком
+//	функция должна найти или создать все связи внутри строки до ] или целиком
+//	пока что не будем создавать все промежуточные связи в корневом отношении!
+json &parse_string(json &rel, json &sub, const string &str, size_t &pos)
+{
+	json *jptr = &rel;
+	size_t start_pos = pos;
+	size_t last_pos = pos;
+
+	while (true) //	берём следующую букву имени
+		switch (str[pos])
+		{
+		case '[':											//	вложенная ассоциация
+			jptr = &link_name(*jptr, str, last_pos, pos++); //	переключаем указатель на новую связь
+			jptr = &parse_string(rel, *jptr, str, pos); //	переключаем указатель на новую связь
+			last_pos = pos;
+			break;
+
+		case ']': //	конец текущей вложенной ассоциации
+		case '\0':
+			return link_name(sub, str, start_pos, pos++); //	переключаем указатель на новую связь
+
+		default:
+			pos++;
+		}
+}
+
+
+void parse_json(const json &j, json &r)
+{
+	switch (j.type())
+	{
+	case json::value_t::string:
+	{
+		size_t pos = 0;
+		parse_string(r, r, j.get_ref<string const &>(), pos);
+		return;
+	}
+
+	case json::value_t::array:
+	{
+		auto it = j.cbegin();
+		auto end = j.cend();
+		for (; it != end; ++it)
+			parse_json(*it, r);
+		return;
+	}
+
+	default:
+		return;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	//	links db test
-	UnitedMemoryLinks<uint64_t> links64("db.uint64_t.links"s);
+	// UnitedMemoryLinks<uint64_t> links64("db.uint64_t.links"s);
 
 	json res;
 	char *entry_point = NULL;
@@ -251,8 +316,10 @@ Usage:
 		root_sub.update(&Rel, &Null);
 
 		get_json(root, entry_point);
-		import_json(root_sub, root);
-		export_json(root_sub, res);
+		res = json::object();
+		parse_json(root, res);
+		// import_json(root_sub, root);
+		// export_json(root_sub, res);
 		add_json(res, "res.json"s);
 		return 0; //	ok
 	}
