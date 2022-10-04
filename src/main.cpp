@@ -186,63 +186,60 @@ void export_json(const sub_re &s, json &j)
 		j = json("unknown entity");
 }
 
-json *link_name(json *j, const string &str, size_t start_pos, size_t end_pos)
-{
-	if (end_pos > start_pos)
-	{
-		auto name = str.substr(start_pos, end_pos - start_pos);
-		auto res = j->find(name);
-
-		if (res == j->end())
-			return &((*j)[name] = json::object());
-		else
-			return &res.value();
-	}
-	return j;
-}
-
 //	ent = "." = "[]"
 //	obj = "[" = ".,"
 //	sub = "]" = ",."
 //	rel = "," = "]["
-//	функция парсит строку пока не встретит лишнюю закрывающую скобку ] или конец строки
-//	после возвращает строку до ] или целиком
-//	функция должна найти или создать все связи внутри строки до ] или целиком
-//	пока что не будем создавать все промежуточные связи в корневом отношении!
-json &parse_string(json &rel, vector<json *> &sub, const string &str, size_t &pos, vector<size_t> &start_pos, vector<size_t> &last_pos) noexcept
+
+size_t link_name(vector<json *> &sub, const string &str, size_t start_pos, size_t end_pos)
 {
-	json *jptr = &rel;
+	if (end_pos > start_pos)
+	{
+		auto name = str.substr(start_pos, end_pos - start_pos);
+		auto res = sub.back()->find(name);
+
+		if (res == sub.back()->end())
+			sub.back() = &((*sub.back())[name] = json::object());
+		else
+			sub.back() = &res.value();
+	}
+	return end_pos + 1;
+}
+
+json &parse_string(json &rel, const string &str) noexcept
+{
+	size_t pos = 0, last_pos = 0;
+	vector<json *> sub;
+	vector<size_t> start_pos;
+
+	sub.push_back(&rel); //	по умолчанию субъектом является корневое отношение
+	start_pos.push_back(pos);
 
 	while (true) //	берём следующую букву имени
+	{
 		switch (str[pos])
 		{
-		case '[':												 //	вложенная ассоциация
-			jptr = link_name(jptr, str, last_pos.back(), pos++); //	переключаем указатель на новую связь
-
-			sub.push_back(jptr);
-			start_pos.push_back(pos);
-			last_pos.push_back(pos);
-
-			jptr = &parse_string(rel, sub, str, pos, start_pos, last_pos); //	переключаем указатель на новую связь
+		case '[':										   //	вложенная ассоциация
+			last_pos = link_name(sub, str, last_pos, pos); //	переключаем субъект на новую ассоциацию
+			sub.push_back(&rel);						   //	начинаем строить новую ассоциацию от корня
+			start_pos.push_back(last_pos);
 			break;
 
-		case ']':														//	конец текущей вложенной ассоциации
-			jptr = link_name(sub.back(), str, start_pos.back(), pos++); //	переключаем указатель на новую связь
-
-			last_pos.pop_back();
-			start_pos.pop_back();
+		case ']': //	конец текущей вложенной ассоциации
 			sub.pop_back();
-			
-			last_pos.back() = pos;
-			return *jptr;
+			last_pos = start_pos.back();
+			start_pos.pop_back();
+			last_pos = link_name(sub, str, last_pos, pos); //	переключаем субъект на новую ассоциацию
 			break;
 
 		case '\0':
-			return *link_name(sub.back(), str, start_pos.back(), pos++); //	переключаем указатель на новую связь
+			return *sub.back();
 
 		default:
-			pos++;
+			break;
 		}
+		pos++;
+	}
 }
 
 void parse_json(const json &j, json &r)
@@ -251,14 +248,7 @@ void parse_json(const json &j, json &r)
 	{
 	case json::value_t::string:
 	{
-		vector<json *> sub;
-		size_t pos = 0;
-		vector<size_t> start_pos;
-		vector<size_t> last_pos;
-		sub.push_back(&r);
-		start_pos.push_back(pos);
-		last_pos.push_back(pos);
-		parse_string(r, sub, j.get_ref<string const &>(), pos, start_pos, last_pos);
+		parse_string(r, j.get_ref<string const &>());
 		return;
 	}
 
