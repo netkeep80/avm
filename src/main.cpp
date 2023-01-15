@@ -49,16 +49,16 @@ true : { $obj : $ent, $rel : bool }
 */
 
 #define new_ent(name)                                     \
-	auto unique##name = unique_ptr<ent_os>(new ent_os()); \
-	ent_os &name = *unique##name.get();
+	auto unique##name = unique_ptr<ent_so>(new ent_so()); \
+	ent_so &name = *unique##name.get();
 
 #define new_obj(name)                                     \
 	auto unique##name = unique_ptr<obj_er>(new obj_er()); \
 	obj_er &name = *unique##name.get();
 
 #define new_rel(name)                                     \
-	auto unique##name = unique_ptr<rel_so>(new rel_so()); \
-	rel_so &name = *unique##name.get();
+	auto unique##name = unique_ptr<rel_os>(new rel_os()); \
+	rel_os &name = *unique##name.get();
 
 #define new_sub(name)                                     \
 	auto unique##name = unique_ptr<sub_re>(new sub_re()); \
@@ -83,10 +83,10 @@ new_ent(Then);
 void build_base_vocabulary()
 {
 	//	Configure base vocabulary
-	Ent.update(&Obj, &Sub);
+	Ent.update(&Sub, &Obj);
 	Obj.update(&Ent, &Rel);
 	Sub.update(&Rel, &Ent);
-	Rel.update(&Sub, &Obj);
+	Rel.update(&Obj, &Sub);
 
 	//	известно что при { $rel : bool } текущее отношение должно быть преобразовано к типу bool
 	//	либо приравлять rel в bool
