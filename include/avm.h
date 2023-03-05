@@ -9,52 +9,19 @@ using namespace std;
 using namespace nlohmann;
 
 /*
-МО в теории множеств представляется как множество 4х взаимосвязанных множеств кортежей длины 3:
+МО в теории множеств представляется как множество взаимосвязанных кортежей длины 3:
 
-RM = {E, O, S, R}, где
-E ⊆ S×O×R = {(s,o,r): s ∈ S, o ∈ O, r ∈ R} - множество кортежей сущностей
-O ⊆ E×R×S = {(e,r,s): e ∈ E, r ∈ R, s ∈ S} - множество кортежей объектов
-S ⊆ R×E×O = {(r,e,o): r ∈ R, e ∈ E, o ∈ O} - множество кортежей субъектов
-R ⊆ O×S×E = {(o,s,e): o ∈ O, s ∈ S, e ∈ E} - множество кортежей отношений
+R ⊆ S×O×E = {(s,o,e): s ∈ S, o ∈ O, e ∈ E} - множество кортежей отношений
 
-МО в теории множеств как множество взаимосвязанных множеств кортежей длины 2:
-
-SO = E - множество сущностей эквивалентно множеству связей субъектов -> объектов
-ER = O - множество объектов  эквивалентно множеству связей сущностей -> отношений
-RE = S - множество субъектов эквивалентно множеству связей отношений -> сущностей
-OS = R - множество отношений эквивалентно множеству связей объектов  -> субъектов
 */
 
-// две структуры относятся к хранению МО, а две к древовидному контексту исполнения
+/*/ две структуры относятся к хранению МО, а две к древовидному контексту исполнения
 struct ent_so; //  субъективация объекта отношения
 struct obj_er; //  сущность отношения субъективации
 struct sub_re; //  отношение сущности объекта
 struct rel_os; //  объективация субъекта сущности
 
-/*      simple implementation
-struct ent_so { // E = (S x O) x R = (SO×R) = (E×R) = ER
-    obj_er* obj;
-    sub_re* sub;
-};
-
-struct obj_er { // O = (E x R) x S = (ER×S) = (O×S) = OS
-    ent_so* ent;
-    rel_os* rel;
-};
-
-struct sub_re { // S = (R x E) x O = (RE×O) = (SxO) = SO
-    rel_os* rel;
-    ent_so* ent;
-};
-
-struct rel_os { // R = (O x S) x E = (OS×E) = (RxE) = RE
-    sub_re* sub;
-    obj_er* obj;
-};
-*/
-
-template <typename impl_t, typename m_t>
-struct member_t;
+template <typename impl_t, typename m_t> struct member_t;
 
 template <typename impl_t>
 struct member_t<impl_t, ent_so> {
@@ -92,11 +59,8 @@ struct member_t<impl_t, sub_re> {
     };
 };
 
-template<typename T, typename... Ts>
-concept any_of = (std::same_as<T, Ts> || ...);
-
-//template<typename T>
-//concept any_oers = any_of<T, ent_so, obj_er, sub_re, rel_os>;
+//template<typename T, typename... Ts> concept any_of = (std::same_as<T, Ts> || ...);
+//template<typename T> concept any_oers = any_of<T, ent_so, obj_er, sub_re, rel_os>;
 
 template <typename src_t, typename dst_t, typename key_t, typename my_t>
 struct link_t
@@ -190,3 +154,62 @@ struct rel_os : link_t<obj_er, sub_re, ent_so, rel_os> {
         : link_t(std::forward<Args>(args)...) {
     }
 };
+
+
+*//////////////////////////////////////////////////////////////////////////////
+//  философское понятие "отношение" соответствует понятию "адресация" в информатике
+//  т.е. соотнесение (настройка) приёмника информации с передатчиком 
+// 4 аспекта:
+// rel_t;   //  Контекст
+// sub_t;   //  Источник
+// obj_t;   //  Назначение
+// ent_t;   //  Индекс
+
+
+template <typename impl_t>
+struct sub_aspect {
+    union {
+        impl_t *rel;
+        impl_t *sub{nullptr};
+    };
+};
+
+template <typename impl_t>
+struct obj_aspect {
+    union {
+        impl_t *rel;
+        impl_t *obj{nullptr};
+    };
+};
+
+template <typename impl_t>
+struct ent_aspect : map<impl_t const*, impl_t*> {};
+
+struct rel_t : sub_aspect<rel_t>, obj_aspect<rel_t>, ent_aspect<rel_t>
+{
+    using sub_t = sub_aspect<rel_t>;
+    using obj_t = obj_aspect<rel_t>;
+    using ent_t = ent_aspect<rel_t>;
+
+    rel_t(rel_t *src = nullptr, rel_t *dst = nullptr) {
+        update(src ? src : sub, dst ? dst : obj);
+    }
+    ~rel_t() {
+        // 1. удаляем все дочерние связи
+        // 2. удаляемся из родителя
+        update(); 
+    }
+
+    void update(rel_t *src = nullptr, rel_t *dst = nullptr) {
+        if (sub) sub->erase(sub->find(obj));
+        sub = src;
+        obj = dst;
+        if (sub) (*sub)[obj] = this;
+    }
+
+    template <typename to_t>
+    to_t *to() { return static_cast<to_t *>(this); }
+};
+
+
+

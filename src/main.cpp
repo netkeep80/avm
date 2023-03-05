@@ -48,45 +48,33 @@ true : { $obj : $ent, $rel : bool }
 (Null: Ent Null)
 */
 
-#define new_ent(name)                                     \
-	auto unique##name = unique_ptr<ent_so>(new ent_so()); \
-	ent_so &name = *unique##name.get();
-
-#define new_obj(name)                                     \
-	auto unique##name = unique_ptr<obj_er>(new obj_er()); \
-	obj_er &name = *unique##name.get();
-
 #define new_rel(name)                                     \
-	auto unique##name = unique_ptr<rel_os>(new rel_os()); \
-	rel_os &name = *unique##name.get();
-
-#define new_sub(name)                                     \
-	auto unique##name = unique_ptr<sub_re>(new sub_re()); \
-	sub_re &name = *unique##name.get();
+	auto unique##name = unique_ptr<rel_t>(new rel_t()); \
+	rel_t &name = *unique##name.get();
 
 //	root entity
-new_ent(Ent);
-new_obj(Obj);
+new_rel(Ent);
+new_rel(Obj);
 //	root relation
 new_rel(Rel);
-new_sub(Sub);
+new_rel(Sub);
 
 //	json = null
-new_ent(Null);
+new_rel(Null);
 
 // new_ent(Bool);
-new_ent(True);
-new_ent(False);
+new_rel(True);
+new_rel(False);
 
-new_ent(Then);
+new_rel(Then);
 
 void build_base_vocabulary()
 {
 	//	Configure base vocabulary
-	Ent.update(&Sub, &Obj);
+	Ent.update(&Obj, &Sub);
 	Obj.update(&Ent, &Rel);
 	Sub.update(&Rel, &Ent);
-	Rel.update(&Obj, &Sub);
+	Rel.update(&Sub, &Obj);
 
 	//	известно что при { $rel : bool } текущее отношение должно быть преобразовано к типу bool
 	//	либо приравлять rel в bool
@@ -112,19 +100,19 @@ void add_json(const json &ent, const string &PathName)
 	out << ent;
 }
 
-void import_json(sub_re &s, const json &j)
+void import_json(rel_t &s, const json &j)
 {
 	switch (j.type())
 	{
 	case json::value_t::null: //	null - означает отсутствие отношения
-		s.update(s.rel, &Null);
+		s.update(s.sub, &Null);
 		return;
 
 	case json::value_t::boolean:
 		if (j.get<json::boolean_t>())
-			s.update(s.rel, &True);
+			s.update(s.sub, &True);
 		else
-			s.update(s.rel, &False);
+			s.update(s.sub, &False);
 		return;
 
 	case json::value_t::string:
@@ -174,13 +162,14 @@ void import_json(sub_re &s, const json &j)
 	}
 }
 
-void export_json(const sub_re &s, json &j)
+
+void export_json(const rel_t &s, json &j)
 {
-	if (s.ent == &Null)
+	if (s.obj == &Null)
 		j = json();
-	else if (s.ent == &True)
+	else if (s.obj == &True)
 		j = json(true);
-	else if (s.ent == &False)
+	else if (s.obj == &False)
 		j = json(false);
 	else
 		j = json("unknown entity");
@@ -326,7 +315,7 @@ Usage:
 	try
 	{
 		//	создаём субъект для помещения в него корня с дефолтным значением Null
-		new_sub(root_sub);
+		new_rel(root_sub);
 		root_sub.update(&Rel, &Null);
 
 		get_json(root, entry_point);
