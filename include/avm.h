@@ -13,6 +13,14 @@ using namespace nlohmann;
 
 R ⊆ S×O×E = {(s,o,e): s ∈ S, o ∈ O, e ∈ E} - множество кортежей отношений
 
+Ent = Rel[Rel] = "[]" = json null
+Rel = Sub[Obj] = "[[]][[,]]" = "[[],[,]]" = "" = json root
+Sub = Rel[Ent] = "[[]]"
+Obj = Ent[Rel] = "[][]" = "[,]"
+0 = Rel[Sub] = "[[[]]]" = json false
+1 = Rel[Obj] = "[[][]]" = "[[,]]" = json true
+
+
 */
 
 /*/ две структуры относятся к хранению МО, а две к древовидному контексту исполнения
@@ -77,7 +85,7 @@ struct link_t
     ~link_t() {
         // 1. удаляем все дочерние связи
         // 2. удаляемся из родителя
-        update(); 
+        update();
     }
 
     void update(src_t *source = nullptr, dst_t *dest = nullptr) {
@@ -156,34 +164,40 @@ struct rel_os : link_t<obj_er, sub_re, ent_so, rel_os> {
 };
 
 
-*//////////////////////////////////////////////////////////////////////////////
+*/
+/////////////////////////////////////////////////////////////////////////////
 //  философское понятие "отношение" соответствует понятию "адресация" в информатике
-//  т.е. соотнесение (настройка) приёмника информации с передатчиком 
+//  т.е. соотнесение (настройка) приёмника информации с передатчиком
 // 4 аспекта:
 // rel_t;   //  Контекст
 // sub_t;   //  Источник
 // obj_t;   //  Назначение
 // ent_t;   //  Индекс
 
-
 template <typename impl_t>
-struct sub_aspect {
-    union {
+struct sub_aspect
+{
+    union
+    {
         impl_t *rel;
         impl_t *sub{nullptr};
     };
 };
 
 template <typename impl_t>
-struct obj_aspect {
-    union {
+struct obj_aspect
+{
+    union
+    {
         impl_t *rel;
         impl_t *obj{nullptr};
     };
 };
 
 template <typename impl_t>
-struct ent_aspect : map<impl_t const*, impl_t*> {};
+struct ent_aspect : map<impl_t const *, impl_t *>
+{
+};
 
 struct rel_t : sub_aspect<rel_t>, obj_aspect<rel_t>, ent_aspect<rel_t>
 {
@@ -191,25 +205,59 @@ struct rel_t : sub_aspect<rel_t>, obj_aspect<rel_t>, ent_aspect<rel_t>
     using obj_t = obj_aspect<rel_t>;
     using ent_t = ent_aspect<rel_t>;
 
-    rel_t(rel_t *src = nullptr, rel_t *dst = nullptr) {
+    rel_t(rel_t *src = nullptr, rel_t *dst = nullptr)
+    {
         update(src ? src : sub, dst ? dst : obj);
     }
-    ~rel_t() {
+    ~rel_t()
+    {
         // 1. удаляем все дочерние связи
         // 2. удаляемся из родителя
-        update(); 
+        update();
     }
 
-    void update(rel_t *src = nullptr, rel_t *dst = nullptr) {
-        if (sub) sub->erase(sub->find(obj));
+    void update(rel_t *src = nullptr, rel_t *dst = nullptr)
+    {
+        if (sub)
+            sub->erase(sub->find(obj));
         sub = src;
         obj = dst;
-        if (sub) (*sub)[obj] = this;
+        if (sub)
+            (*sub)[obj] = this;
     }
 
     template <typename to_t>
     to_t *to() { return static_cast<to_t *>(this); }
+
+    static inline rel_t *R;
+    static inline rel_t *E;
+    static inline rel_t *S;
+    static inline rel_t *O;
+    static inline rel_t *True;
+    static inline rel_t *False;
+
+private:
+#define static_rel(name)                                       \
+    static auto unique##name = unique_ptr<rel_t>(new rel_t()); \
+    rel_t::name = unique##name.get();
+
+    static inline struct base_voc
+    {
+        base_voc()
+        {
+            static_rel(E); //	null
+            static_rel(O);
+            static_rel(R);
+            static_rel(S);
+            static_rel(True);
+            static_rel(False);
+            //	Configure base vocabulary
+            E->update(R, R);
+            R->update(S, O);
+            O->update(E, R);
+            S->update(R, E);
+            False->update(R, S);
+            True->update(R, O);
+        }
+    } voc;
 };
-
-
-

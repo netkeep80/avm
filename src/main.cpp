@@ -37,52 +37,11 @@ using namespace Platform::Data::Doublets::Memory::United::Generic;
 Это ещё одно подтверждение, что obj/sub однозначно соответствуют true/false,
 а так же понятию правый/левый.
 
-установка rel в true и приведение его к bool
-true : { $obj : $ent, $rel : bool }
-т.е. взять себя, преобразовать к bool и поместить в $rel
-(True: Bool TrueRel)
-(TrueRel: Bool TrueRel)
-
-(False: Bool False)
-
-(Null: Ent Null)
 */
 
 #define new_rel(name)                                     \
 	auto unique##name = unique_ptr<rel_t>(new rel_t()); \
 	rel_t &name = *unique##name.get();
-
-//	root entity
-new_rel(Ent);
-new_rel(Obj);
-//	root relation
-new_rel(Rel);
-new_rel(Sub);
-
-//	json = null
-new_rel(Null);
-
-// new_ent(Bool);
-new_rel(True);
-new_rel(False);
-
-new_rel(Then);
-
-void build_base_vocabulary()
-{
-	//	Configure base vocabulary
-	Ent.update(&Obj, &Sub);
-	Obj.update(&Ent, &Rel);
-	Sub.update(&Rel, &Ent);
-	Rel.update(&Sub, &Obj);
-
-	//	известно что при { $rel : bool } текущее отношение должно быть преобразовано к типу bool
-	//	либо приравлять rel в bool
-	//	bool bool() { $rel = isEnt($rel) ? true : false; }
-	// Bool.update(&Ent, &BoolRel);
-	// True.update(&Bool, &TrueRel);
-	// False.update(&Bool, &FalseRel);
-}
 
 void get_json(json &ent, const string &PathName)
 {
@@ -105,14 +64,14 @@ void import_json(rel_t &s, const json &j)
 	switch (j.type())
 	{
 	case json::value_t::null: //	null - означает отсутствие отношения
-		s.update(s.sub, &Null);
+		s.update(s.sub, rel_t::E);
 		return;
 
 	case json::value_t::boolean:
 		if (j.get<json::boolean_t>())
-			s.update(s.sub, &True);
+			s.update(s.sub, rel_t::True);
 		else
-			s.update(s.sub, &False);
+			s.update(s.sub, rel_t::False);
 		return;
 
 	case json::value_t::string:
@@ -165,20 +124,16 @@ void import_json(rel_t &s, const json &j)
 
 void export_json(const rel_t &s, json &j)
 {
-	if (s.obj == &Null)
+	if (s.obj == rel_t::E)
 		j = json();
-	else if (s.obj == &True)
+	else if (s.obj == rel_t::True)
 		j = json(true);
-	else if (s.obj == &False)
+	else if (s.obj == rel_t::False)
 		j = json(false);
 	else
 		j = json("unknown entity");
 }
 
-//	ent = "." = "[]"
-//	obj = "[" = ".,"
-//	sub = "]" = ",."
-//	rel = "," = "]["
 
 size_t link_name(vector<json *> &sub, const string &str, size_t start_pos, size_t end_pos)
 {
@@ -310,13 +265,13 @@ Usage:
 
 	json root;
 	//	base vocabulary
-	build_base_vocabulary();
+	//build_base_vocabulary();
 
 	try
 	{
 		//	создаём субъект для помещения в него корня с дефолтным значением Null
 		new_rel(root_sub);
-		root_sub.update(&Rel, &Null);
+		root_sub.update(rel_t::R, rel_t::E);
 
 		get_json(root, entry_point);
 		res = json::object();
