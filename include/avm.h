@@ -1,6 +1,7 @@
 #pragma once
 #include "UnitedMemoryLinks.h"
 #include <map>
+#include <iostream>
 #include <string>
 
 #include "nlohmann/json.hpp"
@@ -19,6 +20,9 @@ Sub = Rel[Ent] = "[[]]"
 Obj = Ent[Rel] = "[][]" = "[,]"
 0 = Rel[Sub] = "[[[]]]" = json false
 1 = Rel[Obj] = "[[][]]" = "[[,]]" = json true
+
+R = E[E] - отношение есть сущность сущности
+E = R[E] - сущность есть сущность отношения
 
 
 */
@@ -173,6 +177,8 @@ struct rel_os : link_t<obj_er, sub_re, ent_so, rel_os> {
 // sub_t;   //  Источник
 // obj_t;   //  Назначение
 // ent_t;   //  Индекс
+//  https://studfile.net/preview/7511401/page:4/
+//  https://habr.com/ru/post/127327/
 
 template <typename impl_t>
 struct sub_aspect
@@ -180,7 +186,7 @@ struct sub_aspect
     union
     {
         impl_t *rel;
-        impl_t *sub{nullptr};
+        impl_t *sub;
     };
 };
 
@@ -190,7 +196,7 @@ struct obj_aspect
     union
     {
         impl_t *rel;
-        impl_t *obj{nullptr};
+        impl_t *obj;
     };
 };
 
@@ -199,21 +205,21 @@ struct ent_aspect : map<impl_t const *, impl_t *>
 {
 };
 
-struct rel_t : sub_aspect<rel_t>, obj_aspect<rel_t>, ent_aspect<rel_t>
+struct rel_t : sub_aspect<rel_t>,
+               obj_aspect<rel_t>,
+               ent_aspect<rel_t>
 {
     using sub_t = sub_aspect<rel_t>;
     using obj_t = obj_aspect<rel_t>;
     using ent_t = ent_aspect<rel_t>;
 
-    rel_t(rel_t *src = nullptr, rel_t *dst = nullptr)
-    {
-        update(src ? src : sub, dst ? dst : obj);
-    }
     ~rel_t()
     {
         // 1. удаляем все дочерние связи
         // 2. удаляемся из родителя
-        update();
+        if (sub)
+            sub->erase(sub->find(obj));
+        __deleted++;
     }
 
     void update(rel_t *src = nullptr, rel_t *dst = nullptr)
@@ -229,35 +235,99 @@ struct rel_t : sub_aspect<rel_t>, obj_aspect<rel_t>, ent_aspect<rel_t>
     template <typename to_t>
     to_t *to() { return static_cast<to_t *>(this); }
 
-    static inline rel_t *R;
-    static inline rel_t *E;
-    static inline rel_t *S;
-    static inline rel_t *O;
+    static rel_t *rel()
+    {
+        rel_t* r;
+        db->emplace_back(r = new rel_t());
+        return r;
+    }
+    static rel_t *rel(rel_t *src)
+    {
+        rel_t* r;
+        db->emplace_back(r = new rel_t(src));
+        return r;
+    }
+    static rel_t *rel(rel_t *src, rel_t *dst)
+    {
+        auto it = src->find(dst);
+        if (it != src->end())
+            return it->second;
+        rel_t* r;
+        db->emplace_back(r = new rel_t(src, dst));
+        return r;
+    }
+    static auto count() { return db->size(); }
+    static auto created() { return __created; }
+    static auto deleted() { return __deleted; }
+
+    static inline rel_t *R; //  comma
+    static inline rel_t *E; //  null
+    //static inline rel_t *S; //  subject
+    //static inline rel_t *O; //  object
     static inline rel_t *True;
     static inline rel_t *False;
 
+protected:
+    rel_t()
+    {
+        sub = this;
+        obj = this;
+        (*sub)[obj] = this;
+        __created++;
+    }
+    rel_t(rel_t *src)
+    {
+        sub = src;
+        obj = this;
+        (*sub)[obj] = this;
+        __created++;
+    }
+    rel_t(rel_t *src, rel_t *dst)
+    {
+        sub = src;
+        obj = dst;
+        (*sub)[obj] = this;
+        __created++;
+    }
+
 private:
-#define static_rel(name)                                       \
-    static auto unique##name = unique_ptr<rel_t>(new rel_t()); \
-    rel_t::name = unique##name.get();
+    static inline unique_ptr<vector<unique_ptr<rel_t>>> db;
+    static inline int __created{0};
+    static inline int __deleted{0};
+
+#define add_rel(name) rel_t::name = rel_t::rel();
 
     static inline struct base_voc
     {
         base_voc()
         {
-            static_rel(E); //	null
-            static_rel(O);
-            static_rel(R);
-            static_rel(S);
-            static_rel(True);
-            static_rel(False);
+            db = make_unique<vector<unique_ptr<rel_t>>>();
+            add_rel(R);     //  , корневое отношение (контекст)
+            add_rel(E);     //  root объект (null)
+            //add_rel(S);     //  субъект контекста
+            //add_rel(O);     //  объект контекста
+            add_rel(False); //   0 возможно это субъект
+            add_rel(True);  //   1 возможно это объект
+            
             //	Configure base vocabulary
-            E->update(R, R);
-            R->update(S, O);
-            O->update(E, R);
-            S->update(R, E);
-            False->update(R, S);
-            True->update(R, O);
+            R->update(E, E);    //  "" - текущий контекст
+            E->update(R, E);    //  [] = [null] - обнуление контекста
+            //S->update(R, R);    //  субъект контекста
+            //O->update(E, R);    //  объект контекста
+            //False->update(R, R);
+            //True->update(E, R);
+        }
+        ~base_voc()
+        {
+            //	Disconnect base vocabulary
+            //R->update(R, R);
+            //E->update(E, E);
+            db->clear();
+            std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
+            //std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
+            //std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
         }
     } voc;
+
+    friend base_voc;
 };

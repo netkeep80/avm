@@ -13,11 +13,29 @@ using namespace Platform::Data::Doublets::Memory::United::Generic;
 /*
 	План:
 
-1. сериализация/десериализация bool................V
-2. сериализация/десериализация array
-3. сериализация/десериализация number
-4. сериализация/десериализация string
-5. сериализация/десериализация object
+Сделать версию которая десериализует json в АМО а потом сериализует
+ на ней отработать преобразование и его корректность
+
+1. сериализация/десериализация null................
+2. сериализация/десериализация bool................
+3. сериализация/десериализация array...............
+4. сериализация/десериализация number..............
+5. сериализация/десериализация string..............
+6. сериализация/десериализация object..............
+
+Есть вариант для простых типов данных смоделировать память с линейной дресацией через бинарное дерево.
+Можно использовать 16-тиричную систему адресов.
+Либо использовать 2х уровневую система адресации:
+1. последовательность бит (true/false) для описания байт
+2. последовательность байт (букв) для описания чисел и строк
+
+Для создания root json документа надо уметь создавать:
+1. bit: false/true
+2. array
+3. number is array of bits
+4. string is array of numbers
+5. object is string tree
+
 
 
 	Проблемы:
@@ -37,11 +55,9 @@ using namespace Platform::Data::Doublets::Memory::United::Generic;
 Это ещё одно подтверждение, что obj/sub однозначно соответствуют true/false,
 а так же понятию правый/левый.
 
-*/
+array это компактная сериализация дерева map, которая может использоваться для адресации в бинарном дереве.
 
-#define new_rel(name)                                     \
-	auto unique##name = unique_ptr<rel_t>(new rel_t()); \
-	rel_t &name = *unique##name.get();
+*/
 
 void get_json(json &ent, const string &PathName)
 {
@@ -59,36 +75,41 @@ void add_json(const json &ent, const string &PathName)
 	out << ent;
 }
 
-void import_json(rel_t &s, const json &j)
+rel_t *import_json(const json &j)
 {
 	switch (j.type())
 	{
-	case json::value_t::null: //	null - означает отсутствие отношения
-		s.update(s.sub, rel_t::E);
-		return;
+	case json::value_t::null: //	null - означает отсутствие сущности
+		return rel_t::E;
 
 	case json::value_t::boolean:
-		if (j.get<json::boolean_t>())
-			s.update(s.sub, rel_t::True);
+		if (j.get<bool>())
+			return rel_t::True;
 		else
-			s.update(s.sub, rel_t::False);
-		return;
+			return rel_t::False;
+
+	case json::value_t::array: //	лямбда вектор, который управляет последовательным изменением отношения сущности
+	{
+		auto array = rel_t::E;
+
+		for (auto &it : j)
+		{
+			auto ent = import_json(it);
+			auto rel = rel_t::rel(array, ent);
+			array = rel_t::rel(rel, rel_t::R);
+		}
+		return array;
+	}
+
+	case json::value_t::number_unsigned:
+		return rel_t::E;
 
 	case json::value_t::string:
-		return;
-
-	case json::value_t::array: //	лямбда вектор, который управляет последовательным изменением проекции сущности
-	{
-		auto it = j.begin();
-		auto end = j.end();
-
-		// Then
-		return;
-	}
+		return rel_t::E;
 
 	case json::value_t::object:
 	{
-		auto end = j.end();
+		/*auto end = j.end();
 
 		if (auto ref = j.find("$ref"); ref != end)
 		{ //	это ссылка на json значение
@@ -112,28 +133,40 @@ void import_json(rel_t &s, const json &j)
 			// for (auto &it : vct)
 			// if (!it.exc.is_null())
 			//  throw json({ {it.key, it.exc} });
-		}
-		return;
+		}*/
+		return rel_t::E;
 	}
 
 	default:
-		return;
+		return rel_t::E;
 	}
 }
 
-
-void export_json(const rel_t &s, json &j)
+void export_json(const rel_t *ent, json &j)
 {
-	if (s.obj == rel_t::E)
-		j = json();
-	else if (s.obj == rel_t::True)
+	if (ent == rel_t::E) //	R[E]
+		j = json();		 //	null
+	else if (ent == rel_t::True)
 		j = json(true);
-	else if (s.obj == rel_t::False)
+	else if (ent == rel_t::False)
 		j = json(false);
+	else if (ent->sub == rel_t::E && ent->obj == rel_t::E) //	E[E]
+	{
+		j = json::array();
+		j.push_back(json());
+	}
+	else if (ent->obj == rel_t::R) //	sub[R]
+	{
+		export_json(ent->sub->sub, j);
+		if (j.is_null())
+			j = json::array();
+		json last;
+		export_json(ent->sub->obj, last);
+		j.push_back(last);
+	}
 	else
-		j = json("unknown entity");
+		j = json("is string");
 }
-
 
 size_t link_name(vector<json *> &sub, const string &str, size_t start_pos, size_t end_pos)
 {
@@ -264,20 +297,17 @@ Usage:
 	}
 
 	json root;
-	//	base vocabulary
-	//build_base_vocabulary();
 
 	try
 	{
-		//	создаём субъект для помещения в него корня с дефолтным значением Null
-		new_rel(root_sub);
-		root_sub.update(rel_t::R, rel_t::E);
-
 		get_json(root, entry_point);
 		res = json::object();
-		parse_json(root, res);
-		// import_json(root_sub, root);
-		// export_json(root_sub, res);
+		// parse_json(root, res);
+		//	импортируем в корневой контекст
+		cout << root.dump() << endl;
+		auto root_ent = import_json(root);
+		export_json(root_ent, res);
+		cout << res.dump() << endl;
 		add_json(res, "res.json"s);
 		return 0; //	ok
 	}
