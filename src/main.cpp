@@ -127,7 +127,20 @@ rel_t *import_json(const json &j)
 	}
 
 	case json::value_t::string:
-		return rel_t::E;
+	{
+		auto str = j.get<string>();
+		auto array = rel_t::E;
+
+		for (auto &it : str)
+		{
+			uint8_t val = *reinterpret_cast<uint8_t *>(&it);
+			auto sing = rel_t::E;
+			for (uint8_t i = 1; i; i <<= 1)
+				sing = rel_t::rel(rel_t::rel(sing, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
+			array = rel_t::rel(rel_t::rel(array, sing), rel_t::R);
+		}
+		return array = rel_t::rel(array, rel_t::String);
+	}
 
 	case json::value_t::object:
 	{
@@ -185,6 +198,28 @@ void export_json(const rel_t *ent, json &j)
 		json last;
 		export_json(ent->sub->obj, last);
 		j.push_back(last);
+	}
+	else if (ent->obj == rel_t::String) //	sub[Char]
+	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::string_t str{};
+			for (auto &sing : j)
+				if (sing.is_array())
+				{
+					uint8_t val{}, i{1};
+					for (auto &it : sing)
+					{
+						if (it.is_boolean())
+							if (it.get<bool>())
+								val |= i;
+						i <<= 1;
+					}
+					str += static_cast<char>(val);
+				}
+			j = json(str);
+		}
 	}
 	else if (ent->obj == rel_t::Unsigned) //	sub[Unsigned]
 	{

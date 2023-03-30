@@ -16,3 +16,5 @@ fc res.json array.json
 fc res.json nulls.json  
 ..\build\Release\avm number.json
 fc res.json number.json  
+..\build\Release\avm strings.json 
+fc res.json strings.json 

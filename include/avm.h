@@ -267,6 +267,7 @@ struct rel_t : sub_aspect<rel_t>,
     static inline rel_t *Unsigned;
     static inline rel_t *Integer;
     static inline rel_t *Float;
+    static inline rel_t *String;
 
 protected:
     rel_t()
@@ -310,6 +311,7 @@ private:
             add_rel(Unsigned);
             add_rel(Integer);
             add_rel(Float);
+            add_rel(String);
             
             //	Configure base vocabulary
             R->update(E, E);    //  "" - текущий контекст
