@@ -16,9 +16,9 @@ using namespace Platform::Data::Doublets::Memory::United::Generic;
 Сделать версию которая десериализует json в АМО а потом сериализует
  на ней отработать преобразование и его корректность
 
-1. сериализация/десериализация null................
-2. сериализация/десериализация bool................
-3. сериализация/десериализация array...............
+1. сериализация/десериализация null................V
+2. сериализация/десериализация bool................V
+3. сериализация/десериализация array...............V
 4. сериализация/десериализация number..............
 5. сериализация/десериализация string..............
 6. сериализация/десериализация object..............
@@ -93,16 +93,38 @@ rel_t *import_json(const json &j)
 		auto array = rel_t::E;
 
 		for (auto &it : j)
-		{
-			auto ent = import_json(it);
-			auto rel = rel_t::rel(array, ent);
-			array = rel_t::rel(rel, rel_t::R);
-		}
+			array = rel_t::rel(rel_t::rel(array, import_json(it)), rel_t::R);
 		return array;
 	}
 
 	case json::value_t::number_unsigned:
-		return rel_t::E;
+	{
+		json::number_unsigned_t val = j.get<json::number_unsigned_t>();
+		auto array = rel_t::E;
+		for (json::number_unsigned_t i = 1; i; i <<= 1)
+			array = rel_t::rel(rel_t::rel(array, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
+		return array = rel_t::rel(array, rel_t::Unsigned);
+	}
+
+	case json::value_t::number_integer:
+	{
+		json::number_integer_t ival = j.get<json::number_integer_t>();
+		json::number_unsigned_t val = *reinterpret_cast<json::number_unsigned_t *>(&ival);
+		auto array = rel_t::E;
+		for (json::number_unsigned_t i = 1; i; i <<= 1)
+			array = rel_t::rel(rel_t::rel(array, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
+		return array = rel_t::rel(array, rel_t::Integer);
+	}
+
+	case json::value_t::number_float:
+	{
+		json::number_float_t fval = j.get<json::number_float_t>();
+		json::number_unsigned_t val = *reinterpret_cast<json::number_unsigned_t *>(&fval);
+		auto array = rel_t::E;
+		for (json::number_unsigned_t i = 1; i; i <<= 1)
+			array = rel_t::rel(rel_t::rel(array, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
+		return array = rel_t::rel(array, rel_t::Float);
+	}
 
 	case json::value_t::string:
 		return rel_t::E;
@@ -163,6 +185,54 @@ void export_json(const rel_t *ent, json &j)
 		json last;
 		export_json(ent->sub->obj, last);
 		j.push_back(last);
+	}
+	else if (ent->obj == rel_t::Unsigned) //	sub[Unsigned]
+	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::number_unsigned_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+				i <<= 1;
+			}
+			j = json(val);
+		}
+	}
+	else if (ent->obj == rel_t::Integer) //	sub[Integer]
+	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::number_unsigned_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+				i <<= 1;
+			}
+			j = json(*reinterpret_cast<json::number_integer_t *>(&val));
+		}
+	}
+	else if (ent->obj == rel_t::Float) //	sub[Float]
+	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::number_unsigned_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+				i <<= 1;
+			}
+			j = json(*reinterpret_cast<json::number_float_t *>(&val));
+		}
 	}
 	else
 		j = json("is string");

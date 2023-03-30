@@ -262,10 +262,11 @@ struct rel_t : sub_aspect<rel_t>,
 
     static inline rel_t *R; //  comma
     static inline rel_t *E; //  null
-    //static inline rel_t *S; //  subject
-    //static inline rel_t *O; //  object
     static inline rel_t *True;
     static inline rel_t *False;
+    static inline rel_t *Unsigned;
+    static inline rel_t *Integer;
+    static inline rel_t *Float;
 
 protected:
     rel_t()
@@ -304,24 +305,18 @@ private:
             db = make_unique<vector<unique_ptr<rel_t>>>();
             add_rel(R);     //  , корневое отношение (контекст)
             add_rel(E);     //  root объект (null)
-            //add_rel(S);     //  субъект контекста
-            //add_rel(O);     //  объект контекста
             add_rel(False); //   0 возможно это субъект
             add_rel(True);  //   1 возможно это объект
+            add_rel(Unsigned);
+            add_rel(Integer);
+            add_rel(Float);
             
             //	Configure base vocabulary
             R->update(E, E);    //  "" - текущий контекст
             E->update(R, E);    //  [] = [null] - обнуление контекста
-            //S->update(R, R);    //  субъект контекста
-            //O->update(E, R);    //  объект контекста
-            //False->update(R, R);
-            //True->update(E, R);
         }
         ~base_voc()
         {
-            //	Disconnect base vocabulary
-            //R->update(R, R);
-            //E->update(E, E);
             db->clear();
             std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
             //std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
