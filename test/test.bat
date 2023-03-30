@@ -18,3 +18,7 @@ fc res.json nulls.json
 fc res.json number.json  
 ..\build\Release\avm strings.json 
 fc res.json strings.json 
+..\build\Release\avm text.json 
+fc res.json text.json 
+..\build\Release\avm text2.json 
+fc res.json text2.json 

@@ -320,7 +320,7 @@ private:
         ~base_voc()
         {
             db->clear();
-            std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
+            //std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
             //std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
             //std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
         }

@@ -185,19 +185,23 @@ void export_json(const rel_t *ent, json &j)
 		j = json(true);
 	else if (ent == rel_t::False)
 		j = json(false);
-	else if (ent->sub == rel_t::E && ent->obj == rel_t::E) //	E[E]
+	else if (ent == rel_t::R) //	E[E]
 	{
 		j = json::array();
 		j.push_back(json());
 	}
 	else if (ent->obj == rel_t::R) //	sub[R]
 	{
-		export_json(ent->sub->sub, j);
-		if (j.is_null())
-			j = json::array();
-		json last;
-		export_json(ent->sub->obj, last);
-		j.push_back(last);
+		j = json::array();
+		auto cur = ent;
+		do
+		{
+			json last;
+			export_json(cur->sub->obj, last);
+			j.push_back(last);
+		} while ((cur = cur->sub->sub) != rel_t::E);
+
+		std::reverse(j.begin(), j.end());
 	}
 	else if (ent->obj == rel_t::String) //	sub[Char]
 	{
@@ -216,7 +220,7 @@ void export_json(const rel_t *ent, json &j)
 								val |= i;
 						i <<= 1;
 					}
-					str += static_cast<char>(val);
+					str += *reinterpret_cast<char *>(&val);
 				}
 			j = json(str);
 		}
@@ -409,11 +413,12 @@ Usage:
 		res = json::object();
 		// parse_json(root, res);
 		//	импортируем в корневой контекст
-		cout << root.dump() << endl;
 		auto root_ent = import_json(root);
+		//cout << root.dump() << endl;
 		export_json(root_ent, res);
-		cout << res.dump() << endl;
+		//cout << res.dump() << endl;
 		add_json(res, "res.json"s);
+		std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
 		return 0; //	ok
 	}
 	catch (json &j)
