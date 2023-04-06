@@ -314,8 +314,10 @@ private:
             add_rel(String);
             
             //	Configure base vocabulary
-            R->update(E, E);    //  "" - текущий контекст
-            E->update(R, E);    //  [] = [null] - обнуление контекста
+            R->update(R, E);    //  "" - текущий контекст
+            E->update(R, R);    //  [] = [null] - обнуление контекста
+            False->update(E, E);
+            True->update(E, R); //  is object
         }
         ~base_voc()
         {
