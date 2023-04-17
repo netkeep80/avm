@@ -267,7 +267,6 @@ struct rel_t : sub_aspect<rel_t>,
     static inline rel_t *Unsigned;
     static inline rel_t *Integer;
     static inline rel_t *Float;
-    static inline rel_t *String;
 
 protected:
     rel_t()
@@ -304,20 +303,22 @@ private:
         base_voc()
         {
             db = make_unique<vector<unique_ptr<rel_t>>>();
-            add_rel(R);     //  , корневое отношение (контекст)
-            add_rel(E);     //  root объект (null)
-            add_rel(False); //   0 возможно это субъект
-            add_rel(True);  //   1 возможно это объект
+            add_rel(R);     //  [], корневое отношение (контекст)
+            add_rel(E);     //  null,  root объект
+            add_rel(False); //  0, это субъект
+            add_rel(True);  //  1, это объект
             add_rel(Unsigned);
             add_rel(Integer);
             add_rel(Float);
-            add_rel(String);
             
             //	Configure base vocabulary
-            R->update(R, E);    //  "" - текущий контекст
-            E->update(R, R);    //  [] = [null] - обнуление контекста
-            False->update(E, E);
-            True->update(E, R); //  is object
+            R->update(E, E);    //  [] is array
+            E->update(R, E);    //  "" is null
+            False->update(R, R);//  subject is false
+            True->update(E, R); //  object is true
+            Unsigned->update(R, Unsigned);
+            Integer->update(R, Integer);
+            Float->update(R, Float);
         }
         ~base_voc()
         {

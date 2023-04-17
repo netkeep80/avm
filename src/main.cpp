@@ -79,7 +79,7 @@ rel_t *import_json(const json &j)
 {
 	switch (j.type())
 	{
-	case json::value_t::null: //	null - означает отсутствие сущности
+	case json::value_t::null: //	начало массива и конец строки
 		return rel_t::E;
 
 	case json::value_t::boolean:
@@ -95,6 +95,22 @@ rel_t *import_json(const json &j)
 		for (auto &it : j)
 			array = rel_t::rel(rel_t::rel(array, import_json(it)), rel_t::R);
 		return array;
+	}
+
+	case json::value_t::string:
+	{
+		auto str = j.get<string>();
+		auto array = rel_t::E;
+
+		for (auto &it : str)
+		{
+			uint8_t val = *reinterpret_cast<uint8_t *>(&it);
+			auto sing = rel_t::E;
+			for (uint8_t i = 1; i; i <<= 1)
+				sing = rel_t::rel(rel_t::rel(sing, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
+			array = rel_t::rel(rel_t::rel(array, sing), rel_t::R);
+		}
+		return array = rel_t::rel(array, rel_t::E);
 	}
 
 	case json::value_t::number_unsigned:
@@ -124,22 +140,6 @@ rel_t *import_json(const json &j)
 		for (json::number_unsigned_t i = 1; i; i <<= 1)
 			array = rel_t::rel(rel_t::rel(array, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
 		return array = rel_t::rel(array, rel_t::Float);
-	}
-
-	case json::value_t::string:
-	{
-		auto str = j.get<string>();
-		auto array = rel_t::E;
-
-		for (auto &it : str)
-		{
-			uint8_t val = *reinterpret_cast<uint8_t *>(&it);
-			auto sing = rel_t::E;
-			for (uint8_t i = 1; i; i <<= 1)
-				sing = rel_t::rel(rel_t::rel(sing, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
-			array = rel_t::rel(rel_t::rel(array, sing), rel_t::R);
-		}
-		return array = rel_t::rel(array, rel_t::String);
 	}
 
 	case json::value_t::object:
@@ -179,18 +179,18 @@ rel_t *import_json(const json &j)
 
 void export_json(const rel_t *ent, json &j)
 {
-	if (ent == rel_t::E) //	R[E]
-		j = json();		 //	null
-	else if (ent == rel_t::True)
-		j = json(true);
-	else if (ent == rel_t::False)
-		j = json(false);
-	else if (ent == rel_t::R) //	E[E]
+	if (ent == rel_t::E)			//	R[E]
+		j = json();		 		//	null
+	else if (ent == rel_t::True)	//	E[R]
+		j = json(true);			//	true
+	else if (ent == rel_t::False)	//	R[R]
+		j = json(false);		//	false
+	else if (ent == rel_t::R)		//	E[E]
 	{
-		j = json::array();
+		j = json::array();		//	[]
 		j.push_back(json());
 	}
-	else if (ent->obj == rel_t::R) //	sub[R]
+	else if (ent->obj == rel_t::R)	//	array
 	{
 		j = json::array();
 		auto cur = ent;
@@ -203,7 +203,7 @@ void export_json(const rel_t *ent, json &j)
 
 		std::reverse(j.begin(), j.end());
 	}
-	else if (ent->obj == rel_t::String) //	sub[Char]
+	else if (ent->obj == rel_t::E)	//	string, хотя возможно это должен быть объект
 	{
 		export_json(ent->sub, j);
 		if (j.is_array())
