@@ -312,10 +312,13 @@ private:
             add_rel(Float);
             
             //	Configure base vocabulary
+            //  всё связи к E это сущности
             R->update(E, E);    //  [] is array
             E->update(R, E);    //  "" is null
+            //  всё связи к R это значения
             False->update(R, R);//  subject is false
             True->update(E, R); //  object is true
+            //  всё связи не к E или R это сложные отношения
             Unsigned->update(R, Unsigned);
             Integer->update(R, Integer);
             Float->update(R, Float);

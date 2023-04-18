@@ -97,20 +97,18 @@ rel_t *import_json(const json &j)
 		return array;
 	}
 
-	case json::value_t::string:
+	case json::value_t::string: //	битовая последовательность для описания строк
 	{
 		auto str = j.get<string>();
-		auto array = rel_t::E;
+		auto array = rel_t::E; //	начало массива
 
 		for (auto &it : str)
 		{
 			uint8_t val = *reinterpret_cast<uint8_t *>(&it);
-			auto sing = rel_t::E;
 			for (uint8_t i = 1; i; i <<= 1)
-				sing = rel_t::rel(rel_t::rel(sing, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
-			array = rel_t::rel(rel_t::rel(array, sing), rel_t::R);
+				array = rel_t::rel(rel_t::rel(array, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
 		}
-		return array = rel_t::rel(array, rel_t::E);
+		return array = rel_t::rel(array, rel_t::E); //	конец массива
 	}
 
 	case json::value_t::number_unsigned:
@@ -179,18 +177,18 @@ rel_t *import_json(const json &j)
 
 void export_json(const rel_t *ent, json &j)
 {
-	if (ent == rel_t::E)			//	R[E]
-		j = json();		 		//	null
-	else if (ent == rel_t::True)	//	E[R]
-		j = json(true);			//	true
-	else if (ent == rel_t::False)	//	R[R]
-		j = json(false);		//	false
-	else if (ent == rel_t::R)		//	E[E]
+	if (ent == rel_t::E)		  //	R[E]
+		j = json();				  //	null
+	else if (ent == rel_t::True)  //	E[R]
+		j = json(true);			  //	true
+	else if (ent == rel_t::False) //	R[R]
+		j = json(false);		  //	false
+	else if (ent == rel_t::R)	  //	E[E]
 	{
-		j = json::array();		//	[]
+		j = json::array(); //	[]
 		j.push_back(json());
 	}
-	else if (ent->obj == rel_t::R)	//	array
+	else if (ent->obj == rel_t::R) //	array
 	{
 		j = json::array();
 		auto cur = ent;
@@ -203,25 +201,26 @@ void export_json(const rel_t *ent, json &j)
 
 		std::reverse(j.begin(), j.end());
 	}
-	else if (ent->obj == rel_t::E)	//	string, хотя возможно это должен быть объект
+	else if (ent->obj == rel_t::E) //	битовая последовательность для описания строк
 	{
 		export_json(ent->sub, j);
 		if (j.is_array())
 		{
 			json::string_t str{};
-			for (auto &sing : j)
-				if (sing.is_array())
+			uint8_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+
+				if ((i <<= 1) == 0x00)
 				{
-					uint8_t val{}, i{1};
-					for (auto &it : sing)
-					{
-						if (it.is_boolean())
-							if (it.get<bool>())
-								val |= i;
-						i <<= 1;
-					}
 					str += *reinterpret_cast<char *>(&val);
+					i = 1;
+					val = 0;
 				}
+			}
 			j = json(str);
 		}
 	}
@@ -414,9 +413,9 @@ Usage:
 		// parse_json(root, res);
 		//	импортируем в корневой контекст
 		auto root_ent = import_json(root);
-		//cout << root.dump() << endl;
+		// cout << root.dump() << endl;
 		export_json(root_ent, res);
-		//cout << res.dump() << endl;
+		// cout << res.dump() << endl;
 		add_json(res, "res.json"s);
 		std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
 		return 0; //	ok
