@@ -315,7 +315,7 @@ private:
             //  всё связи к E это сущности
             R->update(E, E); //  [] is array
             E->update(R, E); //  "" is null
-            //  всё связи к R это значения
+            //  всё связи к R это значения, это не может быть объектом
             False->update(R, R); //  subject is false
             True->update(E, R);  //  object is true
             //  всё связи не к E или R это сложные отношения
