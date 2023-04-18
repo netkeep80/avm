@@ -179,15 +179,15 @@ void export_json(const rel_t *ent, json &j)
 {
 	if (ent == rel_t::E)		  //	R[E]
 		j = json();				  //	null
-	else if (ent == rel_t::True)  //	E[R]
-		j = json(true);			  //	true
-	else if (ent == rel_t::False) //	R[R]
-		j = json(false);		  //	false
 	else if (ent == rel_t::R)	  //	E[E]
 	{
 		j = json::array(); //	[]
 		j.push_back(json());
 	}
+	else if (ent == rel_t::True)  //	E[R]
+		j = json(true);			  //	true
+	else if (ent == rel_t::False) //	R[R]
+		j = json(false);		  //	false
 	else if (ent->obj == rel_t::R) //	array
 	{
 		j = json::array();
@@ -203,6 +203,105 @@ void export_json(const rel_t *ent, json &j)
 	}
 	else if (ent->obj == rel_t::E) //	битовая последовательность для описания строк
 	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::string_t str{};
+			uint8_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+
+				if ((i <<= 1) == 0x00)
+				{
+					str += *reinterpret_cast<char *>(&val);
+					i = 1;
+					val = 0;
+				}
+			}
+			j = json(str);
+		}
+	}
+	else if (ent->obj == rel_t::Unsigned) //	sub[Unsigned]
+	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::number_unsigned_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+				i <<= 1;
+			}
+			j = json(val);
+		}
+	}
+	else if (ent->obj == rel_t::Integer) //	sub[Integer]
+	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::number_unsigned_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+				i <<= 1;
+			}
+			j = json(*reinterpret_cast<json::number_integer_t *>(&val));
+		}
+	}
+	else if (ent->obj == rel_t::Float) //	sub[Float]
+	{
+		export_json(ent->sub, j);
+		if (j.is_array())
+		{
+			json::number_unsigned_t val{}, i{1};
+			for (auto &it : j)
+			{
+				if (it.is_boolean())
+					if (it.get<bool>())
+						val |= i;
+				i <<= 1;
+			}
+			j = json(*reinterpret_cast<json::number_float_t *>(&val));
+		}
+	}
+	else
+		j = json("is string");
+}
+
+string export_string(const rel_t *ent)
+{
+	if (ent == rel_t::E)		  //	R[E]
+		return "E"s;
+	else if (ent == rel_t::R)	  //	E[E]
+		return "R"s;
+	else if (ent == rel_t::True)  //	E[R]
+		return "O"s;
+	else if (ent == rel_t::False) //	R[R]
+		return "S"s;
+	else if (ent->obj == rel_t::R) //	array
+	{
+		string last;
+		auto cur = ent;
+		do
+		{
+			if (last.empty())
+				last = export_string(cur->sub->obj) + "]"s;
+			else
+				last = export_string(cur->sub->obj) + "," + last;
+		} while ((cur = cur->sub->sub) != rel_t::E);
+		return "["s + last;
+	}
+	else if (ent->obj == rel_t::E) //	битовая последовательность для описания строк
+	{
+		json j;
 		export_json(ent->sub, j);
 		if (j.is_array())
 		{
@@ -417,6 +516,7 @@ Usage:
 		export_json(root_ent, res);
 		// cout << res.dump() << endl;
 		add_json(res, "res.json"s);
+		add_json(json(export_string(root_ent)), "res.txt"s);
 		std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
 		return 0; //	ok
 	}
