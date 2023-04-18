@@ -237,13 +237,13 @@ struct rel_t : sub_aspect<rel_t>,
 
     static rel_t *rel()
     {
-        rel_t* r;
+        rel_t *r;
         db->emplace_back(r = new rel_t());
         return r;
     }
     static rel_t *rel(rel_t *src)
     {
-        rel_t* r;
+        rel_t *r;
         db->emplace_back(r = new rel_t(src));
         return r;
     }
@@ -252,7 +252,7 @@ struct rel_t : sub_aspect<rel_t>,
         auto it = src->find(dst);
         if (it != src->end())
             return it->second;
-        rel_t* r;
+        rel_t *r;
         db->emplace_back(r = new rel_t(src, dst));
         return r;
     }
@@ -310,25 +310,60 @@ private:
             add_rel(Unsigned);
             add_rel(Integer);
             add_rel(Float);
-            
+
             //	Configure base vocabulary
             //  всё связи к E это сущности
-            R->update(E, E);    //  [] is array
-            E->update(R, E);    //  "" is null
+            R->update(E, E); //  [] is array
+            E->update(R, E); //  "" is null
             //  всё связи к R это значения
-            False->update(R, R);//  subject is false
-            True->update(E, R); //  object is true
+            False->update(R, R); //  subject is false
+            True->update(E, R);  //  object is true
             //  всё связи не к E или R это сложные отношения
             Unsigned->update(R, Unsigned);
             Integer->update(R, Integer);
             Float->update(R, Float);
+
+            //  null != {}
+            //  null != []
+
+            //	нужен формат сериализации относительного адреса в строку
+            //	строка значение и строка ключ могут различаться в АМО
+            //	не стоит путать [] в json и в выражении индекса
+
+/*
+Правда, приносит разрушение в мир иллюзий.
+Ложь, как иллюзия, приносит разрушение в мир правды.
+Но, и в своём мире иллюзий, ложь полнит его и уплотняет.
+Правда, в своём мире, синхронизирует и развивает.
+*/
+
+            /*
+null is not an object, it is a primitive value.
+For example, you cannot add properties to it.
+Sometimes people wrongly assume that it is an object,
+because typeof null returns "object".
+But that is actually a bug (that might even be fixed in ECMAScript 6).
+
+null: used by programmers to indicate “no value”, e.g. as a parameter to a function.
+
+> Boolean(null)
+false
+> Boolean("")
+false
+> Boolean(3-3)
+false
+> Boolean({})
+true
+> Boolean([])
+true
+            */
         }
         ~base_voc()
         {
             db->clear();
-            //std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
-            //std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
-            //std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
+            // std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
+            // std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
+            // std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
         }
     } voc;
 
