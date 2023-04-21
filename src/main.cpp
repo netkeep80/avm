@@ -275,7 +275,7 @@ void export_json(const rel_t *ent, json &j)
 	else
 		j = json("is string");
 }
-
+/*
 string export_string(const rel_t *ent)
 {
 	if (ent == rel_t::E)		  //	R[E]
@@ -374,7 +374,7 @@ string export_string(const rel_t *ent)
 	else
 		j = json("is string");
 }
-
+*/
 size_t link_name(vector<json *> &sub, const string &str, size_t start_pos, size_t end_pos)
 {
 	if (end_pos > start_pos)
@@ -516,7 +516,7 @@ Usage:
 		export_json(root_ent, res);
 		// cout << res.dump() << endl;
 		add_json(res, "res.json"s);
-		add_json(json(export_string(root_ent)), "res.txt"s);
+		//add_json(json(export_string(root_ent)), "res.txt"s);
 		std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
 		return 0; //	ok
 	}

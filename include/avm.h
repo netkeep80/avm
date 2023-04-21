@@ -302,6 +302,7 @@ private:
     {
         base_voc()
         {
+            //	Configure base vocabulary
             db = make_unique<vector<unique_ptr<rel_t>>>();
             add_rel(R);     //  [], корневое отношение (контекст)
             add_rel(E);     //  null,  root объект
@@ -311,33 +312,67 @@ private:
             add_rel(Integer);
             add_rel(Float);
 
-            //	Configure base vocabulary
-            //  всё связи к E это сущности
-            R->update(E, E); //  [] is array
-            E->update(R, E); //  "" is null
-            //  всё связи к R это значения, это не может быть объектом
-            False->update(R, R); //  subject is false
-            True->update(E, R);  //  object is true
+            //  всё связи к E это множество определений соответствий
+            //  множество кортежей длины 2 есть отображение соответствия в соответствие
+            R->update(E, E); //  (,)
+            //  соответствие есть отображение множества кортежей длины 2 в соответствие
+            E->update(R, E); //  void
+            //  таким образом E = { (R,E), (E,E) }
+
+            //  всё связи к R это множество кортежей длины 2, из них могут быть составлены кортежи длины N
+            False->update(R, R); //  false is R = { (E,E) }
+            True->update(E, R);  //  true is R = { (R,E) }
+
+            //  Определяем отображение соответствия Boolean
+            //  (Boolean,E)
+            //  ((True,True),Boolean)
+            //  ((False,False),Boolean)
+
             //  всё связи не к E или R это сложные отношения
             Unsigned->update(R, Unsigned);
             Integer->update(R, Integer);
             Float->update(R, Float);
 
-            //  null != {}
+            //  json object {} определяет соответствие между множеством ключей и множеством значений
+            //  если среди значений есть null значит
             //  null != []
 
             //	нужен формат сериализации относительного адреса в строку
             //	строка значение и строка ключ могут различаться в АМО
             //	не стоит путать [] в json и в выражении индекса
+        }
+        ~base_voc()
+        {
+            db->clear();
+            // std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
+            // std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
+            // std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
+        }
+    } voc;
+
+    friend base_voc;
+};
 
 /*
 Правда, приносит разрушение в мир иллюзий.
 Ложь, как иллюзия, приносит разрушение в мир правды.
 Но, и в своём мире иллюзий, ложь полнит его и уплотняет.
 Правда, в своём мире, синхронизирует и развивает.
-*/
 
-            /*
+void is a keyword that means that a function does not result a value.
+
+java.lang.Void is a reference type, then the following is valid:
+
+Void nil = null;
+(so far it is not interesting...)
+
+As a result type (a function with a return value of type Void) it means that the function *always * return null (it cannot return anything other than null, because Void has no instances).
+
+Void function(int a, int b) {
+    //do something
+    return null;
+}
+
 null is not an object, it is a primitive value.
 For example, you cannot add properties to it.
 Sometimes people wrongly assume that it is an object,
@@ -356,16 +391,4 @@ false
 true
 > Boolean([])
 true
-            */
-        }
-        ~base_voc()
-        {
-            db->clear();
-            // std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
-            // std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
-            // std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
-        }
-    } voc;
-
-    friend base_voc;
-};
+*/
