@@ -21,8 +21,9 @@ Obj = Ent[Rel] = "[][]" = "[,]"
 0 = Rel[Sub] = "[[[]]]" = json false
 1 = Rel[Obj] = "[[][]]" = "[[,]]" = json true
 
-R = E[E] - отношение есть сущность сущности
-E = R[E] - сущность есть сущность отношения
+R = E[E] - отношение есть отношение сущности (двойное отрицание)
+E = R[E] - сущность есть сущность отношения (отрицание бытия или отношения)
+E = E[E][E] - сущность есть кортеж длины 3 из 3х сущностей
 
 
 */
@@ -167,28 +168,18 @@ struct rel_os : link_t<obj_er, sub_re, ent_so, rel_os> {
     }
 };
 
-
 */
+
 /////////////////////////////////////////////////////////////////////////////
-//  философское понятие "отношение" соответствует понятию "адресация" в информатике
-//  т.е. соотнесение (настройка) приёмника информации с передатчиком
+//  Философское понятие "отношение" соответствует понятию "передача информации" в информатике
+//  Философское понятие "сущность" соответствует понятию "информация" в информатике,
+//  а суть информации есть соотнесение (настройка) приёмника информации с передатчиком
 // 4 аспекта:
 // rel_t;   //  Контекст
-// sub_t;   //  Источник
-// obj_t;   //  Назначение
+// obj_t;   //  Источник сущности
+// sub_t;   //  Приёмник сущности
 // ent_t;   //  Индекс
-//  https://studfile.net/preview/7511401/page:4/
 //  https://habr.com/ru/post/127327/
-
-template <typename impl_t>
-struct sub_aspect
-{
-    union
-    {
-        impl_t *rel;
-        impl_t *sub;
-    };
-};
 
 template <typename impl_t>
 struct obj_aspect
@@ -201,35 +192,45 @@ struct obj_aspect
 };
 
 template <typename impl_t>
+struct sub_aspect
+{
+    union
+    {
+        impl_t *rel;
+        impl_t *sub;
+    };
+};
+
+template <typename impl_t>
 struct ent_aspect : map<impl_t const *, impl_t *>
 {
 };
 
-struct rel_t : sub_aspect<rel_t>,
-               obj_aspect<rel_t>,
-               ent_aspect<rel_t>
+struct rel_t : obj_aspect<rel_t>,
+               sub_aspect<rel_t>,
+               ent_aspect<rel_t>    //  сущности данного отношения
 {
-    using sub_t = sub_aspect<rel_t>;
     using obj_t = obj_aspect<rel_t>;
+    using sub_t = sub_aspect<rel_t>;
     using ent_t = ent_aspect<rel_t>;
 
     ~rel_t()
     {
         // 1. удаляем все дочерние связи
         // 2. удаляемся из родителя
-        if (sub)
-            sub->erase(sub->find(obj));
+        if (obj)
+            obj->erase(obj->find(sub));
         __deleted++;
     }
 
     void update(rel_t *src = nullptr, rel_t *dst = nullptr)
     {
-        if (sub)
-            sub->erase(sub->find(obj));
-        sub = src;
-        obj = dst;
-        if (sub)
-            (*sub)[obj] = this;
+        if (obj)
+            obj->erase(obj->find(sub));
+        obj = src;
+        sub = dst;
+        if (obj)
+            (*obj)[sub] = this;
     }
 
     template <typename to_t>
@@ -260,8 +261,8 @@ struct rel_t : sub_aspect<rel_t>,
     static auto created() { return __created; }
     static auto deleted() { return __deleted; }
 
-    static inline rel_t *R; //  comma
-    static inline rel_t *E; //  null
+    static inline rel_t *R; //  [], is type for array
+    static inline rel_t *E; //  {}, is type for binary relation
     static inline rel_t *True;
     static inline rel_t *False;
     static inline rel_t *Unsigned;
@@ -271,23 +272,23 @@ struct rel_t : sub_aspect<rel_t>,
 protected:
     rel_t()
     {
-        sub = this;
-        obj = this;
-        (*sub)[obj] = this;
+        obj = this; //  null link
+        sub = this; //  null link
+        (*obj)[sub] = this;
         __created++;
     }
     rel_t(rel_t *src)
     {
-        sub = src;
-        obj = this;
-        (*sub)[obj] = this;
+        obj = src;
+        sub = this; //  null link
+        (*obj)[sub] = this;
         __created++;
     }
     rel_t(rel_t *src, rel_t *dst)
     {
-        sub = src;
-        obj = dst;
-        (*sub)[obj] = this;
+        obj = src;
+        sub = dst;
+        (*obj)[sub] = this;
         __created++;
     }
 
@@ -303,37 +304,47 @@ private:
         base_voc()
         {
             //	Configure base vocabulary
+            //  базовый словарь необходим для проекции понятий теории множеств в МАО
             db = make_unique<vector<unique_ptr<rel_t>>>();
-            add_rel(R);     //  [], корневое отношение (контекст)
-            add_rel(E);     //  null,  root объект
-            add_rel(False); //  0, это субъект
-            add_rel(True);  //  1, это объект
+            add_rel(R);       //  [], корневая связь определяет корневой тип - УП (следование)
+            add_rel(E);       //  null, {},  корневая связь определяет корневой тип - последовательность УП
+            add_rel(False);     //  ложь субъективна
+            add_rel(True);      //  правда объективна
             add_rel(Unsigned);
             add_rel(Integer);
             add_rel(Float);
 
             //  всё связи к E это множество определений соответствий
+            //  всё связи к R это начало списков сущностей, это начало вложенных УП для представления кортежей длины N
             //  множество кортежей длины 2 есть отображение соответствия в соответствие
-            R->update(E, E); //  (,)
+            R->update(E, E); //  [] = E[E] = <0,1>
             //  соответствие есть отображение множества кортежей длины 2 в соответствие
-            E->update(R, E); //  void
-            //  таким образом E = { (R,E), (E,E) }
+            E->update(R, E); //  {} = R[E] = <1>
+            //  таким образом Ent = { (Rel,Ent), (Ent,Ent) }
+            /*
+            Судя по всему в ТС типизируются связи, потому что другого и быть не может
+            Типизацию описывает тоже связь: субьективации
+            Связь ( D, L ) субъективно привязывает дуплет D к типу L
+            При этом образуется экземпляр типа L, который тоже может выступить новым типом
+            Таким образом получаются списки наследников
+            Списки могут образовывать новые дуплеты, которые можно вновь субъективно типизировать
+            Термин типизация возможно не очень подходит для ТС
+            */            
 
-            //  всё связи к R это множество кортежей длины 2, из них могут быть составлены кортежи длины N
-            False->update(R, R); //  false is R = { (E,E) }
-            True->update(E, R);  //  true is R = { (R,E) }
+            False->update(E, R); //  False is R
+            True->update(R, R);  //  True is R
 
             //  Определяем отображение соответствия Boolean
             //  (Boolean,E)
             //  ((True,True),Boolean)
             //  ((False,False),Boolean)
 
-            //  всё связи не к E или R это сложные отношения
-            Unsigned->update(R, Unsigned);
-            Integer->update(R, Integer);
-            Float->update(R, Float);
+            Unsigned->update(Unsigned, R);  //  Unsigned is subtype of R
+            Integer->update(Integer, R);    //  Integer is subtype of R
+            Float->update(Float, R);        //  Float is subtype of R
 
-            //  json object {} определяет соответствие между множеством ключей и множеством значений
+            //  все связи не к E или R это подтипы от E и R, либо просто null
+            //  json object {} определяет соответствие (ФБО) между множеством ключей и множеством значений
             //  если среди значений есть null значит
             //  null != []
 

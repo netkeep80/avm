@@ -19,8 +19,8 @@ using namespace Platform::Data::Doublets::Memory::United::Generic;
 1. сериализация/десериализация null................V
 2. сериализация/десериализация bool................V
 3. сериализация/десериализация array...............V
-4. сериализация/десериализация number..............
-5. сериализация/десериализация string..............
+4. сериализация/десериализация number..............V
+5. сериализация/десериализация string..............V
 6. сериализация/десериализация object..............
 
 Есть вариант для простых типов данных смоделировать память с линейной дресацией через бинарное дерево.
@@ -80,7 +80,7 @@ rel_t *import_json(const json &j)
 	switch (j.type())
 	{
 	case json::value_t::null: //	начало массива и конец строки
-		return rel_t::E;
+		return rel_t::rel();
 
 	case json::value_t::boolean:
 		if (j.get<bool>())
@@ -88,12 +88,17 @@ rel_t *import_json(const json &j)
 		else
 			return rel_t::False;
 
-	case json::value_t::array: //	лямбда вектор, который управляет последовательным изменением отношения сущности
+	case json::value_t::array: //	лямбда вектор<E>, который управляет последовательным изменением отношения сущности
 	{
-		auto array = rel_t::E;
+		auto array = rel_t::R;
 
-		for (auto &it : j)
-			array = rel_t::rel(rel_t::rel(array, import_json(it)), rel_t::R);
+		//	лямбда функция с захватом переменной array
+		auto lambda_func = [&array](const json& j) {
+		    array = rel_t::rel(import_json(j), array);
+		};
+
+		//	применяем лямбда функцию ко всем элементам массива j от конца к началу
+		std::for_each(j.rbegin(), j.rend(), lambda_func);
 		return array;
 	}
 
@@ -184,9 +189,9 @@ void export_json(const rel_t *ent, json &j)
 		j = json::array(); //	[]
 		j.push_back(json());
 	}
-	else if (ent == rel_t::True)  //	E[R]
+	else if (ent == rel_t::True)  //	R[R]
 		j = json(true);			  //	true
-	else if (ent == rel_t::False) //	R[R]
+	else if (ent == rel_t::False) //	E[R]
 		j = json(false);		  //	false
 	else if (ent->obj == rel_t::R) //	array
 	{

@@ -37,10 +37,11 @@ I deeply appreciate the help of the following people.
 
 ## Used third-party tools
 
-avm using the following third-party tools. Thanks a lot!
+avm uses the following third party tools. Thanks a lot!
 
 - [**JSON for Modern C++**](https://github.com/nlohmann/json) for load/unload json view of Relations Model
 - [**LinksPlatform**](https://github.com/linksplatform) for store associative model
+- [**ChatGPT 4.0**](https://chat.openai.com/chat) for documentation generation
 
 Associative Virtual Machine
 Associative Virtual Machine (AVM) является проектом, целью которого является реализация виртуальной машины для исполнения кода, основанного на модели ассоциативных отношений (МАО). Проект предоставляет инструменты для работы с МАО, включая представление данных, функций и логических операций.
@@ -56,11 +57,11 @@ Associative Virtual Machine (AVM) является проектом, целью 
 Клонируйте репозиторий:
 bash
 Copy code
-git clone https://github.com/yourusername/associative-vm.git
+git clone https://github.com/netkeep80/avm.git
 Перейдите в директорию проекта:
 bash
 Copy code
-cd associative-vm
+cd avm
 Создайте директорию сборки:
 bash
 Copy code
@@ -89,4 +90,4 @@ docs/avm_guide.md: Руководство по использованию Associ
 Associative Virtual Machine распространяется под лицензией MIT. Подробности см. в файле LICENSE.
 
 Контакты
-Если у вас возникли вопросы или предложения, не стесняйтесь обращаться по адресу: your.email@example.com
+Если у вас возникли вопросы или предложения, не стесняйтесь обращаться по адресу: netkeep80@gmail.com
