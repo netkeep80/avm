@@ -36,25 +36,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --config Release
-
-      - name: Run tests
-        working-directory: build
-        run: ctest -C Release --output-on-failure
-
-  lint:
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Check file sizes
+        if: runner.os == 'Linux'
         run: |
           MAX_LINES=1500
           FAILED=0
@@ -72,8 +55,19 @@ jobs:
           echo "All source files are within the $MAX_LINES line limit."
 
       - name: Check formatting with clang-format
+        if: runner.os == 'Linux'
         continue-on-error: true
         run: |
           sudo apt-get install -y clang-format-17 > /dev/null 2>&1
           echo "Checking formatting of source files..."
           find src/ include/ -name "*.cpp" -o -name "*.h" | xargs clang-format-17 --dry-run --Werror 2>&1 || echo "::warning::Code formatting issues found. Run clang-format to fix."
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run tests
+        working-directory: build
+        run: ctest -C Release --output-on-failure
