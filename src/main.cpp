@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include <functional>
 #include "str_switch/str_switch.h"
 
 using namespace std;
@@ -163,6 +162,24 @@ rel_t *import_json(const json &j)
 
 void export_json(const rel_t *ent, json &j);
 
+void export_object_chain(const rel_t *node, json &j)
+{
+	if (node == rel_t::E)
+		return;
+	if (node->sub != rel_t::R)
+		return;
+	//	node->obj — пара (prev, pair_rel), node->sub == R
+	export_object_chain(node->obj->obj, j); //	рекурсия по prev
+
+	//	node->obj->sub — это rel(key, value)
+	auto pair_rel = node->obj->sub;
+	json key_json, value_json;
+	export_json(pair_rel->obj, key_json); //	экспорт ключа
+	export_json(pair_rel->sub, value_json); //	экспорт значения
+	if (key_json.is_string())
+		j[key_json.get<string>()] = value_json;
+}
+
 void export_seq(const rel_t *ent, json &j)
 {
 	//	Рекурсивный экспорт цепочки rel(rel(prev, element), R) в json массив
@@ -270,25 +287,7 @@ void export_json(const rel_t *ent, json &j)
 	else if (ent->sub == rel_t::Object) //	sub[Object]
 	{
 		j = json::object();
-		//	обходим цепочку пар ключ-значение
-		std::function<void(const rel_t *)> export_object_chain;
-		export_object_chain = [&](const rel_t *node) {
-			if (node == rel_t::E)
-				return;
-			if (node->sub != rel_t::R)
-				return;
-			//	node->obj — пара (prev, pair_rel), node->sub == R
-			export_object_chain(node->obj->obj); //	рекурсия по prev
-
-			//	node->obj->sub — это rel(key, value)
-			auto pair_rel = node->obj->sub;
-			json key_json, value_json;
-			export_json(pair_rel->obj, key_json); //	экспорт ключа
-			export_json(pair_rel->sub, value_json); //	экспорт значения
-			if (key_json.is_string())
-				j[key_json.get<string>()] = value_json;
-		};
-		export_object_chain(ent->obj);
+		export_object_chain(ent->obj, j);
 	}
 	else
 		j = json();
