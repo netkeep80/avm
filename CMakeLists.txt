@@ -46,6 +46,20 @@ set( TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test" )
 set( TEST_FILES
     true.json
     false.json
+    null.json
+    "[true].json"
+    "[false].json"
+    "[null].json"
+    array.json
+    number.json
+    unsigned.json
+    text.json
+    text2.json
+    strings.json
+    nulls.json
+    empty_array.json
+    empty_object.json
+    root.json
 )
 
 foreach( TEST_FILE ${TEST_FILES} )
