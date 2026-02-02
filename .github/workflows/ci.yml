@@ -56,7 +56,7 @@ jobs:
         run: |
           MAX_LINES=1500
           FAILED=0
-          for file in $(find src/ -name "*.cpp" -o -name "*.h" 2>/dev/null) include/avm.h; do
+          for file in $(find src/ include/ -name "*.cpp" -o -name "*.h" 2>/dev/null); do
             lines=$(wc -l < "$file")
             if [ "$lines" -gt "$MAX_LINES" ]; then
               echo "ERROR: $file has $lines lines (max: $MAX_LINES)"
@@ -73,5 +73,5 @@ jobs:
         continue-on-error: true
         run: |
           sudo apt-get install -y clang-format-17 > /dev/null 2>&1
-          echo "Checking src/ and include/avm.h formatting..."
-          clang-format-17 --dry-run --Werror src/*.cpp include/avm.h 2>&1 || echo "::warning::Code formatting issues found. Run clang-format to fix."
+          echo "Checking formatting of source files..."
+          find src/ include/ -name "*.cpp" -o -name "*.h" | xargs clang-format-17 --dry-run --Werror 2>&1 || echo "::warning::Code formatting issues found. Run clang-format to fix."
