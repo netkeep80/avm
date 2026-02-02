@@ -50,16 +50,16 @@ The Associative Relations Model (ARM) is a mathematical model for storing and pr
 **Version: 0.0.1** (Alpha/Proof-of-Concept)
 
 Implemented:
-- JSON null, boolean, array, number (unsigned, integer, float), string serialization/deserialization
-- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float)
+- JSON null, boolean, array, number (unsigned, integer, float), string, object serialization/deserialization
+- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object)
 
 In Progress:
-- JSON object serialization/deserialization
 - Logical operations (AND, OR, NOT)
 - Relative addressing operator `[]`
 
 ### Documentation
 
+- [JSON Serialization Algorithm (serialization.md)](serialization.md) — detailed description of JSON ↔ ARM conversion
 - [Project Analysis (analysis.md)](analysis.md) — detailed analysis of strengths and weaknesses
 - [Development Plan (plan.md)](plan.md) — roadmap and future directions
 
@@ -147,16 +147,16 @@ AVM (Associative Virtual Machine) — проект, реализующий ви�
 **Версия: 0.0.1** (Альфа/Прототип)
 
 Реализовано:
-- Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string
-- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float)
+- Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string, object
+- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object)
 
 В разработке:
-- Сериализация/десериализация JSON object
 - Логические операции (AND, OR, NOT)
 - Оператор относительной адресации `[]`
 
 ### Документация
 
+- [Алгоритм сериализации JSON (serialization.md)](serialization.md) — подробное описание преобразования JSON ↔ МАО
 - [Анализ проекта (analysis.md)](analysis.md) — подробный анализ сильных и слабых сторон
 - [План развития (plan.md)](plan.md) — дорожная карта и направления развития
 
