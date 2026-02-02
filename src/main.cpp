@@ -3,7 +3,6 @@
 #include <memory>
 #include <iostream>
 #include <string>
-#include <iostream>
 #include <fstream>
 #include "str_switch/str_switch.h"
 
@@ -79,8 +78,8 @@ rel_t *import_json(const json &j)
 {
 	switch (j.type())
 	{
-	case json::value_t::null: //	начало массива и конец строки
-		return rel_t::rel();
+	case json::value_t::null: //	null - означает отсутствие сущности
+		return rel_t::E;
 
 	case json::value_t::boolean:
 		if (j.get<bool>())
@@ -88,21 +87,16 @@ rel_t *import_json(const json &j)
 		else
 			return rel_t::False;
 
-	case json::value_t::array: //	лямбда вектор<E>, который управляет последовательным изменением отношения сущности
+	case json::value_t::array: //	последовательность элементов, представленная цепочкой rel(rel(prev, element), R)
 	{
-		auto array = rel_t::R;
+		auto array = rel_t::E;
 
-		//	лямбда функция с захватом переменной array
-		auto lambda_func = [&array](const json& j) {
-		    array = rel_t::rel(import_json(j), array);
-		};
-
-		//	применяем лямбда функцию ко всем элементам массива j от конца к началу
-		std::for_each(j.rbegin(), j.rend(), lambda_func);
+		for (auto &it : j)
+			array = rel_t::rel(rel_t::rel(array, import_json(it)), rel_t::R);
 		return array;
 	}
 
-	case json::value_t::string: //	битовая последовательность для описания строк
+	case json::value_t::string: //	строка как последовательность символов (каждый символ — битовая последовательность)
 	{
 		auto str = j.get<string>();
 		auto array = rel_t::E; //	начало массива
@@ -110,10 +104,12 @@ rel_t *import_json(const json &j)
 		for (auto &it : str)
 		{
 			uint8_t val = *reinterpret_cast<uint8_t *>(&it);
+			auto sing = rel_t::E;
 			for (uint8_t i = 1; i; i <<= 1)
-				array = rel_t::rel(rel_t::rel(array, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
+				sing = rel_t::rel(rel_t::rel(sing, (val & i) ? rel_t::True : rel_t::False), rel_t::R);
+			array = rel_t::rel(rel_t::rel(array, sing), rel_t::R);
 		}
-		return array = rel_t::rel(array, rel_t::E); //	конец массива
+		return array = rel_t::rel(array, rel_t::String);
 	}
 
 	case json::value_t::number_unsigned:
@@ -145,34 +141,18 @@ rel_t *import_json(const json &j)
 		return array = rel_t::rel(array, rel_t::Float);
 	}
 
-	case json::value_t::object:
+	case json::value_t::object: //	объект как последовательность пар (ключ, значение)
 	{
-		/*auto end = j.end();
+		auto array = rel_t::E;
 
-		if (auto ref = j.find("$ref"); ref != end)
-		{ //	это ссылка на json значение
-			if (ref->is_string())
-			{
-				// try { exec_ent($, string_ref_to<rval>($, ref->get_ref<string const&>())); }
-				// catch (json& j) { throw json({ {ref->get_ref<string const&>(), j} }); }
-			}
-			else
-				throw json({{"$ref", *ref}});
+		for (auto it = j.begin(); it != j.end(); ++it)
+		{
+			auto key = import_json(json(it.key()));
+			auto value = import_json(it.value());
+			auto pair = rel_t::rel(key, value);
+			array = rel_t::rel(rel_t::rel(array, pair), rel_t::R);
 		}
-		else if (auto rel = j.find("$rel"); rel != end)
-		{ //	это сущность, которую надо исполнить в новом контексте?
-			auto obj = j.find("$obj");
-			auto sub = j.find("$sub");
-		}
-		else
-		{ //	контроллер это лямбда структура, которая управляет параллельным проецированием сущностей
-			auto it = j.begin();
-
-			// for (auto &it : vct)
-			// if (!it.exc.is_null())
-			//  throw json({ {it.key, it.exc} });
-		}*/
-		return rel_t::E;
+		return array = rel_t::rel(array, rel_t::Object);
 	}
 
 	default:
@@ -180,157 +160,85 @@ rel_t *import_json(const json &j)
 	}
 }
 
-void export_json(const rel_t *ent, json &j)
+void export_json(const rel_t *ent, json &j);
+
+void export_object_chain(const rel_t *node, json &j)
 {
-	if (ent == rel_t::E)		  //	R[E]
-		j = json();				  //	null
-	else if (ent == rel_t::R)	  //	E[E]
-	{
-		j = json::array(); //	[]
-		j.push_back(json());
-	}
-	else if (ent == rel_t::True)  //	R[R]
-		j = json(true);			  //	true
-	else if (ent == rel_t::False) //	E[R]
-		j = json(false);		  //	false
-	else if (ent->obj == rel_t::R) //	array
+	if (node == rel_t::E)
+		return;
+	if (node->sub != rel_t::R)
+		return;
+	//	node->obj — пара (prev, pair_rel), node->sub == R
+	export_object_chain(node->obj->obj, j); //	рекурсия по prev
+
+	//	node->obj->sub — это rel(key, value)
+	auto pair_rel = node->obj->sub;
+	json key_json, value_json;
+	export_json(pair_rel->obj, key_json); //	экспорт ключа
+	export_json(pair_rel->sub, value_json); //	экспорт значения
+	if (key_json.is_string())
+		j[key_json.get<string>()] = value_json;
+}
+
+void export_seq(const rel_t *ent, json &j)
+{
+	//	Рекурсивный экспорт цепочки rel(rel(prev, element), R) в json массив
+	if (ent == rel_t::E) //	конец цепочки
 	{
 		j = json::array();
-		auto cur = ent;
-		do
-		{
-			json last;
-			export_json(cur->sub->obj, last);
-			j.push_back(last);
-		} while ((cur = cur->sub->sub) != rel_t::E);
-
-		std::reverse(j.begin(), j.end());
+		return;
 	}
-	else if (ent->obj == rel_t::E) //	битовая последовательность для описания строк
+	if (ent->sub != rel_t::R) //	не является шагом последовательности
 	{
-		export_json(ent->sub, j);
-		if (j.is_array())
-		{
-			json::string_t str{};
-			uint8_t val{}, i{1};
-			for (auto &it : j)
-			{
-				if (it.is_boolean())
-					if (it.get<bool>())
-						val |= i;
-
-				if ((i <<= 1) == 0x00)
-				{
-					str += *reinterpret_cast<char *>(&val);
-					i = 1;
-					val = 0;
-				}
-			}
-			j = json(str);
-		}
+		j = json::array();
+		return;
 	}
-	else if (ent->obj == rel_t::Unsigned) //	sub[Unsigned]
-	{
-		export_json(ent->sub, j);
-		if (j.is_array())
-		{
-			json::number_unsigned_t val{}, i{1};
-			for (auto &it : j)
-			{
-				if (it.is_boolean())
-					if (it.get<bool>())
-						val |= i;
-				i <<= 1;
-			}
-			j = json(val);
-		}
-	}
-	else if (ent->obj == rel_t::Integer) //	sub[Integer]
-	{
-		export_json(ent->sub, j);
-		if (j.is_array())
-		{
-			json::number_unsigned_t val{}, i{1};
-			for (auto &it : j)
-			{
-				if (it.is_boolean())
-					if (it.get<bool>())
-						val |= i;
-				i <<= 1;
-			}
-			j = json(*reinterpret_cast<json::number_integer_t *>(&val));
-		}
-	}
-	else if (ent->obj == rel_t::Float) //	sub[Float]
-	{
-		export_json(ent->sub, j);
-		if (j.is_array())
-		{
-			json::number_unsigned_t val{}, i{1};
-			for (auto &it : j)
-			{
-				if (it.is_boolean())
-					if (it.get<bool>())
-						val |= i;
-				i <<= 1;
-			}
-			j = json(*reinterpret_cast<json::number_float_t *>(&val));
-		}
-	}
-	else
-		j = json("is string");
+	//	ent->obj — пара (prev, element), ent->sub == R
+	export_seq(ent->obj->obj, j); //	рекурсия по prev
+	if (j.is_null())
+		j = json::array();
+	json last;
+	export_json(ent->obj->sub, last); //	экспорт текущего элемента
+	j.push_back(last);
 }
-/*
-string export_string(const rel_t *ent)
+
+void export_json(const rel_t *ent, json &j)
 {
-	if (ent == rel_t::E)		  //	R[E]
-		return "E"s;
-	else if (ent == rel_t::R)	  //	E[E]
-		return "R"s;
-	else if (ent == rel_t::True)  //	E[R]
-		return "O"s;
-	else if (ent == rel_t::False) //	R[R]
-		return "S"s;
-	else if (ent->obj == rel_t::R) //	array
+	if (ent == rel_t::E)		  //	R[E] — null
+		j = json();
+	else if (ent == rel_t::True)  //	R[R] — true
+		j = json(true);
+	else if (ent == rel_t::False) //	E[R] — false
+		j = json(false);
+	else if (ent->sub == rel_t::R) //	шаг последовательности (массив)
 	{
-		string last;
-		auto cur = ent;
-		do
-		{
-			if (last.empty())
-				last = export_string(cur->sub->obj) + "]"s;
-			else
-				last = export_string(cur->sub->obj) + "," + last;
-		} while ((cur = cur->sub->sub) != rel_t::E);
-		return "["s + last;
+		export_seq(ent, j);
 	}
-	else if (ent->obj == rel_t::E) //	битовая последовательность для описания строк
+	else if (ent->sub == rel_t::String) //	строка sub[String]
 	{
-		json j;
-		export_json(ent->sub, j);
+		export_seq(ent->obj, j);
 		if (j.is_array())
 		{
 			json::string_t str{};
-			uint8_t val{}, i{1};
-			for (auto &it : j)
-			{
-				if (it.is_boolean())
-					if (it.get<bool>())
-						val |= i;
-
-				if ((i <<= 1) == 0x00)
+			for (auto &sing : j)
+				if (sing.is_array())
 				{
+					uint8_t val{}, i{1};
+					for (auto &it : sing)
+					{
+						if (it.is_boolean())
+							if (it.get<bool>())
+								val |= i;
+						i <<= 1;
+					}
 					str += *reinterpret_cast<char *>(&val);
-					i = 1;
-					val = 0;
 				}
-			}
 			j = json(str);
 		}
 	}
-	else if (ent->obj == rel_t::Unsigned) //	sub[Unsigned]
+	else if (ent->sub == rel_t::Unsigned) //	sub[Unsigned]
 	{
-		export_json(ent->sub, j);
+		export_seq(ent->obj, j);
 		if (j.is_array())
 		{
 			json::number_unsigned_t val{}, i{1};
@@ -344,9 +252,9 @@ string export_string(const rel_t *ent)
 			j = json(val);
 		}
 	}
-	else if (ent->obj == rel_t::Integer) //	sub[Integer]
+	else if (ent->sub == rel_t::Integer) //	sub[Integer]
 	{
-		export_json(ent->sub, j);
+		export_seq(ent->obj, j);
 		if (j.is_array())
 		{
 			json::number_unsigned_t val{}, i{1};
@@ -360,9 +268,9 @@ string export_string(const rel_t *ent)
 			j = json(*reinterpret_cast<json::number_integer_t *>(&val));
 		}
 	}
-	else if (ent->obj == rel_t::Float) //	sub[Float]
+	else if (ent->sub == rel_t::Float) //	sub[Float]
 	{
-		export_json(ent->sub, j);
+		export_seq(ent->obj, j);
 		if (j.is_array())
 		{
 			json::number_unsigned_t val{}, i{1};
@@ -376,10 +284,14 @@ string export_string(const rel_t *ent)
 			j = json(*reinterpret_cast<json::number_float_t *>(&val));
 		}
 	}
+	else if (ent->sub == rel_t::Object) //	sub[Object]
+	{
+		j = json::object();
+		export_object_chain(ent->obj, j);
+	}
 	else
-		j = json("is string");
+		j = json();
 }
-*/
 size_t link_name(vector<json *> &sub, const string &str, size_t start_pos, size_t end_pos)
 {
 	if (end_pos > start_pos)
@@ -462,6 +374,7 @@ void parse_json(const json &j, json &r)
 	}
 }
 
+#ifndef AVM_NO_MAIN
 int main(int argc, char *argv[])
 {
 	//	links db test
@@ -545,3 +458,4 @@ Usage:
 	add_json(root, "rvm.dump.json"s);
 	return 1; //	error
 }
+#endif // AVM_NO_MAIN

@@ -218,8 +218,12 @@ struct rel_t : obj_aspect<rel_t>,
     {
         // 1. удаляем все дочерние связи
         // 2. удаляемся из родителя
-        if (obj)
-            obj->erase(obj->find(sub));
+        if (obj && obj != this)
+        {
+            auto it = obj->find(sub);
+            if (it != obj->end())
+                obj->erase(it);
+        }
         __deleted++;
     }
 
@@ -268,6 +272,8 @@ struct rel_t : obj_aspect<rel_t>,
     static inline rel_t *Unsigned;
     static inline rel_t *Integer;
     static inline rel_t *Float;
+    static inline rel_t *String;
+    static inline rel_t *Object;
 
 protected:
     rel_t()
@@ -313,6 +319,8 @@ private:
             add_rel(Unsigned);
             add_rel(Integer);
             add_rel(Float);
+            add_rel(String);
+            add_rel(Object);
 
             //  всё связи к E это множество определений соответствий
             //  всё связи к R это начало списков сущностей, это начало вложенных УП для представления кортежей длины N
@@ -342,6 +350,8 @@ private:
             Unsigned->update(Unsigned, R);  //  Unsigned is subtype of R
             Integer->update(Integer, R);    //  Integer is subtype of R
             Float->update(Float, R);        //  Float is subtype of R
+            String->update(String, R);      //  String is subtype of R
+            Object->update(Object, R);      //  Object is subtype of R
 
             //  все связи не к E или R это подтипы от E и R, либо просто null
             //  json object {} определяет соответствие (ФБО) между множеством ключей и множеством значений
@@ -354,10 +364,14 @@ private:
         }
         ~base_voc()
         {
+            //  Отключаем все связи перед удалением, чтобы избежать use-after-free
+            for (auto &p : *db)
+            {
+                p->obj = nullptr;
+                p->sub = nullptr;
+                p->clear(); //  очищаем карту сущностей
+            }
             db->clear();
-            // std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
-            // std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
-            // std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
         }
     } voc;
 

@@ -18,6 +18,15 @@ _deps
 *.swo
 *~
 
+# Build logs
+*.log
+
+# Experiments
+experiments/
+
+# Generated test results
+test/res.json
+
 # OS
 .DS_Store
 Thumbs.db

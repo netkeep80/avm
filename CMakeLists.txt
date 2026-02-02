@@ -46,7 +46,41 @@ set( TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test" )
 set( TEST_FILES
     true.json
     false.json
+    null.json
+    "[true].json"
+    "[false].json"
+    "[null].json"
+    array.json
+    number.json
+    unsigned.json
+    text.json
+    text2.json
+    strings.json
+    nulls.json
+    empty_array.json
+    empty_object.json
+    root.json
 )
+
+# Unit test executable
+add_executable( avm_unit_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/unit_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/avm.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/3p/UnitedMemoryLinks.h" )
+
+target_include_directories( avm_unit_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/3p" )
+
+target_compile_definitions( avm_unit_test PRIVATE AVM_NO_MAIN )
+
+if( WIN32 )
+    target_link_libraries( avm_unit_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p/doublets_ffi.dll.lib" )
+endif()
+
+add_test( NAME unit_tests COMMAND avm_unit_test )
 
 foreach( TEST_FILE ${TEST_FILES} )
     add_test(
