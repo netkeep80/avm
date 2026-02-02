@@ -375,6 +375,7 @@ void parse_json(const json &j, json &r)
 	}
 }
 
+#ifndef AVM_NO_MAIN
 int main(int argc, char *argv[])
 {
 	//	links db test
@@ -458,3 +459,4 @@ Usage:
 	add_json(root, "rvm.dump.json"s);
 	return 1; //	error
 }
+#endif // AVM_NO_MAIN
