@@ -354,10 +354,12 @@ private:
         }
         ~base_voc()
         {
+            // Освобождаем память без вызова деструкторов rel_t,
+            // чтобы избежать use-after-free при обращении к картам
+            // уже уничтоженных объектов во время завершения программы.
+            for (auto& ptr : *db)
+                ptr.release();
             db->clear();
-            // std::cout << "rel_t::count() = " << rel_t::count() << std::endl;
-            // std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
-            // std::cout << "rel_t::deleted() = " << rel_t::deleted() << std::endl;
         }
     } voc;
 
