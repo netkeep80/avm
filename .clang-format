@@ -1,0 +1,21 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+BreakBeforeBraces: Allman
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+PointerAlignment: Right
+AccessModifierOffset: -4
+NamespaceIndentation: None
+SortIncludes: false
+IncludeBlocks: Preserve
+AlignTrailingComments: true
+SpaceAfterTemplateKeyword: true
+SpaceBeforeParens: ControlStatements
+Standard: c++20
+---
