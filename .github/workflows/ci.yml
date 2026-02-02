@@ -24,6 +24,7 @@ on:
 
 jobs:
   build:
+    timeout-minutes: 5
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -46,6 +47,7 @@ jobs:
         run: ctest -C Release --output-on-failure
 
   lint:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
 
     steps:
