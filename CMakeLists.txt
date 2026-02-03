@@ -39,6 +39,15 @@ if( WIN32 )
         "${CMAKE_CURRENT_SOURCE_DIR}/3p" )
     target_link_libraries(${PROJECT_NAME} PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/3p/doublets_ffi.dll.lib" )
+    # Increase stack size to 8MB on Windows (default 1MB causes stack overflow
+    # with deeply recursive export_json on large inputs like text2.json)
+    if( MSVC )
+        target_link_options(${TARGET_NAME} PRIVATE /STACK:8388608)
+        target_link_options(avm_unit_test PRIVATE /STACK:8388608)
+    else()
+        target_link_options(${TARGET_NAME} PRIVATE -Wl,--stack,8388608)
+        target_link_options(avm_unit_test PRIVATE -Wl,--stack,8388608)
+    endif()
 endif()
 
 # Add tests: for each test JSON file, run avm and compare output with expected
