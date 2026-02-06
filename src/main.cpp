@@ -199,6 +199,8 @@ rel_t *resolve_operator(const string &name)
 		return rel_t::And;
 	if (name == "Or")
 		return rel_t::Or;
+	if (name == "If")
+		return rel_t::If;
 	return nullptr;
 }
 
@@ -218,6 +220,7 @@ rel_t *interpret(const json &expr)
 	{
 		//	Объект с одним ключом — оператор с аргументами
 		//	{"Not": [true]} или {"And": [true, false]}
+		//	{"If": [condition, then_expr, else_expr]} — условная конструкция
 		if (expr.size() != 1)
 			return rel_t::E; //	некорректное выражение
 
@@ -231,6 +234,22 @@ rel_t *interpret(const json &expr)
 
 		if (!args.is_array() || args.empty())
 			return rel_t::E; //	аргументы должны быть непустым массивом
+
+		//	If: ленивое вычисление — вычисляется только нужная ветка
+		//	{"If": [condition, then_expr, else_expr]}
+		if (op == rel_t::If)
+		{
+			if (args.size() != 3)
+				return rel_t::E; //	If требует ровно 3 аргумента
+
+			rel_t *condition = interpret(args[0]);
+			rel_t *checked = eval(rel_t::If, condition); //	If[condition]
+			if (checked == rel_t::True)
+				return interpret(args[1]); //	вычисляем then-ветку
+			if (checked == rel_t::False)
+				return interpret(args[2]); //	вычисляем else-ветку
+			return rel_t::E; //	условие не boolean
+		}
 
 		//	Вычисляем аргументы рекурсивно и применяем оператор
 		//	Унарный оператор: func[arg]
@@ -484,7 +503,7 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		cout << R"(https://github.com/netkeep80/avm
-     Associative Virtual Machine [Version 0.0.3]
+     Associative Virtual Machine [Version 0.0.4]
              _____________
             /             \
            /               \

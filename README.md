@@ -43,21 +43,23 @@ The Associative Relations Model (ARM) is a mathematical model for storing and pr
 - Support for structured data (arrays and associative arrays)
 - JSON serialization/deserialization (null, boolean, array, number, string, object)
 - Logical operations (NOT, AND, OR) defined as truth tables in entity maps
+- Conditional construct `If` with lazy evaluation of then/else branches
 - Relative addressing operator `[]` for evaluating functions via `eval()`
 - Multi-dimensional relative addressing for passing arguments
-- Expression interpreter `interpret()` for evaluating logical expressions from JSON
+- Expression interpreter `interpret()` for evaluating logical and conditional expressions from JSON
 
 ### Current Status
 
-**Version: 0.0.3** (Alpha)
+**Version: 0.0.4** (Alpha)
 
 Implemented:
 - JSON null, boolean, array, number (unsigned, integer, float), string, object serialization/deserialization
-- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or)
+- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If)
 - Logical operations NOT, AND, OR with truth tables via entity map
+- Conditional construct If with lazy evaluation (e.g. `{"If": [true, "yes", "no"]}` → `"yes"`)
 - Relative addressing operator `[]` via `eval()` function for computing logical functions
-- Expression interpreter for evaluating logical expressions from JSON (e.g. `{"Not": [true]}` → `false`)
-- 125 unit tests + 16 JSON roundtrip tests
+- Expression interpreter for evaluating logical and conditional expressions from JSON
+- 147 unit tests + 16 JSON roundtrip tests
 - CI/CD pipeline (GitHub Actions) for Linux, macOS, Windows
 
 In Progress:
@@ -108,6 +110,13 @@ echo '{"Not": [{"And": [true, false]}]}' > expr.json
 cat res.json  # true
 ```
 
+Conditional expressions with lazy evaluation:
+```bash
+echo '{"If": [true, true, false]}' > cond.json
+./avm cond.json
+cat res.json  # true
+```
+
 ### Dependencies
 
 - C++20 compatible compiler
@@ -154,21 +163,23 @@ AVM (Associative Virtual Machine) — проект, реализующий ви�
 - Поддержка структурированных данных (массивы и ассоциативные массивы)
 - Сериализация/десериализация JSON (null, boolean, array, number, string, object)
 - Логические операции (NOT, AND, OR), определённые как таблицы истинности в entity map
+- Условная конструкция `If` с ленивым вычислением веток then/else
 - Оператор относительной адресации `[]` для вычисления функций через `eval()`
 - Многомерная относительная адресация для передачи аргументов
-- Интерпретатор выражений `interpret()` для вычисления логических выражений из JSON
+- Интерпретатор выражений `interpret()` для вычисления логических и условных выражений из JSON
 
 ### Текущее состояние
 
-**Версия: 0.0.3** (Альфа)
+**Версия: 0.0.4** (Альфа)
 
 Реализовано:
 - Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string, object
-- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or)
+- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If)
 - Логические операции NOT, AND, OR с таблицами истинности через entity map
+- Условная конструкция If с ленивым вычислением (например `{"If": [true, "да", "нет"]}` → `"да"`)
 - Оператор относительной адресации `[]` через функцию `eval()` для вычисления логических функций
-- Интерпретатор выражений для вычисления логических выражений из JSON (например `{"Not": [true]}` → `false`)
-- 125 модульных тестов + 16 JSON roundtrip тестов
+- Интерпретатор выражений для вычисления логических и условных выражений из JSON
+- 147 модульных тестов + 16 JSON roundtrip тестов
 - CI/CD пайплайн (GitHub Actions) для Linux, macOS, Windows
 
 В разработке:
@@ -216,6 +227,13 @@ cmake --build .
 ```bash
 echo '{"Not": [{"And": [true, false]}]}' > expr.json
 ./avm expr.json
+cat res.json  # true
+```
+
+Условные выражения с ленивым вычислением:
+```bash
+echo '{"If": [true, true, false]}' > cond.json
+./avm cond.json
 cat res.json  # true
 ```
 

@@ -277,6 +277,7 @@ struct rel_t : obj_aspect<rel_t>,
     static inline rel_t *Not;
     static inline rel_t *And;
     static inline rel_t *Or;
+    static inline rel_t *If;
 
 protected:
     rel_t()
@@ -363,10 +364,12 @@ private:
             add_rel(Not);
             add_rel(And);
             add_rel(Or);
+            add_rel(If);
 
             Not->update(Not, E);  //  (NOT, Ent) — NOT есть сущность
             And->update(And, E);  //  (AND, Ent) — AND есть сущность
             Or->update(Or, E);    //  (OR, Ent) — OR есть сущность
+            If->update(If, E);    //  (IF, Ent) — IF есть сущность
 
             //  NOT: таблица истинности через entity map
             //  NOT[True] = False, NOT[False] = True
@@ -405,6 +408,13 @@ private:
             //  OR[False][True] = True, OR[False][False] = False
             (*or_false)[True] = True;
             (*or_false)[False] = False;
+
+            //  IF: условная конструкция через entity map
+            //  IF[condition] = condition (identity для boolean)
+            //  Используется интерпретатором для выбора ветки then/else
+            //  IF[True] = True, IF[False] = False
+            (*If)[True] = True;
+            (*If)[False] = False;
         }
         ~base_voc()
         {
