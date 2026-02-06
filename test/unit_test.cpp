@@ -468,6 +468,104 @@ void test_interpret_error_cases()
 	check(interpret(non_array_args) == rel_t::E, "interpret({Not: true}) = E");
 }
 
+//	=== Тесты условной конструкции If ===
+
+void test_if_vocabulary()
+{
+	check(rel_t::If != nullptr, "If is not null");
+
+	//	If должен отличаться от других операций
+	check(rel_t::If != rel_t::Not, "If != Not");
+	check(rel_t::If != rel_t::And, "If != And");
+	check(rel_t::If != rel_t::Or, "If != Or");
+
+	//	If является сущностью (sub == E)
+	check(rel_t::If->sub == rel_t::E, "If->sub == E");
+}
+
+void test_if_eval()
+{
+	//	IF[True] = True (условие истинно)
+	check(eval(rel_t::If, rel_t::True) == rel_t::True, "IF[True] = True");
+	//	IF[False] = False (условие ложно)
+	check(eval(rel_t::If, rel_t::False) == rel_t::False, "IF[False] = False");
+	//	IF[R] = E (не определено для R)
+	check(eval(rel_t::If, rel_t::R) == rel_t::E, "IF[R] = E (undefined for R)");
+}
+
+void test_interpret_if_basic()
+{
+	//	{"If": [true, true, false]} = true (условие истинно → then-ветка)
+	json if_true = {{"If", json::array({true, true, false})}};
+	check(interpret(if_true) == rel_t::True, "interpret({If: [true, true, false]}) = True");
+
+	//	{"If": [false, true, false]} = false (условие ложно → else-ветка)
+	json if_false = {{"If", json::array({false, true, false})}};
+	check(interpret(if_false) == rel_t::False, "interpret({If: [false, true, false]}) = False");
+
+	//	{"If": [true, false, true]} = false (условие истинно → then-ветка = false)
+	json if_true_rev = {{"If", json::array({true, false, true})}};
+	check(interpret(if_true_rev) == rel_t::False, "interpret({If: [true, false, true]}) = False");
+
+	//	{"If": [false, false, true]} = true (условие ложно → else-ветка = true)
+	json if_false_rev = {{"If", json::array({false, false, true})}};
+	check(interpret(if_false_rev) == rel_t::True, "interpret({If: [false, false, true]}) = True");
+}
+
+void test_interpret_if_with_expressions()
+{
+	//	{"If": [{"Not": [false]}, true, false]} = true
+	//	условие: NOT[False] = True → then-ветка = true
+	json if_not = {{"If", json::array({{{"Not", json::array({false})}}, true, false})}};
+	check(interpret(if_not) == rel_t::True, "interpret({If: [{Not: [false]}, true, false]}) = True");
+
+	//	{"If": [{"And": [true, false]}, true, false]} = false
+	//	условие: AND[True][False] = False → else-ветка = false
+	json if_and = {{"If", json::array({{{"And", json::array({true, false})}}, true, false})}};
+	check(interpret(if_and) == rel_t::False, "interpret({If: [{And: [true, false]}, true, false]}) = False");
+
+	//	{"If": [{"Or": [false, true]}, true, false]} = true
+	//	условие: OR[False][True] = True → then-ветка = true
+	json if_or = {{"If", json::array({{{"Or", json::array({false, true})}}, true, false})}};
+	check(interpret(if_or) == rel_t::True, "interpret({If: [{Or: [false, true]}, true, false]}) = True");
+}
+
+void test_interpret_if_nested()
+{
+	//	Вложенные If: {"If": [true, {"If": [false, true, false]}, true]} = false
+	//	условие: true → then = {"If": [false, true, false]} = false
+	json nested_if = {{"If", json::array({true, {{"If", json::array({false, true, false})}}, true})}};
+	check(interpret(nested_if) == rel_t::False, "interpret(nested If: then-branch evaluated) = False");
+
+	//	{"If": [false, true, {"If": [true, false, true]}]} = false
+	//	условие: false → else = {"If": [true, false, true]} = false
+	json nested_if2 = {{"If", json::array({false, true, {{"If", json::array({true, false, true})}}})}};
+	check(interpret(nested_if2) == rel_t::False, "interpret(nested If: else-branch evaluated) = False");
+
+	//	Комбинация If и логических операций
+	//	{"If": [{"And": [true, true]}, {"Not": [false]}, {"Or": [false, false]}]}
+	//	условие: AND[True][True] = True → then = NOT[False] = True
+	json complex_if = {{"If", json::array({{{"And", json::array({true, true})}}, {{"Not", json::array({false})}}, {{"Or", json::array({false, false})}}})}};
+	check(interpret(complex_if) == rel_t::True, "interpret(complex If with logical ops) = True");
+}
+
+void test_interpret_if_error_cases()
+{
+	//	If с неправильным количеством аргументов
+	json if_no_args = {{"If", json::array()}};
+	check(interpret(if_no_args) == rel_t::E, "interpret({If: []}) = E");
+
+	json if_one_arg = {{"If", json::array({true})}};
+	check(interpret(if_one_arg) == rel_t::E, "interpret({If: [true]}) = E");
+
+	json if_two_args = {{"If", json::array({true, false})}};
+	check(interpret(if_two_args) == rel_t::E, "interpret({If: [true, false]}) = E");
+
+	//	If с условием null (не boolean)
+	json if_null_cond = {{"If", json::array({nullptr, true, false})}};
+	check(interpret(if_null_cond) == rel_t::E, "interpret({If: [null, true, false]}) = E");
+}
+
 //	=== Тесты счётчиков памяти ===
 
 void test_memory_counters()
@@ -518,6 +616,12 @@ int main()
 	test_interpret_nested();
 	test_interpret_deeply_nested();
 	test_interpret_error_cases();
+	test_if_vocabulary();
+	test_if_eval();
+	test_interpret_if_basic();
+	test_interpret_if_with_expressions();
+	test_interpret_if_nested();
+	test_interpret_if_error_cases();
 	test_memory_counters();
 
 	cout << endl;
