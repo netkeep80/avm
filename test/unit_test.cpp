@@ -11,6 +11,8 @@ using namespace std;
 //	Прототипы функций из main.cpp
 rel_t *import_json(const json &j);
 void export_json(const rel_t *ent, json &j);
+rel_t *eval(rel_t *func, rel_t *arg);
+rel_t *eval(rel_t *func, rel_t *arg1, rel_t *arg2);
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -277,6 +279,86 @@ void test_object_with_array()
 	check(output == input, "object with array roundtrips");
 }
 
+//	=== Тесты логических операций ===
+
+void test_logical_vocabulary()
+{
+	check(rel_t::Not != nullptr, "Not is not null");
+	check(rel_t::And != nullptr, "And is not null");
+	check(rel_t::Or != nullptr, "Or is not null");
+
+	//	Все логические операции должны быть различными
+	check(rel_t::Not != rel_t::And, "Not != And");
+	check(rel_t::Not != rel_t::Or, "Not != Or");
+	check(rel_t::And != rel_t::Or, "And != Or");
+
+	//	Логические операции являются сущностями (sub == E)
+	check(rel_t::Not->sub == rel_t::E, "Not->sub == E");
+	check(rel_t::And->sub == rel_t::E, "And->sub == E");
+	check(rel_t::Or->sub == rel_t::E, "Or->sub == E");
+}
+
+void test_not()
+{
+	//	NOT[True] = False
+	check(eval(rel_t::Not, rel_t::True) == rel_t::False, "NOT[True] = False");
+	//	NOT[False] = True
+	check(eval(rel_t::Not, rel_t::False) == rel_t::True, "NOT[False] = True");
+	//	NOT[R] = E (не определено для R)
+	check(eval(rel_t::Not, rel_t::R) == rel_t::E, "NOT[R] = E (undefined for R)");
+}
+
+void test_and()
+{
+	//	AND[True][True] = True
+	check(eval(rel_t::And, rel_t::True, rel_t::True) == rel_t::True, "AND[True][True] = True");
+	//	AND[True][False] = False
+	check(eval(rel_t::And, rel_t::True, rel_t::False) == rel_t::False, "AND[True][False] = False");
+	//	AND[False][True] = False
+	check(eval(rel_t::And, rel_t::False, rel_t::True) == rel_t::False, "AND[False][True] = False");
+	//	AND[False][False] = False
+	check(eval(rel_t::And, rel_t::False, rel_t::False) == rel_t::False, "AND[False][False] = False");
+}
+
+void test_or()
+{
+	//	OR[True][True] = True
+	check(eval(rel_t::Or, rel_t::True, rel_t::True) == rel_t::True, "OR[True][True] = True");
+	//	OR[True][False] = True
+	check(eval(rel_t::Or, rel_t::True, rel_t::False) == rel_t::True, "OR[True][False] = True");
+	//	OR[False][True] = True
+	check(eval(rel_t::Or, rel_t::False, rel_t::True) == rel_t::True, "OR[False][True] = True");
+	//	OR[False][False] = False
+	check(eval(rel_t::Or, rel_t::False, rel_t::False) == rel_t::False, "OR[False][False] = False");
+}
+
+void test_eval_chained()
+{
+	//	Проверка составных выражений: NOT[AND[True, False]] = NOT[False] = True
+	auto and_result = eval(rel_t::And, rel_t::True, rel_t::False);
+	check(eval(rel_t::Not, and_result) == rel_t::True, "NOT[AND[True][False]] = True");
+
+	//	NOT[OR[False, False]] = NOT[False] = True
+	auto or_result = eval(rel_t::Or, rel_t::False, rel_t::False);
+	check(eval(rel_t::Not, or_result) == rel_t::True, "NOT[OR[False][False]] = True");
+
+	//	AND[NOT[False], NOT[True]] = AND[True, False] = False
+	auto not_false = eval(rel_t::Not, rel_t::False);
+	auto not_true = eval(rel_t::Not, rel_t::True);
+	check(eval(rel_t::And, not_false, not_true) == rel_t::False, "AND[NOT[False]][NOT[True]] = False");
+
+	//	OR[NOT[True], NOT[False]] = OR[False, True] = True
+	check(eval(rel_t::Or, not_true, not_false) == rel_t::True, "OR[NOT[True]][NOT[False]] = True");
+}
+
+void test_eval_null_safety()
+{
+	//	eval с nullptr аргументами возвращает E
+	check(eval(nullptr, rel_t::True) == rel_t::E, "eval(nullptr, True) = E");
+	check(eval(rel_t::Not, nullptr) == rel_t::E, "eval(Not, nullptr) = E");
+	check(eval(nullptr, nullptr) == rel_t::E, "eval(nullptr, nullptr) = E");
+}
+
 //	=== Тесты счётчиков памяти ===
 
 void test_memory_counters()
@@ -314,6 +396,12 @@ int main()
 	test_nested_object();
 	test_array_of_objects();
 	test_object_with_array();
+	test_logical_vocabulary();
+	test_not();
+	test_and();
+	test_or();
+	test_eval_chained();
+	test_eval_null_safety();
 	test_memory_counters();
 
 	cout << endl;

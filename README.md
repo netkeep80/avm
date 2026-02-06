@@ -41,21 +41,26 @@ The Associative Relations Model (ARM) is a mathematical model for storing and pr
 
 - Implementation of a virtual machine for executing ARM-based code
 - Support for structured data (arrays and associative arrays)
-- JSON serialization/deserialization (null, boolean, array, number, string)
-- Representation of logical operations and functions with arguments
+- JSON serialization/deserialization (null, boolean, array, number, string, object)
+- Logical operations (NOT, AND, OR) defined as truth tables in entity maps
+- Relative addressing operator `[]` for evaluating functions via `eval()`
 - Multi-dimensional relative addressing for passing arguments
 
 ### Current Status
 
-**Version: 0.0.1** (Alpha/Proof-of-Concept)
+**Version: 0.0.2** (Alpha)
 
 Implemented:
 - JSON null, boolean, array, number (unsigned, integer, float), string, object serialization/deserialization
-- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object)
+- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or)
+- Logical operations NOT, AND, OR with truth tables via entity map
+- Relative addressing operator `[]` via `eval()` function for computing logical functions
+- 99 unit tests + 16 JSON roundtrip tests
+- CI/CD pipeline (GitHub Actions) for Linux, macOS, Windows
 
 In Progress:
-- Logical operations (AND, OR, NOT)
-- Relative addressing operator `[]`
+- Expression interpreter for evaluating logical expressions in ARM
+- Persistent storage integration with LinksPlatform
 
 ### Documentation
 
@@ -138,21 +143,26 @@ AVM (Associative Virtual Machine) — проект, реализующий ви�
 
 - Реализация виртуальной машины для исполнения кода на основе МАО
 - Поддержка структурированных данных (массивы и ассоциативные массивы)
-- Сериализация/десериализация JSON (null, boolean, array, number, string)
-- Представление логических операций и функций с аргументами
+- Сериализация/десериализация JSON (null, boolean, array, number, string, object)
+- Логические операции (NOT, AND, OR), определённые как таблицы истинности в entity map
+- Оператор относительной адресации `[]` для вычисления функций через `eval()`
 - Многомерная относительная адресация для передачи аргументов
 
 ### Текущее состояние
 
-**Версия: 0.0.1** (Альфа/Прототип)
+**Версия: 0.0.2** (Альфа)
 
 Реализовано:
 - Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string, object
-- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object)
+- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or)
+- Логические операции NOT, AND, OR с таблицами истинности через entity map
+- Оператор относительной адресации `[]` через функцию `eval()` для вычисления логических функций
+- 99 модульных тестов + 16 JSON roundtrip тестов
+- CI/CD пайплайн (GitHub Actions) для Linux, macOS, Windows
 
 В разработке:
-- Логические операции (AND, OR, NOT)
-- Оператор относительной адресации `[]`
+- Интерпретатор выражений для выполнения логических выражений в МАО
+- Персистентное хранение — интеграция с LinksPlatform
 
 ### Документация
 
