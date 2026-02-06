@@ -278,6 +278,8 @@ struct rel_t : obj_aspect<rel_t>,
     static inline rel_t *And;
     static inline rel_t *Or;
     static inline rel_t *If;
+    static inline rel_t *Def;
+    static inline rel_t *Call;
 
 protected:
     rel_t()
@@ -365,11 +367,15 @@ private:
             add_rel(And);
             add_rel(Or);
             add_rel(If);
+            add_rel(Def);
+            add_rel(Call);
 
-            Not->update(Not, E);  //  (NOT, Ent) — NOT есть сущность
-            And->update(And, E);  //  (AND, Ent) — AND есть сущность
-            Or->update(Or, E);    //  (OR, Ent) — OR есть сущность
-            If->update(If, E);    //  (IF, Ent) — IF есть сущность
+            Not->update(Not, E);   //  (NOT, Ent) — NOT есть сущность
+            And->update(And, E);   //  (AND, Ent) — AND есть сущность
+            Or->update(Or, E);     //  (OR, Ent) — OR есть сущность
+            If->update(If, E);     //  (IF, Ent) — IF есть сущность
+            Def->update(Def, E);   //  (DEF, Ent) — DEF есть сущность
+            Call->update(Call, E); //  (CALL, Ent) — CALL есть сущность
 
             //  NOT: таблица истинности через entity map
             //  NOT[True] = False, NOT[False] = True

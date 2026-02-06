@@ -44,22 +44,25 @@ The Associative Relations Model (ARM) is a mathematical model for storing and pr
 - JSON serialization/deserialization (null, boolean, array, number, string, object)
 - Logical operations (NOT, AND, OR) defined as truth tables in entity maps
 - Conditional construct `If` with lazy evaluation of then/else branches
+- Recursive functions via `Def`/`Call` with named parameters and recursion depth protection
 - Relative addressing operator `[]` for evaluating functions via `eval()`
 - Multi-dimensional relative addressing for passing arguments
-- Expression interpreter `interpret()` for evaluating logical and conditional expressions from JSON
+- Expression interpreter `interpret()` for evaluating logical, conditional and recursive expressions from JSON
+- Sequential expression execution via JSON arrays for function definition and invocation
 
 ### Current Status
 
-**Version: 0.0.4** (Alpha)
+**Version: 0.0.5** (Alpha)
 
 Implemented:
 - JSON null, boolean, array, number (unsigned, integer, float), string, object serialization/deserialization
-- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If)
+- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call)
 - Logical operations NOT, AND, OR with truth tables via entity map
 - Conditional construct If with lazy evaluation (e.g. `{"If": [true, "yes", "no"]}` → `"yes"`)
+- Recursive functions via Def/Call (e.g. `[{"Def": ["f", ["x"], body]}, {"Call": ["f", arg]}]`)
 - Relative addressing operator `[]` via `eval()` function for computing logical functions
-- Expression interpreter for evaluating logical and conditional expressions from JSON
-- 147 unit tests + 16 JSON roundtrip tests
+- Expression interpreter for evaluating logical, conditional and recursive expressions from JSON
+- 179 unit tests + 16 JSON roundtrip tests
 - CI/CD pipeline (GitHub Actions) for Linux, macOS, Windows
 
 In Progress:
@@ -117,6 +120,13 @@ echo '{"If": [true, true, false]}' > cond.json
 cat res.json  # true
 ```
 
+Recursive functions with Def/Call:
+```bash
+echo '[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]' > rec.json
+./avm rec.json
+cat res.json  # false
+```
+
 ### Dependencies
 
 - C++20 compatible compiler
@@ -164,22 +174,25 @@ AVM (Associative Virtual Machine) — проект, реализующий ви�
 - Сериализация/десериализация JSON (null, boolean, array, number, string, object)
 - Логические операции (NOT, AND, OR), определённые как таблицы истинности в entity map
 - Условная конструкция `If` с ленивым вычислением веток then/else
+- Рекурсивные функции через `Def`/`Call` с именованными параметрами и защитой от бесконечной рекурсии
 - Оператор относительной адресации `[]` для вычисления функций через `eval()`
 - Многомерная относительная адресация для передачи аргументов
-- Интерпретатор выражений `interpret()` для вычисления логических и условных выражений из JSON
+- Интерпретатор выражений `interpret()` для вычисления логических, условных и рекурсивных выражений из JSON
+- Последовательное выполнение выражений через JSON-массивы для определения и вызова функций
 
 ### Текущее состояние
 
-**Версия: 0.0.4** (Альфа)
+**Версия: 0.0.5** (Альфа)
 
 Реализовано:
 - Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string, object
-- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If)
+- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call)
 - Логические операции NOT, AND, OR с таблицами истинности через entity map
 - Условная конструкция If с ленивым вычислением (например `{"If": [true, "да", "нет"]}` → `"да"`)
+- Рекурсивные функции через Def/Call (например `[{"Def": ["f", ["x"], тело]}, {"Call": ["f", арг]}]`)
 - Оператор относительной адресации `[]` через функцию `eval()` для вычисления логических функций
-- Интерпретатор выражений для вычисления логических и условных выражений из JSON
-- 147 модульных тестов + 16 JSON roundtrip тестов
+- Интерпретатор выражений для вычисления логических, условных и рекурсивных выражений из JSON
+- 179 модульных тестов + 16 JSON roundtrip тестов
 - CI/CD пайплайн (GitHub Actions) для Linux, macOS, Windows
 
 В разработке:
@@ -235,6 +248,13 @@ cat res.json  # true
 echo '{"If": [true, true, false]}' > cond.json
 ./avm cond.json
 cat res.json  # true
+```
+
+Рекурсивные функции через Def/Call:
+```bash
+echo '[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]' > rec.json
+./avm rec.json
+cat res.json  # false
 ```
 
 ### Зависимости

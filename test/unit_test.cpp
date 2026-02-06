@@ -14,6 +14,7 @@ void export_json(const rel_t *ent, json &j);
 rel_t *eval(rel_t *func, rel_t *arg);
 rel_t *eval(rel_t *func, rel_t *arg1, rel_t *arg2);
 rel_t *interpret(const json &expr);
+void clear_func_env();
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -566,6 +567,256 @@ void test_interpret_if_error_cases()
 	check(interpret(if_null_cond) == rel_t::E, "interpret({If: [null, true, false]}) = E");
 }
 
+//	=== Тесты рекурсивных функций (Def/Call) ===
+
+void test_def_call_vocabulary()
+{
+	check(rel_t::Def != nullptr, "Def is not null");
+	check(rel_t::Call != nullptr, "Call is not null");
+
+	//	Def и Call должны отличаться от других операций
+	check(rel_t::Def != rel_t::Not, "Def != Not");
+	check(rel_t::Def != rel_t::And, "Def != And");
+	check(rel_t::Def != rel_t::Or, "Def != Or");
+	check(rel_t::Def != rel_t::If, "Def != If");
+	check(rel_t::Def != rel_t::Call, "Def != Call");
+	check(rel_t::Call != rel_t::Not, "Call != Not");
+	check(rel_t::Call != rel_t::If, "Call != If");
+
+	//	Def и Call являются сущностями (sub == E)
+	check(rel_t::Def->sub == rel_t::E, "Def->sub == E");
+	check(rel_t::Call->sub == rel_t::E, "Call->sub == E");
+}
+
+void test_def_call_simple()
+{
+	clear_func_env();
+
+	//	Определяем функцию identity: f(x) = x
+	//	[{"Def": ["identity", ["x"], "x"]}, {"Call": ["identity", true]}]
+	json program = json::array({
+		{{"Def", json::array({"identity", json::array({"x"}), "x"})}},
+		{{"Call", json::array({"identity", true})}}
+	});
+	check(interpret(program) == rel_t::True, "identity(true) = True");
+
+	clear_func_env();
+
+	//	identity(false) = false
+	json program2 = json::array({
+		{{"Def", json::array({"identity", json::array({"x"}), "x"})}},
+		{{"Call", json::array({"identity", false})}}
+	});
+	check(interpret(program2) == rel_t::False, "identity(false) = False");
+}
+
+void test_def_call_not_function()
+{
+	clear_func_env();
+
+	//	Определяем функцию myNot: f(x) = Not[x]
+	//	[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]
+	json program = json::array({
+		{{"Def", json::array({"myNot", json::array({"x"}), {{"Not", json::array({"x"})}}})}},
+		{{"Call", json::array({"myNot", true})}}
+	});
+	check(interpret(program) == rel_t::False, "myNot(true) = False");
+
+	clear_func_env();
+
+	json program2 = json::array({
+		{{"Def", json::array({"myNot", json::array({"x"}), {{"Not", json::array({"x"})}}})}},
+		{{"Call", json::array({"myNot", false})}}
+	});
+	check(interpret(program2) == rel_t::True, "myNot(false) = True");
+}
+
+void test_def_call_two_params()
+{
+	clear_func_env();
+
+	//	Определяем функцию myAnd: f(a, b) = And[a, b]
+	json program = json::array({
+		{{"Def", json::array({"myAnd", json::array({"a", "b"}), {{"And", json::array({"a", "b"})}}})}},
+		{{"Call", json::array({"myAnd", true, false})}}
+	});
+	check(interpret(program) == rel_t::False, "myAnd(true, false) = False");
+
+	clear_func_env();
+
+	json program2 = json::array({
+		{{"Def", json::array({"myAnd", json::array({"a", "b"}), {{"And", json::array({"a", "b"})}}})}},
+		{{"Call", json::array({"myAnd", true, true})}}
+	});
+	check(interpret(program2) == rel_t::True, "myAnd(true, true) = True");
+}
+
+void test_def_call_recursive()
+{
+	clear_func_env();
+
+	//	Рекурсивная функция: toggle вызывает себя для отрицания аргумента
+	//	Использует If для базового случая (терминации)
+	//	toggleOnce(x) = If[x, false, true] — простая версия Not
+	//	Но для демонстрации рекурсии:
+	//	rec(x, depth) = If[depth, x, Call["rec", Not[x], true]]
+	//	rec(true, false) → else: rec(Not[true], true) = rec(false, true) → then: false
+	json program = json::array({
+		{{"Def", json::array({
+			"rec",
+			json::array({"x", "depth"}),
+			{{"If", json::array({
+				"depth",
+				"x",
+				{{"Call", json::array({"rec", {{"Not", json::array({"x"})}}, true})}}
+			})}}
+		})}},
+		{{"Call", json::array({"rec", true, false})}}
+	});
+	check(interpret(program) == rel_t::False, "rec(true, false) = False (one recursion step)");
+
+	clear_func_env();
+
+	//	rec(false, false) → else: rec(Not[false], true) = rec(true, true) → then: true
+	json program2 = json::array({
+		{{"Def", json::array({
+			"rec",
+			json::array({"x", "depth"}),
+			{{"If", json::array({
+				"depth",
+				"x",
+				{{"Call", json::array({"rec", {{"Not", json::array({"x"})}}, true})}}
+			})}}
+		})}},
+		{{"Call", json::array({"rec", false, false})}}
+	});
+	check(interpret(program2) == rel_t::True, "rec(false, false) = True (one recursion step)");
+}
+
+void test_def_call_multiple_functions()
+{
+	clear_func_env();
+
+	//	Определяем две функции и вызываем одну из другой
+	//	f(x) = Not[x], g(x) = Call["f", x]
+	json program = json::array({
+		{{"Def", json::array({"f", json::array({"x"}), {{"Not", json::array({"x"})}}})}},
+		{{"Def", json::array({"g", json::array({"x"}), {{"Call", json::array({"f", "x"})}}})}},
+		{{"Call", json::array({"g", true})}}
+	});
+	check(interpret(program) == rel_t::False, "g(true) = f(true) = Not[true] = False");
+}
+
+void test_def_call_nested_recursion()
+{
+	clear_func_env();
+
+	//	Рекурсивная функция с вложенным If
+	//	f(x) = If[x, true, Call["f", true]]
+	//	f(true) → then: true (базовый случай)
+	json program = json::array({
+		{{"Def", json::array({
+			"f",
+			json::array({"x"}),
+			{{"If", json::array({"x", true, {{"Call", json::array({"f", true})}}})}}
+		})}},
+		{{"Call", json::array({"f", true})}}
+	});
+	check(interpret(program) == rel_t::True, "f(true) = true (base case)");
+
+	clear_func_env();
+
+	//	f(false) → else: Call["f", true] → then: true
+	json program2 = json::array({
+		{{"Def", json::array({
+			"f",
+			json::array({"x"}),
+			{{"If", json::array({"x", true, {{"Call", json::array({"f", true})}}})}}
+		})}},
+		{{"Call", json::array({"f", false})}}
+	});
+	check(interpret(program2) == rel_t::True, "f(false) = f(true) = true (one recursion step)");
+}
+
+void test_def_call_error_cases()
+{
+	clear_func_env();
+
+	//	Def с неправильным количеством аргументов
+	json def_no_args = {{"Def", json::array()}};
+	check(interpret(def_no_args) == rel_t::E, "interpret({Def: []}) = E");
+
+	json def_one_arg = {{"Def", json::array({"name"})}};
+	check(interpret(def_one_arg) == rel_t::E, "interpret({Def: [name]}) = E");
+
+	//	Def с нестроковым именем
+	json def_bad_name = {{"Def", json::array({42, json::array({"x"}), true})}};
+	check(interpret(def_bad_name) == rel_t::E, "interpret({Def: [42, ...]}) = E");
+
+	//	Def с нестроковыми параметрами
+	json def_bad_params = {{"Def", json::array({"f", json::array({42}), true})}};
+	check(interpret(def_bad_params) == rel_t::E, "interpret({Def: [f, [42], ...]}) = E");
+
+	//	Call несуществующей функции
+	json call_undef = {{"Call", json::array({"undefined"})}};
+	check(interpret(call_undef) == rel_t::E, "interpret({Call: [undefined]}) = E");
+
+	//	Call с неправильным количеством аргументов
+	json program = json::array({
+		{{"Def", json::array({"f", json::array({"x"}), "x"})}},
+		{{"Call", json::array({"f", true, false})}}
+	});
+	check(interpret(program) == rel_t::E, "interpret({Call: [f, true, false]}) = E (wrong arity)");
+
+	clear_func_env();
+
+	//	Call с нестроковым именем функции
+	json call_bad_name = {{"Call", json::array({42})}};
+	check(interpret(call_bad_name) == rel_t::E, "interpret({Call: [42]}) = E");
+
+	//	Call с пустым массивом аргументов
+	json call_empty = {{"Call", json::array()}};
+	check(interpret(call_empty) == rel_t::E, "interpret({Call: []}) = E");
+
+	clear_func_env();
+}
+
+void test_def_call_recursion_depth_limit()
+{
+	clear_func_env();
+
+	//	Бесконечная рекурсия: f(x) = Call["f", x] (без базового случая)
+	//	Должна завершиться E из-за лимита глубины рекурсии
+	json program = json::array({
+		{{"Def", json::array({"inf", json::array({"x"}), {{"Call", json::array({"inf", "x"})}}})}},
+		{{"Call", json::array({"inf", true})}}
+	});
+	check(interpret(program) == rel_t::E, "infinite recursion returns E (depth limit)");
+
+	clear_func_env();
+}
+
+void test_interpret_array_sequential()
+{
+	//	Массив выражений: последовательное выполнение
+	//	[true, false, true] → результат последнего = true
+	json program = json::array({true, false, true});
+	// Note: this is interpreted as a data array, not sequential execution
+	// because it starts with primitives, not operators
+	// For sequential execution, array must contain operator objects
+
+	clear_func_env();
+
+	//	Массив с Def и примитивами
+	json program2 = json::array({
+		{{"Def", json::array({"id", json::array({"x"}), "x"})}},
+		{{"Call", json::array({"id", true})}}
+	});
+	check(interpret(program2) == rel_t::True, "sequential: [Def, Call] = True");
+
+	clear_func_env();
+}
+
 //	=== Тесты счётчиков памяти ===
 
 void test_memory_counters()
@@ -622,6 +873,16 @@ int main()
 	test_interpret_if_with_expressions();
 	test_interpret_if_nested();
 	test_interpret_if_error_cases();
+	test_def_call_vocabulary();
+	test_def_call_simple();
+	test_def_call_not_function();
+	test_def_call_two_params();
+	test_def_call_recursive();
+	test_def_call_multiple_functions();
+	test_def_call_nested_recursion();
+	test_def_call_error_cases();
+	test_def_call_recursion_depth_limit();
+	test_interpret_array_sequential();
 	test_memory_counters();
 
 	cout << endl;

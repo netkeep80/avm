@@ -1,0 +1,1 @@
+[{"Def": ["rec", ["x", "depth"], {"If": ["depth", "x", {"Call": ["rec", {"Not": ["x"]}, true]}]}]}, {"Call": ["rec", true, false]}]
