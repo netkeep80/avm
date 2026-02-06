@@ -280,6 +280,11 @@ struct rel_t : obj_aspect<rel_t>,
     static inline rel_t *If;
     static inline rel_t *Def;
     static inline rel_t *Call;
+    static inline rel_t *Xor;
+    static inline rel_t *Nand;
+    static inline rel_t *Nor;
+    static inline rel_t *Implies;
+    static inline rel_t *Eq;
 
 protected:
     rel_t()
@@ -369,13 +374,23 @@ private:
             add_rel(If);
             add_rel(Def);
             add_rel(Call);
+            add_rel(Xor);
+            add_rel(Nand);
+            add_rel(Nor);
+            add_rel(Implies);
+            add_rel(Eq);
 
-            Not->update(Not, E);   //  (NOT, Ent) — NOT есть сущность
-            And->update(And, E);   //  (AND, Ent) — AND есть сущность
-            Or->update(Or, E);     //  (OR, Ent) — OR есть сущность
-            If->update(If, E);     //  (IF, Ent) — IF есть сущность
-            Def->update(Def, E);   //  (DEF, Ent) — DEF есть сущность
-            Call->update(Call, E); //  (CALL, Ent) — CALL есть сущность
+            Not->update(Not, E);         //  (NOT, Ent) — NOT есть сущность
+            And->update(And, E);         //  (AND, Ent) — AND есть сущность
+            Or->update(Or, E);           //  (OR, Ent) — OR есть сущность
+            If->update(If, E);           //  (IF, Ent) — IF есть сущность
+            Def->update(Def, E);         //  (DEF, Ent) — DEF есть сущность
+            Call->update(Call, E);       //  (CALL, Ent) — CALL есть сущность
+            Xor->update(Xor, E);         //  (XOR, Ent) — XOR есть сущность
+            Nand->update(Nand, E);       //  (NAND, Ent) — NAND есть сущность
+            Nor->update(Nor, E);         //  (NOR, Ent) — NOR есть сущность
+            Implies->update(Implies, E); //  (IMPLIES, Ent) — IMPLIES есть сущность
+            Eq->update(Eq, E);           //  (EQ, Ent) — EQ есть сущность
 
             //  NOT: таблица истинности через entity map
             //  NOT[True] = False, NOT[False] = True
@@ -421,6 +436,89 @@ private:
             //  IF[True] = True, IF[False] = False
             (*If)[True] = True;
             (*If)[False] = False;
+
+            //  === Стандартная библиотека логических операций ===
+            //  Standard library of logical operations
+
+            //  XOR: исключающее ИЛИ через вложенные entity map
+            //  XOR[arg1][arg2] = result
+            auto xor_true = rel_t::rel();   //  XOR[True]
+            auto xor_false = rel_t::rel();  //  XOR[False]
+
+            (*Xor)[True] = xor_true;
+            (*Xor)[False] = xor_false;
+
+            //  XOR[True][True] = False, XOR[True][False] = True
+            (*xor_true)[True] = False;
+            (*xor_true)[False] = True;
+
+            //  XOR[False][True] = True, XOR[False][False] = False
+            (*xor_false)[True] = True;
+            (*xor_false)[False] = False;
+
+            //  NAND: НЕ-И через вложенные entity map
+            //  NAND[arg1][arg2] = NOT[AND[arg1][arg2]]
+            auto nand_true = rel_t::rel();   //  NAND[True]
+            auto nand_false = rel_t::rel();  //  NAND[False]
+
+            (*Nand)[True] = nand_true;
+            (*Nand)[False] = nand_false;
+
+            //  NAND[True][True] = False, NAND[True][False] = True
+            (*nand_true)[True] = False;
+            (*nand_true)[False] = True;
+
+            //  NAND[False][True] = True, NAND[False][False] = True
+            (*nand_false)[True] = True;
+            (*nand_false)[False] = True;
+
+            //  NOR: НЕ-ИЛИ через вложенные entity map
+            //  NOR[arg1][arg2] = NOT[OR[arg1][arg2]]
+            auto nor_true = rel_t::rel();   //  NOR[True]
+            auto nor_false = rel_t::rel();  //  NOR[False]
+
+            (*Nor)[True] = nor_true;
+            (*Nor)[False] = nor_false;
+
+            //  NOR[True][True] = False, NOR[True][False] = False
+            (*nor_true)[True] = False;
+            (*nor_true)[False] = False;
+
+            //  NOR[False][True] = False, NOR[False][False] = True
+            (*nor_false)[True] = False;
+            (*nor_false)[False] = True;
+
+            //  IMPLIES: логическая импликация через вложенные entity map
+            //  IMPLIES[arg1][arg2] = OR[NOT[arg1]][arg2] = (¬a ∨ b)
+            auto imp_true = rel_t::rel();   //  IMPLIES[True]
+            auto imp_false = rel_t::rel();  //  IMPLIES[False]
+
+            (*Implies)[True] = imp_true;
+            (*Implies)[False] = imp_false;
+
+            //  IMPLIES[True][True] = True, IMPLIES[True][False] = False
+            (*imp_true)[True] = True;
+            (*imp_true)[False] = False;
+
+            //  IMPLIES[False][True] = True, IMPLIES[False][False] = True
+            (*imp_false)[True] = True;
+            (*imp_false)[False] = True;
+
+            //  EQ: логическая эквивалентность (биконденсация) через entity map
+            //  EQ[arg1][arg2] = (a → b) ∧ (b → a) = NOT[XOR[a][b]]
+            auto eq_true = rel_t::rel();   //  EQ[True]
+            auto eq_false = rel_t::rel();  //  EQ[False]
+
+            (*Eq)[True] = eq_true;
+            (*Eq)[False] = eq_false;
+
+            //  EQ[True][True] = True, EQ[True][False] = False
+            (*eq_true)[True] = True;
+            (*eq_true)[False] = False;
+
+            //  EQ[False][True] = False, EQ[False][False] = True
+            (*eq_false)[True] = False;
+            (*eq_false)[False] = True;
         }
         ~base_voc()
         {

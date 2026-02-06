@@ -43,6 +43,7 @@ The Associative Relations Model (ARM) is a mathematical model for storing and pr
 - Support for structured data (arrays and associative arrays)
 - JSON serialization/deserialization (null, boolean, array, number, string, object)
 - Logical operations (NOT, AND, OR) defined as truth tables in entity maps
+- Standard library of logical operations (XOR, NAND, NOR, Implies, Eq) as truth tables
 - Conditional construct `If` with lazy evaluation of then/else branches
 - Recursive functions via `Def`/`Call` with named parameters and recursion depth protection
 - Relative addressing operator `[]` for evaluating functions via `eval()`
@@ -52,17 +53,18 @@ The Associative Relations Model (ARM) is a mathematical model for storing and pr
 
 ### Current Status
 
-**Version: 0.0.5** (Alpha)
+**Version: 0.0.6** (Alpha)
 
 Implemented:
 - JSON null, boolean, array, number (unsigned, integer, float), string, object serialization/deserialization
-- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call)
+- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call, Xor, Nand, Nor, Implies, Eq)
 - Logical operations NOT, AND, OR with truth tables via entity map
+- Standard library: XOR, NAND, NOR, Implies (a → b), Eq (a ↔ b) with truth tables via entity map
 - Conditional construct If with lazy evaluation (e.g. `{"If": [true, "yes", "no"]}` → `"yes"`)
 - Recursive functions via Def/Call (e.g. `[{"Def": ["f", ["x"], body]}, {"Call": ["f", arg]}]`)
 - Relative addressing operator `[]` via `eval()` function for computing logical functions
 - Expression interpreter for evaluating logical, conditional and recursive expressions from JSON
-- 179 unit tests + 16 JSON roundtrip tests
+- 240 unit tests + 16 JSON roundtrip tests
 - CI/CD pipeline (GitHub Actions) for Linux, macOS, Windows
 
 In Progress:
@@ -127,6 +129,21 @@ echo '[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]' > 
 cat res.json  # false
 ```
 
+Standard library operations (XOR, NAND, NOR, Implies, Eq):
+```bash
+echo '{"Xor": [true, false]}' > xor.json
+./avm xor.json
+cat res.json  # true
+
+echo '{"Implies": [true, false]}' > imp.json
+./avm imp.json
+cat res.json  # false
+
+echo '{"Eq": [true, true]}' > eq.json
+./avm eq.json
+cat res.json  # true
+```
+
 ### Dependencies
 
 - C++20 compatible compiler
@@ -173,6 +190,7 @@ AVM (Associative Virtual Machine) — проект, реализующий ви�
 - Поддержка структурированных данных (массивы и ассоциативные массивы)
 - Сериализация/десериализация JSON (null, boolean, array, number, string, object)
 - Логические операции (NOT, AND, OR), определённые как таблицы истинности в entity map
+- Стандартная библиотека логических операций (XOR, NAND, NOR, Implies, Eq) как таблицы истинности
 - Условная конструкция `If` с ленивым вычислением веток then/else
 - Рекурсивные функции через `Def`/`Call` с именованными параметрами и защитой от бесконечной рекурсии
 - Оператор относительной адресации `[]` для вычисления функций через `eval()`
@@ -182,17 +200,18 @@ AVM (Associative Virtual Machine) — проект, реализующий ви�
 
 ### Текущее состояние
 
-**Версия: 0.0.5** (Альфа)
+**Версия: 0.0.6** (Альфа)
 
 Реализовано:
 - Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string, object
-- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call)
+- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call, Xor, Nand, Nor, Implies, Eq)
 - Логические операции NOT, AND, OR с таблицами истинности через entity map
+- Стандартная библиотека: XOR, NAND, NOR, Implies (a → b), Eq (a ↔ b) с таблицами истинности
 - Условная конструкция If с ленивым вычислением (например `{"If": [true, "да", "нет"]}` → `"да"`)
 - Рекурсивные функции через Def/Call (например `[{"Def": ["f", ["x"], тело]}, {"Call": ["f", арг]}]`)
 - Оператор относительной адресации `[]` через функцию `eval()` для вычисления логических функций
 - Интерпретатор выражений для вычисления логических, условных и рекурсивных выражений из JSON
-- 179 модульных тестов + 16 JSON roundtrip тестов
+- 240 модульных тестов + 16 JSON roundtrip тестов
 - CI/CD пайплайн (GitHub Actions) для Linux, macOS, Windows
 
 В разработке:
@@ -255,6 +274,21 @@ cat res.json  # true
 echo '[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]' > rec.json
 ./avm rec.json
 cat res.json  # false
+```
+
+Операции стандартной библиотеки (XOR, NAND, NOR, Implies, Eq):
+```bash
+echo '{"Xor": [true, false]}' > xor.json
+./avm xor.json
+cat res.json  # true
+
+echo '{"Implies": [true, false]}' > imp.json
+./avm imp.json
+cat res.json  # false
+
+echo '{"Eq": [true, true]}' > eq.json
+./avm eq.json
+cat res.json  # true
 ```
 
 ### Зависимости
