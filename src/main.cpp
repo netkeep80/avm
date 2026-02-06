@@ -58,6 +58,27 @@ array это компактная сериализация дерева map, к�
 
 */
 
+//	Оператор относительной адресации [] / Relative addressing operator []
+//	Выполняет поиск значения в entity map ассоциации
+//	func[arg] — одномерная адресация (NOT[True] = False)
+//	func[arg1][arg2] — многомерная адресация через цепочку (AND[True][False] = False)
+rel_t *eval(rel_t *func, rel_t *arg)
+{
+	if (!func || !arg)
+		return rel_t::E;
+	auto it = func->find(arg);
+	if (it != func->end())
+		return it->second;
+	return rel_t::E; //	не найдено — возвращаем null (E)
+}
+
+//	Вычисление функции с двумя аргументами через вложенную адресацию
+//	func[arg1][arg2] = eval(eval(func, arg1), arg2)
+rel_t *eval(rel_t *func, rel_t *arg1, rel_t *arg2)
+{
+	return eval(eval(func, arg1), arg2);
+}
+
 void get_json(json &ent, const string &PathName)
 {
 	std::ifstream in(PathName.c_str());

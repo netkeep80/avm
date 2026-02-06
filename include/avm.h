@@ -274,6 +274,9 @@ struct rel_t : obj_aspect<rel_t>,
     static inline rel_t *Float;
     static inline rel_t *String;
     static inline rel_t *Object;
+    static inline rel_t *Not;
+    static inline rel_t *And;
+    static inline rel_t *Or;
 
 protected:
     rel_t()
@@ -353,14 +356,55 @@ private:
             String->update(String, R);      //  String is subtype of R
             Object->update(Object, R);      //  Object is subtype of R
 
-            //  все связи не к E или R это подтипы от E и R, либо просто null
-            //  json object {} определяет соответствие (ФБО) между множеством ключей и множеством значений
-            //  если среди значений есть null значит
-            //  null != []
+            //  Логические операции / Logical operations
+            //  Определяются как отображения через entity map (ent_aspect)
+            //  NOT, AND, OR как описано в amr.txt
 
-            //	нужен формат сериализации относительного адреса в строку
-            //	строка значение и строка ключ могут различаться в АМО
-            //	не стоит путать [] в json и в выражении индекса
+            add_rel(Not);
+            add_rel(And);
+            add_rel(Or);
+
+            Not->update(Not, E);  //  (NOT, Ent) — NOT есть сущность
+            And->update(And, E);  //  (AND, Ent) — AND есть сущность
+            Or->update(Or, E);    //  (OR, Ent) — OR есть сущность
+
+            //  NOT: таблица истинности через entity map
+            //  NOT[True] = False, NOT[False] = True
+            (*Not)[True] = False;
+            (*Not)[False] = True;
+
+            //  AND: двумерная таблица истинности через вложенные entity map
+            //  AND[arg1][arg2] = result
+            //  Промежуточные сущности для частичного применения первого аргумента
+            auto and_true = rel_t::rel();   //  AND[True]
+            auto and_false = rel_t::rel();  //  AND[False]
+
+            (*And)[True] = and_true;
+            (*And)[False] = and_false;
+
+            //  AND[True][True] = True, AND[True][False] = False
+            (*and_true)[True] = True;
+            (*and_true)[False] = False;
+
+            //  AND[False][True] = False, AND[False][False] = False
+            (*and_false)[True] = False;
+            (*and_false)[False] = False;
+
+            //  OR: двумерная таблица истинности через вложенные entity map
+            //  OR[arg1][arg2] = result
+            auto or_true = rel_t::rel();    //  OR[True]
+            auto or_false = rel_t::rel();   //  OR[False]
+
+            (*Or)[True] = or_true;
+            (*Or)[False] = or_false;
+
+            //  OR[True][True] = True, OR[True][False] = True
+            (*or_true)[True] = True;
+            (*or_true)[False] = True;
+
+            //  OR[False][True] = True, OR[False][False] = False
+            (*or_false)[True] = True;
+            (*or_false)[False] = False;
         }
         ~base_voc()
         {
