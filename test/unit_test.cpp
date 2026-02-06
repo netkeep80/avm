@@ -13,6 +13,7 @@ rel_t *import_json(const json &j);
 void export_json(const rel_t *ent, json &j);
 rel_t *eval(rel_t *func, rel_t *arg);
 rel_t *eval(rel_t *func, rel_t *arg1, rel_t *arg2);
+rel_t *interpret(const json &expr);
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -359,6 +360,114 @@ void test_eval_null_safety()
 	check(eval(nullptr, nullptr) == rel_t::E, "eval(nullptr, nullptr) = E");
 }
 
+//	=== Тесты интерпретатора выражений ===
+
+void test_interpret_primitives()
+{
+	//	Примитивные значения
+	check(interpret(json(true)) == rel_t::True, "interpret(true) = True");
+	check(interpret(json(false)) == rel_t::False, "interpret(false) = False");
+	check(interpret(json(nullptr)) == rel_t::E, "interpret(null) = E");
+}
+
+void test_interpret_not()
+{
+	//	NOT: {"Not": [true]} = False, {"Not": [false]} = True
+	json not_true = {{"Not", json::array({true})}};
+	json not_false = {{"Not", json::array({false})}};
+
+	check(interpret(not_true) == rel_t::False, "interpret({Not: [true]}) = False");
+	check(interpret(not_false) == rel_t::True, "interpret({Not: [false]}) = True");
+}
+
+void test_interpret_and()
+{
+	//	AND: {"And": [arg1, arg2]}
+	json and_tt = {{"And", json::array({true, true})}};
+	json and_tf = {{"And", json::array({true, false})}};
+	json and_ft = {{"And", json::array({false, true})}};
+	json and_ff = {{"And", json::array({false, false})}};
+
+	check(interpret(and_tt) == rel_t::True, "interpret({And: [true, true]}) = True");
+	check(interpret(and_tf) == rel_t::False, "interpret({And: [true, false]}) = False");
+	check(interpret(and_ft) == rel_t::False, "interpret({And: [false, true]}) = False");
+	check(interpret(and_ff) == rel_t::False, "interpret({And: [false, false]}) = False");
+}
+
+void test_interpret_or()
+{
+	//	OR: {"Or": [arg1, arg2]}
+	json or_tt = {{"Or", json::array({true, true})}};
+	json or_tf = {{"Or", json::array({true, false})}};
+	json or_ft = {{"Or", json::array({false, true})}};
+	json or_ff = {{"Or", json::array({false, false})}};
+
+	check(interpret(or_tt) == rel_t::True, "interpret({Or: [true, true]}) = True");
+	check(interpret(or_tf) == rel_t::True, "interpret({Or: [true, false]}) = True");
+	check(interpret(or_ft) == rel_t::True, "interpret({Or: [false, true]}) = True");
+	check(interpret(or_ff) == rel_t::False, "interpret({Or: [false, false]}) = False");
+}
+
+void test_interpret_nested()
+{
+	//	NOT[AND[True, False]] = NOT[False] = True
+	json not_and = {{"Not", json::array({{{"And", json::array({true, false})}}})}};
+	check(interpret(not_and) == rel_t::True, "interpret({Not: [{And: [true, false]}]}) = True");
+
+	//	NOT[OR[False, False]] = NOT[False] = True
+	json not_or = {{"Not", json::array({{{"Or", json::array({false, false})}}})}};
+	check(interpret(not_or) == rel_t::True, "interpret({Not: [{Or: [false, false]}]}) = True");
+
+	//	AND[NOT[False], NOT[True]] = AND[True, False] = False
+	json and_nots = {{"And", json::array({{{"Not", json::array({false})}}, {{"Not", json::array({true})}}})}};
+	check(interpret(and_nots) == rel_t::False, "interpret({And: [{Not: [false]}, {Not: [true]}]}) = False");
+
+	//	OR[NOT[True], NOT[False]] = OR[False, True] = True
+	json or_nots = {{"Or", json::array({{{"Not", json::array({true})}}, {{"Not", json::array({false})}}})}};
+	check(interpret(or_nots) == rel_t::True, "interpret({Or: [{Not: [true]}, {Not: [false]}]}) = True");
+}
+
+void test_interpret_deeply_nested()
+{
+	//	NOT[NOT[True]] = NOT[False] = True
+	json not_not_true = {{"Not", json::array({{{"Not", json::array({true})}}})}};
+	check(interpret(not_not_true) == rel_t::True, "interpret({Not: [{Not: [true]}]}) = True");
+
+	//	NOT[NOT[False]] = NOT[True] = False
+	json not_not_false = {{"Not", json::array({{{"Not", json::array({false})}}})}};
+	check(interpret(not_not_false) == rel_t::False, "interpret({Not: [{Not: [false]}]}) = False");
+
+	//	AND[OR[True, False], AND[True, True]] = AND[True, True] = True
+	json complex = {{"And", json::array({{{"Or", json::array({true, false})}}, {{"And", json::array({true, true})}}})}};
+	check(interpret(complex) == rel_t::True, "interpret({And: [{Or: [true, false]}, {And: [true, true]}]}) = True");
+
+	//	OR[AND[False, True], AND[True, True]] = OR[False, True] = True
+	json complex2 = {{"Or", json::array({{{"And", json::array({false, true})}}, {{"And", json::array({true, true})}}})}};
+	check(interpret(complex2) == rel_t::True, "interpret({Or: [{And: [false, true]}, {And: [true, true]}]}) = True");
+}
+
+void test_interpret_error_cases()
+{
+	//	Пустой объект — некорректное выражение
+	check(interpret(json::object()) == rel_t::E, "interpret({}) = E");
+
+	//	Объект с несколькими ключами — некорректное выражение
+	json multi_key = {{"Not", json::array({true})}, {"And", json::array({true, true})}};
+	check(interpret(multi_key) == rel_t::E, "interpret(multi-key object) = E");
+
+	//	Неизвестный оператор
+	json unknown = {{"Xor", json::array({true, false})}};
+	check(interpret(unknown) == rel_t::E, "interpret({Xor: [...]}) = E");
+
+	//	Пустой массив аргументов
+	json empty_args = {{"Not", json::array()}};
+	check(interpret(empty_args) == rel_t::E, "interpret({Not: []}) = E");
+
+	//	Аргументы не массив
+	json non_array_args = {{"Not", true}};
+	check(interpret(non_array_args) == rel_t::E, "interpret({Not: true}) = E");
+}
+
 //	=== Тесты счётчиков памяти ===
 
 void test_memory_counters()
@@ -402,6 +511,13 @@ int main()
 	test_or();
 	test_eval_chained();
 	test_eval_null_safety();
+	test_interpret_primitives();
+	test_interpret_not();
+	test_interpret_and();
+	test_interpret_or();
+	test_interpret_nested();
+	test_interpret_deeply_nested();
+	test_interpret_error_cases();
 	test_memory_counters();
 
 	cout << endl;

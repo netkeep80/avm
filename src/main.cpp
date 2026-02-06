@@ -181,6 +181,79 @@ rel_t *import_json(const json &j)
 	}
 }
 
+//	Интерпретатор выражений / Expression interpreter
+//	Вычисляет логические выражения, представленные как JSON, в МАО
+//	Формат выражений:
+//	  true, false, null — примитивные значения
+//	  {"Not": [expr]} — логическое НЕ
+//	  {"And": [expr1, expr2]} — логическое И
+//	  {"Or": [expr1, expr2]} — логическое ИЛИ
+//	  Вложенные выражения: {"Not": [{"And": [true, false]}]} = NOT[AND[True][False]] = True
+//
+//	Поиск оператора по имени в базовом словаре
+rel_t *resolve_operator(const string &name)
+{
+	if (name == "Not")
+		return rel_t::Not;
+	if (name == "And")
+		return rel_t::And;
+	if (name == "Or")
+		return rel_t::Or;
+	return nullptr;
+}
+
+//	Рекурсивная интерпретация JSON-выражения
+//	Возвращает результат вычисления как ARM-сущность
+rel_t *interpret(const json &expr)
+{
+	switch (expr.type())
+	{
+	case json::value_t::null:
+		return rel_t::E;
+
+	case json::value_t::boolean:
+		return expr.get<bool>() ? rel_t::True : rel_t::False;
+
+	case json::value_t::object:
+	{
+		//	Объект с одним ключом — оператор с аргументами
+		//	{"Not": [true]} или {"And": [true, false]}
+		if (expr.size() != 1)
+			return rel_t::E; //	некорректное выражение
+
+		auto it = expr.begin();
+		const string &op_name = it.key();
+		const json &args = it.value();
+
+		rel_t *op = resolve_operator(op_name);
+		if (!op)
+			return rel_t::E; //	неизвестный оператор
+
+		if (!args.is_array() || args.empty())
+			return rel_t::E; //	аргументы должны быть непустым массивом
+
+		//	Вычисляем аргументы рекурсивно и применяем оператор
+		//	Унарный оператор: func[arg]
+		if (args.size() == 1)
+			return eval(op, interpret(args[0]));
+
+		//	Бинарный оператор: func[arg1][arg2]
+		if (args.size() == 2)
+			return eval(op, interpret(args[0]), interpret(args[1]));
+
+		//	N-арный оператор: последовательное применение func[a1][a2]...[aN]
+		rel_t *result = eval(op, interpret(args[0]));
+		for (size_t i = 1; i < args.size(); ++i)
+			result = eval(result, interpret(args[i]));
+		return result;
+	}
+
+	default:
+		//	Для остальных типов (числа, строки, массивы) — импортируем как данные
+		return import_json(expr);
+	}
+}
+
 void export_json(const rel_t *ent, json &j);
 
 void export_object_chain(const rel_t *node, json &j)
@@ -411,7 +484,7 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		cout << R"(https://github.com/netkeep80/avm
-     Associative Virtual Machine [Version 0.0.2]
+     Associative Virtual Machine [Version 0.0.3]
              _____________
             /             \
            /               \
@@ -449,13 +522,23 @@ Usage:
 		get_json(root, entry_point);
 		res = json::object();
 		// parse_json(root, res);
-		//	импортируем в корневой контекст
-		auto root_ent = import_json(root);
-		// cout << root.dump() << endl;
+		//	Проверяем, является ли вход выражением для интерпретации
+		//	Выражение — JSON объект с одним ключом-оператором (Not, And, Or)
+		bool is_expression = root.is_object() && root.size() == 1 &&
+			resolve_operator(root.begin().key()) != nullptr;
+		rel_t *root_ent;
+		if (is_expression)
+		{
+			//	Интерпретируем выражение
+			root_ent = interpret(root);
+		}
+		else
+		{
+			//	Импортируем как данные
+			root_ent = import_json(root);
+		}
 		export_json(root_ent, res);
-		// cout << res.dump() << endl;
 		add_json(res, "res.json"s);
-		//add_json(json(export_string(root_ent)), "res.txt"s);
 		std::cout << "rel_t::created() = " << rel_t::created() << std::endl;
 		return 0; //	ok
 	}

@@ -45,22 +45,24 @@ The Associative Relations Model (ARM) is a mathematical model for storing and pr
 - Logical operations (NOT, AND, OR) defined as truth tables in entity maps
 - Relative addressing operator `[]` for evaluating functions via `eval()`
 - Multi-dimensional relative addressing for passing arguments
+- Expression interpreter `interpret()` for evaluating logical expressions from JSON
 
 ### Current Status
 
-**Version: 0.0.2** (Alpha)
+**Version: 0.0.3** (Alpha)
 
 Implemented:
 - JSON null, boolean, array, number (unsigned, integer, float), string, object serialization/deserialization
 - Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or)
 - Logical operations NOT, AND, OR with truth tables via entity map
 - Relative addressing operator `[]` via `eval()` function for computing logical functions
-- 99 unit tests + 16 JSON roundtrip tests
+- Expression interpreter for evaluating logical expressions from JSON (e.g. `{"Not": [true]}` → `false`)
+- 125 unit tests + 16 JSON roundtrip tests
 - CI/CD pipeline (GitHub Actions) for Linux, macOS, Windows
 
 In Progress:
-- Expression interpreter for evaluating logical expressions in ARM
 - Persistent storage integration with LinksPlatform
+- CRUD API for programmatic use
 
 ### Documentation
 
@@ -98,6 +100,13 @@ cmake --build .
 ```
 
 The application reads a JSON file, converts it to ARM representation, and saves the result to `res.json`.
+
+If the input JSON is a logical expression (e.g. `{"Not": [true]}`), the expression interpreter evaluates it and saves the result:
+```bash
+echo '{"Not": [{"And": [true, false]}]}' > expr.json
+./avm expr.json
+cat res.json  # true
+```
 
 ### Dependencies
 
@@ -147,22 +156,24 @@ AVM (Associative Virtual Machine) — проект, реализующий ви�
 - Логические операции (NOT, AND, OR), определённые как таблицы истинности в entity map
 - Оператор относительной адресации `[]` для вычисления функций через `eval()`
 - Многомерная относительная адресация для передачи аргументов
+- Интерпретатор выражений `interpret()` для вычисления логических выражений из JSON
 
 ### Текущее состояние
 
-**Версия: 0.0.2** (Альфа)
+**Версия: 0.0.3** (Альфа)
 
 Реализовано:
 - Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string, object
 - Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or)
 - Логические операции NOT, AND, OR с таблицами истинности через entity map
 - Оператор относительной адресации `[]` через функцию `eval()` для вычисления логических функций
-- 99 модульных тестов + 16 JSON roundtrip тестов
+- Интерпретатор выражений для вычисления логических выражений из JSON (например `{"Not": [true]}` → `false`)
+- 125 модульных тестов + 16 JSON roundtrip тестов
 - CI/CD пайплайн (GitHub Actions) для Linux, macOS, Windows
 
 В разработке:
-- Интерпретатор выражений для выполнения логических выражений в МАО
 - Персистентное хранение — интеграция с LinksPlatform
+- CRUD API для программного использования
 
 ### Документация
 
@@ -200,6 +211,13 @@ cmake --build .
 ```
 
 Приложение читает JSON файл, преобразует его в представление МАО и сохраняет результат в `res.json`.
+
+Если входной JSON является логическим выражением (например `{"Not": [true]}`), интерпретатор вычисляет его и сохраняет результат:
+```bash
+echo '{"Not": [{"And": [true, false]}]}' > expr.json
+./avm expr.json
+cat res.json  # true
+```
 
 ### Зависимости
 
