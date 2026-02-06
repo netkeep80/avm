@@ -411,7 +411,7 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		cout << R"(https://github.com/netkeep80/avm
-     Associative Virtual Machine [Version 0.0.1]
+     Associative Virtual Machine [Version 0.0.2]
              _____________
             /             \
            /               \
