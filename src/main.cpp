@@ -188,6 +188,11 @@ rel_t *import_json(const json &j)
 //	  {"Not": [expr]} — логическое НЕ
 //	  {"And": [expr1, expr2]} — логическое И
 //	  {"Or": [expr1, expr2]} — логическое ИЛИ
+//	  {"Xor": [expr1, expr2]} — исключающее ИЛИ
+//	  {"Nand": [expr1, expr2]} — НЕ-И
+//	  {"Nor": [expr1, expr2]} — НЕ-ИЛИ
+//	  {"Implies": [expr1, expr2]} — логическая импликация (a → b)
+//	  {"Eq": [expr1, expr2]} — логическая эквивалентность (a ↔ b)
 //	  {"If": [cond, then, else]} — условная конструкция
 //	  {"Def": ["name", ["param1", ...], body]} — определение рекурсивной функции
 //	  {"Call": ["name", arg1, ...]} — вызов определённой функции
@@ -208,6 +213,16 @@ rel_t *resolve_operator(const string &name)
 		return rel_t::Def;
 	if (name == "Call")
 		return rel_t::Call;
+	if (name == "Xor")
+		return rel_t::Xor;
+	if (name == "Nand")
+		return rel_t::Nand;
+	if (name == "Nor")
+		return rel_t::Nor;
+	if (name == "Implies")
+		return rel_t::Implies;
+	if (name == "Eq")
+		return rel_t::Eq;
 	return nullptr;
 }
 
@@ -626,7 +641,7 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		cout << R"(https://github.com/netkeep80/avm
-     Associative Virtual Machine [Version 0.0.5]
+     Associative Virtual Machine [Version 0.0.6]
              _____________
             /             \
            /               \
@@ -665,7 +680,8 @@ Usage:
 		res = json::object();
 		// parse_json(root, res);
 		//	Проверяем, является ли вход выражением для интерпретации
-		//	Выражение — JSON объект с одним ключом-оператором (Not, And, Or, If, Def, Call)
+		//	Выражение — JSON объект с одним ключом-оператором
+		//	(Not, And, Or, Xor, Nand, Nor, Implies, Eq, If, Def, Call)
 		//	или JSON массив выражений (для Def + Call последовательностей)
 		bool is_expression = (root.is_object() && root.size() == 1 &&
 			resolve_operator(root.begin().key()) != nullptr) ||

@@ -457,8 +457,8 @@ void test_interpret_error_cases()
 	check(interpret(multi_key) == rel_t::E, "interpret(multi-key object) = E");
 
 	//	Неизвестный оператор
-	json unknown = {{"Xor", json::array({true, false})}};
-	check(interpret(unknown) == rel_t::E, "interpret({Xor: [...]}) = E");
+	json unknown = {{"Unknown", json::array({true, false})}};
+	check(interpret(unknown) == rel_t::E, "interpret({Unknown: [...]}) = E");
 
 	//	Пустой массив аргументов
 	json empty_args = {{"Not", json::array()}};
@@ -817,6 +817,203 @@ void test_interpret_array_sequential()
 	clear_func_env();
 }
 
+//	=== Тесты стандартной библиотеки логических операций ===
+
+void test_stdlib_vocabulary()
+{
+	check(rel_t::Xor != nullptr, "Xor is not null");
+	check(rel_t::Nand != nullptr, "Nand is not null");
+	check(rel_t::Nor != nullptr, "Nor is not null");
+	check(rel_t::Implies != nullptr, "Implies is not null");
+	check(rel_t::Eq != nullptr, "Eq is not null");
+
+	//	Все операции стандартной библиотеки должны быть различными
+	check(rel_t::Xor != rel_t::And, "Xor != And");
+	check(rel_t::Xor != rel_t::Or, "Xor != Or");
+	check(rel_t::Nand != rel_t::And, "Nand != And");
+	check(rel_t::Nor != rel_t::Or, "Nor != Or");
+	check(rel_t::Implies != rel_t::Eq, "Implies != Eq");
+
+	//	Все операции стандартной библиотеки являются сущностями (sub == E)
+	check(rel_t::Xor->sub == rel_t::E, "Xor->sub == E");
+	check(rel_t::Nand->sub == rel_t::E, "Nand->sub == E");
+	check(rel_t::Nor->sub == rel_t::E, "Nor->sub == E");
+	check(rel_t::Implies->sub == rel_t::E, "Implies->sub == E");
+	check(rel_t::Eq->sub == rel_t::E, "Eq->sub == E");
+}
+
+void test_xor_eval()
+{
+	//	XOR[True][True] = False
+	check(eval(rel_t::Xor, rel_t::True, rel_t::True) == rel_t::False, "XOR[True][True] = False");
+	//	XOR[True][False] = True
+	check(eval(rel_t::Xor, rel_t::True, rel_t::False) == rel_t::True, "XOR[True][False] = True");
+	//	XOR[False][True] = True
+	check(eval(rel_t::Xor, rel_t::False, rel_t::True) == rel_t::True, "XOR[False][True] = True");
+	//	XOR[False][False] = False
+	check(eval(rel_t::Xor, rel_t::False, rel_t::False) == rel_t::False, "XOR[False][False] = False");
+}
+
+void test_nand_eval()
+{
+	//	NAND[True][True] = False
+	check(eval(rel_t::Nand, rel_t::True, rel_t::True) == rel_t::False, "NAND[True][True] = False");
+	//	NAND[True][False] = True
+	check(eval(rel_t::Nand, rel_t::True, rel_t::False) == rel_t::True, "NAND[True][False] = True");
+	//	NAND[False][True] = True
+	check(eval(rel_t::Nand, rel_t::False, rel_t::True) == rel_t::True, "NAND[False][True] = True");
+	//	NAND[False][False] = True
+	check(eval(rel_t::Nand, rel_t::False, rel_t::False) == rel_t::True, "NAND[False][False] = True");
+}
+
+void test_nor_eval()
+{
+	//	NOR[True][True] = False
+	check(eval(rel_t::Nor, rel_t::True, rel_t::True) == rel_t::False, "NOR[True][True] = False");
+	//	NOR[True][False] = False
+	check(eval(rel_t::Nor, rel_t::True, rel_t::False) == rel_t::False, "NOR[True][False] = False");
+	//	NOR[False][True] = False
+	check(eval(rel_t::Nor, rel_t::False, rel_t::True) == rel_t::False, "NOR[False][True] = False");
+	//	NOR[False][False] = True
+	check(eval(rel_t::Nor, rel_t::False, rel_t::False) == rel_t::True, "NOR[False][False] = True");
+}
+
+void test_implies_eval()
+{
+	//	IMPLIES[True][True] = True (T → T = T)
+	check(eval(rel_t::Implies, rel_t::True, rel_t::True) == rel_t::True, "IMPLIES[True][True] = True");
+	//	IMPLIES[True][False] = False (T → F = F)
+	check(eval(rel_t::Implies, rel_t::True, rel_t::False) == rel_t::False, "IMPLIES[True][False] = False");
+	//	IMPLIES[False][True] = True (F → T = T)
+	check(eval(rel_t::Implies, rel_t::False, rel_t::True) == rel_t::True, "IMPLIES[False][True] = True");
+	//	IMPLIES[False][False] = True (F → F = T)
+	check(eval(rel_t::Implies, rel_t::False, rel_t::False) == rel_t::True, "IMPLIES[False][False] = True");
+}
+
+void test_eq_eval()
+{
+	//	EQ[True][True] = True
+	check(eval(rel_t::Eq, rel_t::True, rel_t::True) == rel_t::True, "EQ[True][True] = True");
+	//	EQ[True][False] = False
+	check(eval(rel_t::Eq, rel_t::True, rel_t::False) == rel_t::False, "EQ[True][False] = False");
+	//	EQ[False][True] = False
+	check(eval(rel_t::Eq, rel_t::False, rel_t::True) == rel_t::False, "EQ[False][True] = False");
+	//	EQ[False][False] = True
+	check(eval(rel_t::Eq, rel_t::False, rel_t::False) == rel_t::True, "EQ[False][False] = True");
+}
+
+void test_interpret_xor()
+{
+	//	XOR: {"Xor": [arg1, arg2]}
+	json xor_tt = {{"Xor", json::array({true, true})}};
+	json xor_tf = {{"Xor", json::array({true, false})}};
+	json xor_ft = {{"Xor", json::array({false, true})}};
+	json xor_ff = {{"Xor", json::array({false, false})}};
+
+	check(interpret(xor_tt) == rel_t::False, "interpret({Xor: [true, true]}) = False");
+	check(interpret(xor_tf) == rel_t::True, "interpret({Xor: [true, false]}) = True");
+	check(interpret(xor_ft) == rel_t::True, "interpret({Xor: [false, true]}) = True");
+	check(interpret(xor_ff) == rel_t::False, "interpret({Xor: [false, false]}) = False");
+}
+
+void test_interpret_nand()
+{
+	//	NAND: {"Nand": [arg1, arg2]}
+	json nand_tt = {{"Nand", json::array({true, true})}};
+	json nand_tf = {{"Nand", json::array({true, false})}};
+	json nand_ft = {{"Nand", json::array({false, true})}};
+	json nand_ff = {{"Nand", json::array({false, false})}};
+
+	check(interpret(nand_tt) == rel_t::False, "interpret({Nand: [true, true]}) = False");
+	check(interpret(nand_tf) == rel_t::True, "interpret({Nand: [true, false]}) = True");
+	check(interpret(nand_ft) == rel_t::True, "interpret({Nand: [false, true]}) = True");
+	check(interpret(nand_ff) == rel_t::True, "interpret({Nand: [false, false]}) = True");
+}
+
+void test_interpret_nor()
+{
+	//	NOR: {"Nor": [arg1, arg2]}
+	json nor_tt = {{"Nor", json::array({true, true})}};
+	json nor_tf = {{"Nor", json::array({true, false})}};
+	json nor_ft = {{"Nor", json::array({false, true})}};
+	json nor_ff = {{"Nor", json::array({false, false})}};
+
+	check(interpret(nor_tt) == rel_t::False, "interpret({Nor: [true, true]}) = False");
+	check(interpret(nor_tf) == rel_t::False, "interpret({Nor: [true, false]}) = False");
+	check(interpret(nor_ft) == rel_t::False, "interpret({Nor: [false, true]}) = False");
+	check(interpret(nor_ff) == rel_t::True, "interpret({Nor: [false, false]}) = True");
+}
+
+void test_interpret_implies()
+{
+	//	IMPLIES: {"Implies": [arg1, arg2]}
+	json imp_tt = {{"Implies", json::array({true, true})}};
+	json imp_tf = {{"Implies", json::array({true, false})}};
+	json imp_ft = {{"Implies", json::array({false, true})}};
+	json imp_ff = {{"Implies", json::array({false, false})}};
+
+	check(interpret(imp_tt) == rel_t::True, "interpret({Implies: [true, true]}) = True");
+	check(interpret(imp_tf) == rel_t::False, "interpret({Implies: [true, false]}) = False");
+	check(interpret(imp_ft) == rel_t::True, "interpret({Implies: [false, true]}) = True");
+	check(interpret(imp_ff) == rel_t::True, "interpret({Implies: [false, false]}) = True");
+}
+
+void test_interpret_eq()
+{
+	//	EQ: {"Eq": [arg1, arg2]}
+	json eq_tt = {{"Eq", json::array({true, true})}};
+	json eq_tf = {{"Eq", json::array({true, false})}};
+	json eq_ft = {{"Eq", json::array({false, true})}};
+	json eq_ff = {{"Eq", json::array({false, false})}};
+
+	check(interpret(eq_tt) == rel_t::True, "interpret({Eq: [true, true]}) = True");
+	check(interpret(eq_tf) == rel_t::False, "interpret({Eq: [true, false]}) = False");
+	check(interpret(eq_ft) == rel_t::False, "interpret({Eq: [false, true]}) = False");
+	check(interpret(eq_ff) == rel_t::True, "interpret({Eq: [false, false]}) = True");
+}
+
+void test_stdlib_nested()
+{
+	//	XOR с вложенными выражениями: XOR[NOT[false], AND[true, true]] = XOR[true, true] = false
+	json xor_nested = {{"Xor", json::array({{{"Not", json::array({false})}}, {{"And", json::array({true, true})}}})}};
+	check(interpret(xor_nested) == rel_t::False, "interpret({Xor: [{Not: [false]}, {And: [true, true]}]}) = False");
+
+	//	IMPLIES с вложенными: IMPLIES[AND[true, true], OR[false, true]] = IMPLIES[true, true] = true
+	json imp_nested = {{"Implies", json::array({{{"And", json::array({true, true})}}, {{"Or", json::array({false, true})}}})}};
+	check(interpret(imp_nested) == rel_t::True, "interpret({Implies: [{And: [true, true]}, {Or: [false, true]}]}) = True");
+
+	//	EQ[XOR[true, false], true] = EQ[true, true] = true
+	json eq_xor = {{"Eq", json::array({{{"Xor", json::array({true, false})}}, true})}};
+	check(interpret(eq_xor) == rel_t::True, "interpret({Eq: [{Xor: [true, false]}, true]}) = True");
+
+	//	NAND[IMPLIES[false, true], NOR[true, false]] = NAND[true, false] = true
+	json nand_complex = {{"Nand", json::array({{{"Implies", json::array({false, true})}}, {{"Nor", json::array({true, false})}}})}};
+	check(interpret(nand_complex) == rel_t::True, "interpret({Nand: [{Implies: [false, true]}, {Nor: [true, false]}]}) = True");
+}
+
+void test_stdlib_with_def_call()
+{
+	clear_func_env();
+
+	//	Определяем функцию myXor через стандартную библиотеку и вызываем
+	json program = json::array({
+		{{"Def", json::array({"myXor", json::array({"a", "b"}), {{"Xor", json::array({"a", "b"})}}})}},
+		{{"Call", json::array({"myXor", true, false})}}
+	});
+	check(interpret(program) == rel_t::True, "myXor(true, false) = True");
+
+	clear_func_env();
+
+	//	Определяем функцию implies и используем в условном выражении
+	json program2 = json::array({
+		{{"Def", json::array({"myImpl", json::array({"a", "b"}), {{"Implies", json::array({"a", "b"})}}})}},
+		{{"If", json::array({{{"Call", json::array({"myImpl", true, true})}}, true, false})}}
+	});
+	check(interpret(program2) == rel_t::True, "If[myImpl(true, true), true, false] = True");
+
+	clear_func_env();
+}
+
 //	=== Тесты счётчиков памяти ===
 
 void test_memory_counters()
@@ -883,6 +1080,19 @@ int main()
 	test_def_call_error_cases();
 	test_def_call_recursion_depth_limit();
 	test_interpret_array_sequential();
+	test_stdlib_vocabulary();
+	test_xor_eval();
+	test_nand_eval();
+	test_nor_eval();
+	test_implies_eval();
+	test_eq_eval();
+	test_interpret_xor();
+	test_interpret_nand();
+	test_interpret_nor();
+	test_interpret_implies();
+	test_interpret_eq();
+	test_stdlib_nested();
+	test_stdlib_with_def_call();
 	test_memory_counters();
 
 	cout << endl;
