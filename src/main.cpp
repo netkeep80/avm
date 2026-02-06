@@ -188,6 +188,9 @@ rel_t *import_json(const json &j)
 //	  {"Not": [expr]} — логическое НЕ
 //	  {"And": [expr1, expr2]} — логическое И
 //	  {"Or": [expr1, expr2]} — логическое ИЛИ
+//	  {"If": [cond, then, else]} — условная конструкция
+//	  {"Def": ["name", ["param1", ...], body]} — определение рекурсивной функции
+//	  {"Call": ["name", arg1, ...]} — вызов определённой функции
 //	  Вложенные выражения: {"Not": [{"And": [true, false]}]} = NOT[AND[True][False]] = True
 //
 //	Поиск оператора по имени в базовом словаре
@@ -201,7 +204,36 @@ rel_t *resolve_operator(const string &name)
 		return rel_t::Or;
 	if (name == "If")
 		return rel_t::If;
+	if (name == "Def")
+		return rel_t::Def;
+	if (name == "Call")
+		return rel_t::Call;
 	return nullptr;
+}
+
+//	Окружение функций / Function environment
+//	Хранит определения именованных функций для поддержки рекурсии
+struct func_def
+{
+	vector<string> params; //	имена параметров
+	json body;             //	тело функции (JSON-выражение)
+};
+
+static map<string, func_def> func_env; //	глобальный реестр функций
+
+//	Контекст параметров / Parameter context
+//	Стек контекстов для привязки параметров при вызове функции
+static vector<map<string, rel_t *>> param_stack;
+
+//	Максимальная глубина рекурсии / Maximum recursion depth
+static const size_t MAX_RECURSION_DEPTH = 1000;
+
+//	Очистка окружения функций / Clear function environment
+//	Используется для сброса состояния между тестами и вызовами
+void clear_func_env()
+{
+	func_env.clear();
+	param_stack.clear();
 }
 
 //	Рекурсивная интерпретация JSON-выражения
@@ -216,11 +248,28 @@ rel_t *interpret(const json &expr)
 	case json::value_t::boolean:
 		return expr.get<bool>() ? rel_t::True : rel_t::False;
 
+	case json::value_t::string:
+	{
+		//	Строка: проверяем, является ли она ссылкой на параметр функции
+		const string &name = expr.get_ref<const string &>();
+		//	Ищем параметр в стеке контекстов (от последнего к первому)
+		for (auto it = param_stack.rbegin(); it != param_stack.rend(); ++it)
+		{
+			auto param_it = it->find(name);
+			if (param_it != it->end())
+				return param_it->second;
+		}
+		//	Не найден параметр — импортируем как строковые данные
+		return import_json(expr);
+	}
+
 	case json::value_t::object:
 	{
 		//	Объект с одним ключом — оператор с аргументами
 		//	{"Not": [true]} или {"And": [true, false]}
 		//	{"If": [condition, then_expr, else_expr]} — условная конструкция
+		//	{"Def": ["name", ["param1", ...], body]} — определение функции
+		//	{"Call": ["name", arg1, ...]} — вызов функции
 		if (expr.size() != 1)
 			return rel_t::E; //	некорректное выражение
 
@@ -234,6 +283,69 @@ rel_t *interpret(const json &expr)
 
 		if (!args.is_array() || args.empty())
 			return rel_t::E; //	аргументы должны быть непустым массивом
+
+		//	Def: определение именованной функции
+		//	{"Def": ["name", ["param1", "param2", ...], body_expr]}
+		if (op == rel_t::Def)
+		{
+			if (args.size() != 3)
+				return rel_t::E; //	Def требует ровно 3 аргумента
+
+			if (!args[0].is_string())
+				return rel_t::E; //	имя функции должно быть строкой
+
+			if (!args[1].is_array())
+				return rel_t::E; //	параметры должны быть массивом
+
+			const string &func_name = args[0].get_ref<const string &>();
+			func_def def;
+			for (auto &p : args[1])
+			{
+				if (!p.is_string())
+					return rel_t::E; //	имена параметров должны быть строками
+				def.params.push_back(p.get<string>());
+			}
+			def.body = args[2];
+			func_env[func_name] = std::move(def);
+			return rel_t::E; //	Def не возвращает значение (side effect)
+		}
+
+		//	Call: вызов именованной функции с аргументами
+		//	{"Call": ["name", arg1, arg2, ...]}
+		if (op == rel_t::Call)
+		{
+			if (args.size() < 1)
+				return rel_t::E;
+
+			if (!args[0].is_string())
+				return rel_t::E; //	имя функции должно быть строкой
+
+			const string &func_name = args[0].get_ref<const string &>();
+			auto func_it = func_env.find(func_name);
+			if (func_it == func_env.end())
+				return rel_t::E; //	функция не определена
+
+			const func_def &def = func_it->second;
+
+			//	Проверяем соответствие количества аргументов и параметров
+			if (args.size() - 1 != def.params.size())
+				return rel_t::E; //	несоответствие числа аргументов
+
+			//	Проверяем глубину рекурсии
+			if (param_stack.size() >= MAX_RECURSION_DEPTH)
+				return rel_t::E; //	превышена максимальная глубина рекурсии
+
+			//	Вычисляем аргументы и привязываем к параметрам
+			map<string, rel_t *> context;
+			for (size_t i = 0; i < def.params.size(); ++i)
+				context[def.params[i]] = interpret(args[i + 1]);
+
+			//	Помещаем контекст в стек и вычисляем тело функции
+			param_stack.push_back(std::move(context));
+			rel_t *result = interpret(def.body);
+			param_stack.pop_back();
+			return result;
+		}
 
 		//	If: ленивое вычисление — вычисляется только нужная ветка
 		//	{"If": [condition, then_expr, else_expr]}
@@ -267,8 +379,19 @@ rel_t *interpret(const json &expr)
 		return result;
 	}
 
+	case json::value_t::array:
+	{
+		//	Массив: последовательное выполнение выражений, возвращает результат последнего
+		//	Позволяет сначала определить функции через Def, затем вызвать через Call
+		//	[{"Def": [...]}, {"Def": [...]}, {"Call": [...]}]
+		rel_t *result = rel_t::E;
+		for (auto &item : expr)
+			result = interpret(item);
+		return result;
+	}
+
 	default:
-		//	Для остальных типов (числа, строки, массивы) — импортируем как данные
+		//	Для остальных типов (числа) — импортируем как данные
 		return import_json(expr);
 	}
 }
@@ -503,7 +626,7 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		cout << R"(https://github.com/netkeep80/avm
-     Associative Virtual Machine [Version 0.0.4]
+     Associative Virtual Machine [Version 0.0.5]
              _____________
             /             \
            /               \
@@ -542,13 +665,18 @@ Usage:
 		res = json::object();
 		// parse_json(root, res);
 		//	Проверяем, является ли вход выражением для интерпретации
-		//	Выражение — JSON объект с одним ключом-оператором (Not, And, Or)
-		bool is_expression = root.is_object() && root.size() == 1 &&
-			resolve_operator(root.begin().key()) != nullptr;
+		//	Выражение — JSON объект с одним ключом-оператором (Not, And, Or, If, Def, Call)
+		//	или JSON массив выражений (для Def + Call последовательностей)
+		bool is_expression = (root.is_object() && root.size() == 1 &&
+			resolve_operator(root.begin().key()) != nullptr) ||
+			(root.is_array() && !root.empty() && root[0].is_object() &&
+			root[0].size() == 1 && resolve_operator(root[0].begin().key()) != nullptr);
 		rel_t *root_ent;
 		if (is_expression)
 		{
 			//	Интерпретируем выражение
+			func_env.clear();   //	очищаем окружение функций
+			param_stack.clear(); //	очищаем стек параметров
 			root_ent = interpret(root);
 		}
 		else

@@ -1,0 +1,1 @@
+[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]
