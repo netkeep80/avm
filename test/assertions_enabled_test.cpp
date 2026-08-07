@@ -6,7 +6,7 @@
 
 int main()
 {
-    bool assertion_expression_evaluated = false;
-    assert((assertion_expression_evaluated = true));
-    return assertion_expression_evaluated ? 0 : 1;
+	bool assertion_expression_evaluated = false;
+	assert((assertion_expression_evaluated = true));
+	return assertion_expression_evaluated ? 0 : 1;
 }
