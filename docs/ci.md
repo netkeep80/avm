@@ -46,7 +46,7 @@ The C++ suites use `assert(...)` for invariant checks. CMake Release configurati
 
 The `CI` workflow separates six concerns:
 
-1. `Quality gates` — source-size policy, removal guard for `resolve_operator`/`func_def`/`param_stack`, and strict clang-format verification.
+1. `Quality gates` — source-size policy, removal guard for `resolve_operator`/`func_def`/`param_stack`, raw-carrier isolation, Anum/parser boundary enforcement and strict clang-format verification.
 2. `Core C++20 / warnings-as-errors` — Linux Debug core-only build and CTest.
 3. `JSON projection / warnings-as-errors` — Linux Debug build of JSON -> links -> runtime -> JSON with legacy facade disabled.
 4. `Legacy facade / warnings-as-errors` — strict build of the CLI and compatibility facade plus projection and roundtrip tests. This proves the historical outward API delegates to the new semantic path.
@@ -73,6 +73,14 @@ The historical recursive JSON interpreter was removed after its behavior was com
 
 The compatibility function name `clear_func_env()` remains only as an API reset shim. It destroys the current `JsonCompatibilitySession`; there is no `func_env` data structure behind it.
 
+## Protocol-layer guards
+
+`RawCarrier` is required to remain storage-only. CI rejects AVM semantic includes, JSON, Anum or abit references in `raw_carrier.h`.
+
+Production `src`/`include/avm` are also checked for direct Anum/abit parser coupling. The canonical grammar, tokenization, quotation/context projection and L3 parser belong outside AVM. The stable handoff into the VM is a completed `ProjectionDescription` over externally resolved `Anchor(LinkId)` values.
+
+No production `AnumParser` or generic protocol-adapter base class is required. Replaceability is tested by independently implemented adapters that converge through the same neutral projection contract.
+
 ## Test suites
 
 Core:
@@ -87,7 +95,8 @@ Core:
 - `frame_runtime_tests`;
 - `deferred_definition_tests`;
 - `projection_tests` — parser-independent `ProjectionDescription`, read-only `find_projection`, explicit `realize_projection`, canonical reuse, invalid graph/anchor rejection and no-partial-write checks for missing anchors;
-- `raw_carrier_tests` — opaque binary raw storage, independent raw/document identity, no LinkStore mutation on load/read/delete, and survival of realized denotation after raw deletion.
+- `raw_carrier_tests` — opaque binary raw storage, independent raw/document identity, no LinkStore mutation on load/read/delete, and survival of realized denotation after raw deletion;
+- `protocol_adapter_boundary_tests` — two unrelated external toy adapters consume different source representations, receive explicit context, converge to the same canonical relation entity, preserve non-mutating `find`, remain independent of raw lifetime, and demonstrate context-dependent denotation without parser coupling in AVM.
 
 Compatibility:
 
