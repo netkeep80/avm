@@ -14,9 +14,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(AVM_BUILD_LEGACY "Build the legacy JSON compatibility executable and tests" ON)
+option(AVM_BUILD_LEGACY "Build the legacy JSON codec/facade executable and tests" ON)
 option(AVM_BUILD_CORE_TESTS "Build AVM 1.0 core tests" ON)
-option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection and conformance tests" ON)
+option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection tests" ON)
 option(AVM_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(AVM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
@@ -50,32 +50,37 @@ function(avm_enable_test_assertions target)
     endif()
 endfunction()
 
+function(avm_link_legacy_windows target)
+    if(WIN32)
+        target_link_libraries(${target} PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/3p/doublets_ffi.dll.lib")
+        if(MSVC)
+            target_link_options(${target} PRIVATE /STACK:8388608)
+        else()
+            target_link_options(${target} PRIVATE -Wl,--stack,8388608)
+        endif()
+    endif()
+endfunction()
+
 if(AVM_BUILD_LEGACY)
     set(TARGET_NAME avm)
-
-    add_executable(${TARGET_NAME})
-
-    target_include_directories(${TARGET_NAME} PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/3p")
-
-    target_sources(${TARGET_NAME} PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/avm.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/3p/UnitedMemoryLinks.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 
     if(WIN32)
         add_definitions(-DUNICODE -D_UNICODE)
         link_directories("${CMAKE_CURRENT_SOURCE_DIR}/3p")
-        target_link_libraries(${PROJECT_NAME} PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/3p/doublets_ffi.dll.lib")
-
-        if(MSVC)
-            target_link_options(${TARGET_NAME} PRIVATE /STACK:8388608)
-        else()
-            target_link_options(${TARGET_NAME} PRIVATE -Wl,--stack,8388608)
-        endif()
     endif()
+
+    add_executable(${TARGET_NAME}
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/cli.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/legacy_json_compat.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/avm.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/avm/legacy_json_compat.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p/UnitedMemoryLinks.h")
+    target_include_directories(${TARGET_NAME} PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+    avm_apply_quality(${TARGET_NAME})
+    avm_link_legacy_windows(${TARGET_NAME})
 
     set(TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test")
     set(TEST_FILES
@@ -98,28 +103,30 @@ if(AVM_BUILD_LEGACY)
 
     add_executable(avm_unit_test
         "${CMAKE_CURRENT_SOURCE_DIR}/test/unit_test.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/legacy_json_compat.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/include/avm.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/avm/legacy_json_compat.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/3p/UnitedMemoryLinks.h")
-
     target_include_directories(avm_unit_test PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/3p")
-
-    target_compile_definitions(avm_unit_test PRIVATE AVM_NO_MAIN)
     avm_enable_test_assertions(avm_unit_test)
-
-    if(WIN32)
-        target_link_libraries(avm_unit_test PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/3p/doublets_ffi.dll.lib")
-        if(MSVC)
-            target_link_options(avm_unit_test PRIVATE /STACK:8388608)
-        else()
-            target_link_options(avm_unit_test PRIVATE -Wl,--stack,8388608)
-        endif()
-    endif()
-
+    avm_link_legacy_windows(avm_unit_test)
     add_test(NAME unit_tests COMMAND avm_unit_test)
+
+    add_executable(avm_legacy_facade_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/legacy_facade_test.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/legacy_json_compat.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/avm.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/avm/legacy_json_compat.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p/UnitedMemoryLinks.h")
+    target_include_directories(avm_legacy_facade_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+    avm_apply_quality(avm_legacy_facade_test)
+    avm_enable_test_assertions(avm_legacy_facade_test)
+    avm_link_legacy_windows(avm_legacy_facade_test)
+    add_test(NAME legacy_facade_tests COMMAND avm_legacy_facade_test)
 
     foreach(TEST_FILE ${TEST_FILES})
         add_test(
@@ -209,33 +216,5 @@ if(AVM_BUILD_JSON_COMPAT_TESTS)
     avm_enable_test_assertions(avm_json_projection_test)
     add_test(NAME json_projection_tests COMMAND avm_json_projection_test)
 
-    set(AVM_JSON_COMPAT_TARGETS avm_json_projection_test)
-
-    if(AVM_BUILD_LEGACY)
-        add_executable(avm_json_legacy_conformance_test
-            "${CMAKE_CURRENT_SOURCE_DIR}/test/json_legacy_conformance_test.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/include/avm.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/3p/UnitedMemoryLinks.h")
-        target_include_directories(avm_json_legacy_conformance_test PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/include"
-            "${CMAKE_CURRENT_SOURCE_DIR}/3p")
-        target_compile_definitions(avm_json_legacy_conformance_test PRIVATE AVM_NO_MAIN)
-        avm_enable_test_assertions(avm_json_legacy_conformance_test)
-
-        if(WIN32)
-            target_link_libraries(avm_json_legacy_conformance_test PRIVATE
-                "${CMAKE_CURRENT_SOURCE_DIR}/3p/doublets_ffi.dll.lib")
-            if(MSVC)
-                target_link_options(avm_json_legacy_conformance_test PRIVATE /STACK:8388608)
-            else()
-                target_link_options(avm_json_legacy_conformance_test PRIVATE -Wl,--stack,8388608)
-            endif()
-        endif()
-
-        add_test(NAME json_legacy_conformance_tests COMMAND avm_json_legacy_conformance_test)
-        list(APPEND AVM_JSON_COMPAT_TARGETS avm_json_legacy_conformance_test)
-    endif()
-
-    add_custom_target(avm_json_compat_tests DEPENDS ${AVM_JSON_COMPAT_TARGETS})
+    add_custom_target(avm_json_compat_tests DEPENDS avm_json_projection_test)
 endif()
