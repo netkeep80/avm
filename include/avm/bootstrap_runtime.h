@@ -4,7 +4,9 @@
 #include "avm/program_model.h"
 
 #include <optional>
+#include <set>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace avm
@@ -36,14 +38,44 @@ inline std::optional<LinkId> lookup_binary_relation_value(
     return lookup_relation_value(store, relation, *pair);
 }
 
+struct DecodedCallFrame
+{
+    LinkId entity;
+    LinkId parent;
+    LinkId function;
+    std::vector<LinkId> bindings;
+};
+
+inline DecodedCallFrame decode_call_frame(
+    const LinkStore &store, const BootstrapVocabulary &vocabulary, LinkId frame)
+{
+    if (frame == vocabulary.frame_relation)
+        throw std::runtime_error("frame vocabulary identity is not a call frame");
+
+    const RelationEntity decoded = decode_relation_entity(store, frame);
+    if (decoded.relation != vocabulary.frame_relation)
+        throw std::runtime_error("LinkId is not an AVM call frame");
+
+    const Link payload = store.get(decoded.object);
+    return DecodedCallFrame{
+        frame,
+        decoded.subject,
+        payload.begin,
+        decode_link_list(store, vocabulary.nil, payload.end),
+    };
+}
+
 class BootstrapRuntime
 {
 public:
-    explicit BootstrapRuntime(LinkStore &store)
+    explicit BootstrapRuntime(LinkStore &store, std::size_t max_call_depth = 1000)
         : store_(store)
         , vocabulary_(BootstrapVocabulary::create(store))
         , executor_(store)
+        , max_call_depth_(max_call_depth)
     {
+        if (max_call_depth_ == 0)
+            throw std::invalid_argument("maximum call depth must be greater than zero");
         materialize_truth_tables();
         register_handlers();
     }
@@ -94,6 +126,76 @@ private:
         if (!value)
             throw std::runtime_error(message);
         return *value;
+    }
+
+    std::size_t frame_depth(std::optional<LinkId> frame) const
+    {
+        std::size_t depth = 0;
+        std::set<LinkId> visited;
+        LinkId cursor = frame.value_or(vocabulary_.nil);
+        while (cursor != vocabulary_.nil)
+        {
+            if (!visited.insert(cursor).second)
+                throw std::runtime_error("cycle detected in call-frame chain");
+
+            const DecodedCallFrame decoded = decode_call_frame(store_, vocabulary_, cursor);
+            cursor = decoded.parent;
+            ++depth;
+            if (depth > max_call_depth_)
+                throw std::runtime_error("call-frame chain exceeds maximum depth");
+        }
+        return depth;
+    }
+
+    std::optional<LinkId> resolve_parameter(std::optional<LinkId> frame, LinkId formal) const
+    {
+        std::set<LinkId> visited;
+        LinkId cursor = frame.value_or(vocabulary_.nil);
+        while (cursor != vocabulary_.nil)
+        {
+            if (!visited.insert(cursor).second)
+                throw std::runtime_error("cycle detected in call-frame chain");
+
+            const DecodedCallFrame decoded = decode_call_frame(store_, vocabulary_, cursor);
+            for (const LinkId binding : decoded.bindings)
+            {
+                const RelationEntity row = decode_relation_entity(store_, binding);
+                if (row.relation != vocabulary_.binding_relation)
+                    throw std::runtime_error("call frame contains a non-binding entity");
+                if (row.subject == formal)
+                    return row.object;
+            }
+            cursor = decoded.parent;
+        }
+        return std::nullopt;
+    }
+
+    LinkId materialize_frame(
+        std::optional<LinkId> parent,
+        LinkId function,
+        const std::vector<LinkId> &formals,
+        const std::vector<LinkId> &actuals)
+    {
+        if (formals.size() != actuals.size())
+            throw std::logic_error("cannot materialize frame with mismatched binding counts");
+
+        std::vector<LinkId> bindings;
+        bindings.reserve(formals.size());
+        for (std::size_t i = 0; i < formals.size(); ++i)
+        {
+            bindings.push_back(encode_relation_entity(
+                store_, RelationEntity{vocabulary_.binding_relation, formals[i], actuals[i]}));
+        }
+
+        const LinkId binding_list = encode_link_list(store_, vocabulary_.nil, bindings);
+        const LinkId payload = store_.intern(function, binding_list);
+        return encode_relation_entity(
+            store_,
+            RelationEntity{
+                vocabulary_.frame_relation,
+                parent.value_or(vocabulary_.nil),
+                payload,
+            });
     }
 
     void materialize_truth_tables()
@@ -174,7 +276,7 @@ private:
 
                 LinkId result = vocabulary_.nil;
                 for (const LinkId expression : expressions)
-                    result = executor.execute(expression, context.entity);
+                    result = executor.execute(expression, context.entity, context.frame);
                 return result;
             });
 
@@ -182,7 +284,7 @@ private:
             vocabulary_.not_relation,
             [this](const ExecutionContext &context, Executor &executor) {
                 const std::vector<LinkId> arguments = expression_arguments(context, 1);
-                const LinkId value = executor.execute(arguments[0], context.entity);
+                const LinkId value = executor.execute(arguments[0], context.entity, context.frame);
                 return require_lookup(
                     lookup_relation_value(store_, vocabulary_.not_relation, value),
                     "NOT operand is not a Boolean value");
@@ -192,8 +294,8 @@ private:
             vocabulary_.and_relation,
             [this](const ExecutionContext &context, Executor &executor) {
                 const std::vector<LinkId> arguments = expression_arguments(context, 2);
-                const LinkId left = executor.execute(arguments[0], context.entity);
-                const LinkId right = executor.execute(arguments[1], context.entity);
+                const LinkId left = executor.execute(arguments[0], context.entity, context.frame);
+                const LinkId right = executor.execute(arguments[1], context.entity, context.frame);
                 return require_lookup(
                     lookup_binary_relation_value(store_, vocabulary_.and_relation, left, right),
                     "AND operands are not Boolean values");
@@ -203,8 +305,8 @@ private:
             vocabulary_.or_relation,
             [this](const ExecutionContext &context, Executor &executor) {
                 const std::vector<LinkId> arguments = expression_arguments(context, 2);
-                const LinkId left = executor.execute(arguments[0], context.entity);
-                const LinkId right = executor.execute(arguments[1], context.entity);
+                const LinkId left = executor.execute(arguments[0], context.entity, context.frame);
+                const LinkId right = executor.execute(arguments[1], context.entity, context.frame);
                 return require_lookup(
                     lookup_binary_relation_value(store_, vocabulary_.or_relation, left, right),
                     "OR operands are not Boolean values");
@@ -214,22 +316,67 @@ private:
             vocabulary_.if_relation,
             [this](const ExecutionContext &context, Executor &executor) {
                 const std::vector<LinkId> arguments = expression_arguments(context, 3);
-                const LinkId condition = executor.execute(arguments[0], context.entity);
+                const LinkId condition = executor.execute(arguments[0], context.entity, context.frame);
                 const LinkId selected = require_lookup(
                     lookup_relation_value(store_, vocabulary_.if_relation, condition),
                     "If condition is not a Boolean value");
 
                 if (selected == vocabulary_.true_value)
-                    return executor.execute(arguments[1], context.entity);
+                    return executor.execute(arguments[1], context.entity, context.frame);
                 if (selected == vocabulary_.false_value)
-                    return executor.execute(arguments[2], context.entity);
+                    return executor.execute(arguments[2], context.entity, context.frame);
                 throw std::logic_error("If truth table returned a non-Boolean selector");
+            });
+
+        executor_.register_native(
+            vocabulary_.function_relation,
+            [this](const ExecutionContext &context, Executor &) {
+                if (context.subject == vocabulary_.function_relation)
+                    throw std::runtime_error("function vocabulary identity is not executable");
+                static_cast<void>(find_function_definition(store_, vocabulary_, context.subject));
+                return context.subject;
+            });
+
+        executor_.register_native(
+            vocabulary_.parameter_relation,
+            [this](const ExecutionContext &context, Executor &) {
+                require_expression_subject(context, vocabulary_.unit);
+                return require_lookup(
+                    resolve_parameter(context.frame, context.object),
+                    "parameter is not bound in the current call-frame chain");
+            });
+
+        executor_.register_native(
+            vocabulary_.call_relation,
+            [this](const ExecutionContext &context, Executor &executor) {
+                require_expression_subject(context, vocabulary_.unit);
+                const CallExpression call = decode_call_expression(store_, vocabulary_, context.entity);
+                const auto definition = find_function_definition(store_, vocabulary_, call.function);
+                if (!definition)
+                    throw std::runtime_error("call references an undefined function handle");
+                if (definition->parameters.size() != call.arguments.size())
+                    throw std::runtime_error("function call arity mismatch");
+                if (frame_depth(context.frame) >= max_call_depth_)
+                    throw std::runtime_error("maximum function call depth exceeded");
+
+                std::vector<LinkId> actuals;
+                actuals.reserve(call.arguments.size());
+                for (const LinkId argument : call.arguments)
+                    actuals.push_back(executor.execute(argument, context.entity, context.frame));
+
+                const LinkId frame = materialize_frame(
+                    context.frame,
+                    call.function,
+                    definition->parameters,
+                    actuals);
+                return executor.execute(definition->body, context.entity, frame);
             });
     }
 
     LinkStore &store_;
     BootstrapVocabulary vocabulary_;
     Executor executor_;
+    std::size_t max_call_depth_;
 };
 
 } // namespace avm
