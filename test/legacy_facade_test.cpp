@@ -33,11 +33,10 @@ int main()
 	assert(interpret(json{{"Call", json::array({"id", true})}}) == rel_t::E);
 
 	clear_func_env();
-	const json recursive_program = json::array(
-	    {json{{"Def", json::array({"recur", json::array({"flag"}),
-	                               json{{"If", json::array({"flag", json{{"Call", json::array({"recur", false})}},
-	                                                        true})}}})}},
-	     json{{"Call", json::array({"recur", true})}}});
+	const json recursive_call = {{"Call", json::array({"recur", false})}};
+	const json recursive_if = {{"If", json::array({"flag", recursive_call, true})}};
+	const json recursive_def = {{"Def", json::array({"recur", json::array({"flag"}), recursive_if})}};
+	const json recursive_program = json::array({recursive_def, json{{"Call", json::array({"recur", true})}}});
 	assert(interpret(recursive_program) == rel_t::True);
 
 	clear_func_env();
