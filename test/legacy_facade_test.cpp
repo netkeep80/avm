@@ -33,13 +33,11 @@ int main()
 	assert(interpret(json{{"Call", json::array({"id", true})}}) == rel_t::E);
 
 	clear_func_env();
-	const json recursive_program = json::array({
-	    json{{"Def",
-	          json::array({"recur", json::array({"flag"}),
-	                       json{{"If",
-	                             json::array({"flag", json{{"Call", json::array({"recur", false})}}, true})}}})}},
-	    json{{"Call", json::array({"recur", true})}},
-	});
+	const json recursive_program = json::array(
+	    {json{{"Def", json::array({"recur", json::array({"flag"}),
+	                               json{{"If", json::array({"flag", json{{"Call", json::array({"recur", false})}},
+	                                                        true})}}})}},
+	     json{{"Call", json::array({"recur", true})}}});
 	assert(interpret(recursive_program) == rel_t::True);
 
 	clear_func_env();
@@ -51,8 +49,7 @@ int main()
 	assert(interpret(continue_after_error) == rel_t::False);
 
 	clear_func_env();
-	const json lazy = {
-	    {"If", json::array({true, true, json{{"Call", json::array({"missing"})}}})}};
+	const json lazy = {{"If", json::array({true, true, json{{"Call", json::array({"missing"})}}})}};
 	assert(interpret(lazy) == rel_t::True);
 
 	return 0;
