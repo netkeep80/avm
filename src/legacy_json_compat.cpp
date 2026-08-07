@@ -1,6 +1,7 @@
 #include "avm/legacy_json_compat.h"
 #include "avm/json_compat.h"
 
+#include <bit>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -41,6 +42,9 @@ rel_t *eval(rel_t *function, rel_t *first, rel_t *second)
 
 rel_t *import_json(const json &value)
 {
+	static_assert(sizeof(json::number_integer_t) == sizeof(json::number_unsigned_t));
+	static_assert(sizeof(json::number_float_t) == sizeof(json::number_unsigned_t));
+
 	switch (value.type())
 	{
 	case json::value_t::null:
@@ -61,9 +65,9 @@ rel_t *import_json(const json &value)
 	{
 		const auto text = value.get<string>();
 		auto array = rel_t::E;
-		for (const auto character : text)
+		for (const char character : text)
 		{
-			const uint8_t byte = *reinterpret_cast<const uint8_t *>(&character);
+			const uint8_t byte = static_cast<uint8_t>(static_cast<unsigned char>(character));
 			auto bits = rel_t::E;
 			for (uint8_t mask = 1; mask; mask <<= 1)
 				bits = rel_t::rel(rel_t::rel(bits, (byte & mask) ? rel_t::True : rel_t::False), rel_t::R);
@@ -84,7 +88,7 @@ rel_t *import_json(const json &value)
 	case json::value_t::number_integer:
 	{
 		const json::number_integer_t signed_number = value.get<json::number_integer_t>();
-		const auto number = *reinterpret_cast<const json::number_unsigned_t *>(&signed_number);
+		const json::number_unsigned_t number = std::bit_cast<json::number_unsigned_t>(signed_number);
 		auto bits = rel_t::E;
 		for (json::number_unsigned_t mask = 1; mask; mask <<= 1)
 			bits = rel_t::rel(rel_t::rel(bits, (number & mask) ? rel_t::True : rel_t::False), rel_t::R);
@@ -94,7 +98,7 @@ rel_t *import_json(const json &value)
 	case json::value_t::number_float:
 	{
 		const json::number_float_t floating_number = value.get<json::number_float_t>();
-		const auto number = *reinterpret_cast<const json::number_unsigned_t *>(&floating_number);
+		const json::number_unsigned_t number = std::bit_cast<json::number_unsigned_t>(floating_number);
 		auto bits = rel_t::E;
 		for (json::number_unsigned_t mask = 1; mask; mask <<= 1)
 			bits = rel_t::rel(rel_t::rel(bits, (number & mask) ? rel_t::True : rel_t::False), rel_t::R);
@@ -173,6 +177,9 @@ void export_seq(const rel_t *entity, json &value)
 
 void export_json(const rel_t *entity, json &value)
 {
+	static_assert(sizeof(json::number_integer_t) == sizeof(json::number_unsigned_t));
+	static_assert(sizeof(json::number_float_t) == sizeof(json::number_unsigned_t));
+
 	if (entity == rel_t::E)
 		value = json();
 	else if (entity == rel_t::True)
@@ -202,7 +209,7 @@ void export_json(const rel_t *entity, json &value)
 						byte |= mask;
 					mask <<= 1;
 				}
-				text += *reinterpret_cast<char *>(&byte);
+				text += static_cast<char>(byte);
 			}
 			value = json(text);
 		}
@@ -236,7 +243,7 @@ void export_json(const rel_t *entity, json &value)
 					number |= mask;
 				mask <<= 1;
 			}
-			value = json(*reinterpret_cast<json::number_integer_t *>(&number));
+			value = json(std::bit_cast<json::number_integer_t>(number));
 		}
 	}
 	else if (entity->sub == rel_t::Float)
@@ -252,7 +259,7 @@ void export_json(const rel_t *entity, json &value)
 					number |= mask;
 				mask <<= 1;
 			}
-			value = json(*reinterpret_cast<json::number_float_t *>(&number));
+			value = json(std::bit_cast<json::number_float_t>(number));
 		}
 	}
 	else if (entity->sub == rel_t::Object)
