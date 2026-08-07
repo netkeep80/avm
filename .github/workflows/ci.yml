@@ -151,10 +151,10 @@ jobs:
           -DAVM_BUILD_JSON_COMPAT_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
 
-      - name: Build strict facade targets
+      - name: Build strict facade targets and historical unit suite
         run: >-
           cmake --build build-legacy
-          --target avm avm_legacy_facade_test avm_json_projection_test
+          --target avm avm_unit_test avm_legacy_facade_test avm_json_projection_test
           --parallel
 
       - name: Run facade, projection and roundtrip tests
