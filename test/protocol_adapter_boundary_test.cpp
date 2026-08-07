@@ -46,7 +46,7 @@ public:
 		if (!source.relation_entity)
 			throw std::invalid_argument("toy AST does not describe a relation entity");
 
-		avm::ProjectionDescription description;
+		avm::ProjectionDescription description{{}, avm::ProjectionRef::anchor(context.relation)};
 		description.nodes.push_back(
 		    {avm::ProjectionRef::anchor(context.subject), avm::ProjectionRef::anchor(context.object)});
 		description.nodes.push_back(
