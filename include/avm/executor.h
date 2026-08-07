@@ -19,6 +19,7 @@ struct ExecutionContext
     LinkId subject;
     LinkId object;
     std::optional<LinkId> parent;
+    std::optional<LinkId> frame;
 };
 
 class Executor;
@@ -59,7 +60,10 @@ public:
         return native_handlers_.contains(relation);
     }
 
-    LinkId execute(LinkId entity, std::optional<LinkId> parent = std::nullopt)
+    LinkId execute(
+        LinkId entity,
+        std::optional<LinkId> parent = std::nullopt,
+        std::optional<LinkId> frame = std::nullopt)
     {
         if (!store_.contains(entity))
             throw std::invalid_argument("execution entity is not present in LinkStore");
@@ -71,6 +75,7 @@ public:
             decoded.subject,
             decoded.object,
             parent,
+            frame,
         };
 
         const auto handler = native_handlers_.find(context.relation);
