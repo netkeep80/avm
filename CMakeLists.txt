@@ -94,6 +94,16 @@ endif()
 
 add_test( NAME unit_tests COMMAND avm_unit_test )
 
+# The AVM 1.0 core is tested independently from the legacy JSON interpreter
+# and from the optional Windows LinksPlatform DLL.
+add_executable( avm_link_store_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/link_store_test.cpp" )
+
+target_include_directories( avm_link_store_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+
+add_test( NAME link_store_tests COMMAND avm_link_store_test )
+
 foreach( TEST_FILE ${TEST_FILES} )
     add_test(
         NAME "json_roundtrip_${TEST_FILE}"
