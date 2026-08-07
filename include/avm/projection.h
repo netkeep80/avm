@@ -25,15 +25,9 @@ struct ProjectionRef
 	LinkId anchor_id;
 	ProjectionNodeId node_id;
 
-	static ProjectionRef anchor(LinkId id)
-	{
-		return ProjectionRef{Kind::Anchor, id, 0};
-	}
+	static ProjectionRef anchor(LinkId id) { return ProjectionRef{Kind::Anchor, id, 0}; }
 
-	static ProjectionRef node(ProjectionNodeId id)
-	{
-		return ProjectionRef{Kind::Node, invalid_link_id, id};
-	}
+	static ProjectionRef node(ProjectionNodeId id) { return ProjectionRef{Kind::Node, invalid_link_id, id}; }
 
 	bool operator==(const ProjectionRef &) const = default;
 };
