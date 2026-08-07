@@ -199,6 +199,11 @@ if(AVM_BUILD_CORE_TESTS)
         test/projection_test.cpp
         projection_tests)
 
+    avm_add_core_test(
+        avm_raw_carrier_test
+        test/raw_carrier_test.cpp
+        raw_carrier_tests)
+
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
         avm_link_store_test
@@ -209,7 +214,8 @@ if(AVM_BUILD_CORE_TESTS)
         avm_function_runtime_test
         avm_frame_runtime_test
         avm_deferred_definition_test
-        avm_projection_test)
+        avm_projection_test
+        avm_raw_carrier_test)
 endif()
 
 if(AVM_BUILD_JSON_COMPAT_TESTS)

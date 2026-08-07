@@ -64,6 +64,15 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce RawCarrier isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -n -E '#include "avm/|nlohmann|[Aa]num|[Aa]bit' include/avm/raw_carrier.h; then
+            echo "ERROR: RawCarrier must remain independent of AVM semantic/protocol layers"
+            exit 1
+          fi
+
       - name: Check AVM 1.0 and compatibility formatting
         shell: bash
         run: |
@@ -83,6 +92,7 @@ jobs:
             test/frame_runtime_test.cpp \
             test/deferred_definition_test.cpp \
             test/projection_test.cpp \
+            test/raw_carrier_test.cpp \
             test/json_projection_test.cpp \
             test/legacy_facade_test.cpp
 
