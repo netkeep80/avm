@@ -55,7 +55,7 @@ jobs:
             exit 1
           fi
 
-      - name: Check AVM 1.0 core formatting
+      - name: Check AVM 1.0 core and compatibility formatting
         shell: bash
         run: |
           set -euo pipefail
@@ -70,7 +70,9 @@ jobs:
             test/boolean_runtime_test.cpp \
             test/function_runtime_test.cpp \
             test/frame_runtime_test.cpp \
-            test/deferred_definition_test.cpp
+            test/deferred_definition_test.cpp \
+            test/json_projection_test.cpp \
+            test/json_legacy_conformance_test.cpp
 
   core:
     name: Core C++20 / warnings-as-errors
@@ -87,6 +89,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug
           -DAVM_BUILD_LEGACY=OFF
           -DAVM_BUILD_CORE_TESTS=ON
+          -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
           -DAVM_WARNINGS_AS_ERRORS=ON
 
       - name: Build core tests
@@ -95,8 +98,32 @@ jobs:
       - name: Run core tests
         run: ctest --test-dir build-core --output-on-failure
 
+  json-compat:
+    name: JSON projection / warnings-as-errors
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure JSON compatibility build
+        run: >-
+          cmake -S . -B build-json
+          -DCMAKE_BUILD_TYPE=Debug
+          -DAVM_BUILD_LEGACY=OFF
+          -DAVM_BUILD_CORE_TESTS=OFF
+          -DAVM_BUILD_JSON_COMPAT_TESTS=ON
+          -DAVM_WARNINGS_AS_ERRORS=ON
+
+      - name: Build JSON projection tests
+        run: cmake --build build-json --target avm_json_compat_tests --parallel
+
+      - name: Run JSON projection tests
+        run: ctest --test-dir build-json -R json_projection_tests --output-on-failure
+
   sanitizers:
-    name: Core ASan + UBSan
+    name: Core + JSON ASan + UBSan
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -110,11 +137,12 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug
           -DAVM_BUILD_LEGACY=OFF
           -DAVM_BUILD_CORE_TESTS=ON
+          -DAVM_BUILD_JSON_COMPAT_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
           -DAVM_ENABLE_SANITIZERS=ON
 
       - name: Build sanitizer tests
-        run: cmake --build build-sanitizers --target avm_core_tests --parallel
+        run: cmake --build build-sanitizers --target avm_core_tests avm_json_compat_tests --parallel
 
       - name: Run sanitizer tests
         env:
@@ -136,7 +164,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure full compatibility build
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAVM_BUILD_LEGACY=ON -DAVM_BUILD_CORE_TESTS=ON
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DAVM_BUILD_LEGACY=ON
+          -DAVM_BUILD_CORE_TESTS=ON
+          -DAVM_BUILD_JSON_COMPAT_TESTS=ON
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -147,7 +180,7 @@ jobs:
   release-artifact:
     name: Tagged Linux artifact
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [core, sanitizers]
+    needs: [core, json-compat, sanitizers]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -155,7 +188,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure release build
-        run: cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DAVM_BUILD_LEGACY=ON
+        run: >-
+          cmake -S . -B build-release
+          -DCMAKE_BUILD_TYPE=Release
+          -DAVM_BUILD_LEGACY=ON
+          -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
 
       - name: Build AVM executable
         run: cmake --build build-release --target avm --parallel
