@@ -16,6 +16,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(AVM_BUILD_LEGACY "Build the legacy JSON compatibility executable and tests" ON)
 option(AVM_BUILD_CORE_TESTS "Build AVM 1.0 core tests" ON)
+option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection and conformance tests" ON)
 option(AVM_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(AVM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
@@ -196,4 +197,45 @@ if(AVM_BUILD_CORE_TESTS)
         avm_function_runtime_test
         avm_frame_runtime_test
         avm_deferred_definition_test)
+endif()
+
+if(AVM_BUILD_JSON_COMPAT_TESTS)
+    add_executable(avm_json_projection_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/json_projection_test.cpp")
+    target_include_directories(avm_json_projection_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+    avm_apply_quality(avm_json_projection_test)
+    avm_enable_test_assertions(avm_json_projection_test)
+    add_test(NAME json_projection_tests COMMAND avm_json_projection_test)
+
+    set(AVM_JSON_COMPAT_TARGETS avm_json_projection_test)
+
+    if(AVM_BUILD_LEGACY)
+        add_executable(avm_json_legacy_conformance_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/json_legacy_conformance_test.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/include/avm.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/3p/UnitedMemoryLinks.h")
+        target_include_directories(avm_json_legacy_conformance_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/include"
+            "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+        target_compile_definitions(avm_json_legacy_conformance_test PRIVATE AVM_NO_MAIN)
+        avm_enable_test_assertions(avm_json_legacy_conformance_test)
+
+        if(WIN32)
+            target_link_libraries(avm_json_legacy_conformance_test PRIVATE
+                "${CMAKE_CURRENT_SOURCE_DIR}/3p/doublets_ffi.dll.lib")
+            if(MSVC)
+                target_link_options(avm_json_legacy_conformance_test PRIVATE /STACK:8388608)
+            else()
+                target_link_options(avm_json_legacy_conformance_test PRIVATE -Wl,--stack,8388608)
+            endif()
+        endif()
+
+        add_test(NAME json_legacy_conformance_tests COMMAND avm_json_legacy_conformance_test)
+        list(APPEND AVM_JSON_COMPAT_TARGETS avm_json_legacy_conformance_test)
+    endif()
+
+    add_custom_target(avm_json_compat_tests DEPENDS ${AVM_JSON_COMPAT_TARGETS})
 endif()
