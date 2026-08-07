@@ -55,13 +55,24 @@ jobs:
             exit 1
           fi
 
-      - name: Check AVM 1.0 core and compatibility formatting
+      - name: Reject removed semantic side-channels
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E 'resolve_operator|func_def|param_stack' src include; then
+            echo "ERROR: removed JSON semantic side-channel found in production sources"
+            exit 1
+          fi
+
+      - name: Check AVM 1.0 and compatibility formatting
         shell: bash
         run: |
           set -euo pipefail
           clang-format --version
           clang-format --dry-run --Werror \
             include/avm/*.h \
+            src/cli.cpp \
+            src/legacy_json_compat.cpp \
             test/assertions_enabled_test.cpp \
             test/link_store_test.cpp \
             test/relations_model_test.cpp \
@@ -72,7 +83,7 @@ jobs:
             test/frame_runtime_test.cpp \
             test/deferred_definition_test.cpp \
             test/json_projection_test.cpp \
-            test/json_legacy_conformance_test.cpp
+            test/legacy_facade_test.cpp
 
   core:
     name: Core C++20 / warnings-as-errors
@@ -121,6 +132,33 @@ jobs:
 
       - name: Run JSON projection tests
         run: ctest --test-dir build-json -R json_projection_tests --output-on-failure
+
+  legacy-facade:
+    name: Legacy facade / warnings-as-errors
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure legacy facade build
+        run: >-
+          cmake -S . -B build-legacy
+          -DCMAKE_BUILD_TYPE=Debug
+          -DAVM_BUILD_LEGACY=ON
+          -DAVM_BUILD_CORE_TESTS=OFF
+          -DAVM_BUILD_JSON_COMPAT_TESTS=ON
+          -DAVM_WARNINGS_AS_ERRORS=ON
+
+      - name: Build strict facade targets
+        run: >-
+          cmake --build build-legacy
+          --target avm avm_legacy_facade_test avm_json_projection_test
+          --parallel
+
+      - name: Run facade, projection and roundtrip tests
+        run: ctest --test-dir build-legacy --output-on-failure
 
   sanitizers:
     name: Core + JSON ASan + UBSan
@@ -180,7 +218,7 @@ jobs:
   release-artifact:
     name: Tagged Linux artifact
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [core, json-compat, sanitizers]
+    needs: [core, json-compat, legacy-facade, sanitizers]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
