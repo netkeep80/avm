@@ -62,6 +62,7 @@ jobs:
           clang-format --version
           clang-format --dry-run --Werror \
             include/avm/*.h \
+            test/assertions_enabled_test.cpp \
             test/link_store_test.cpp \
             test/relations_model_test.cpp \
             test/executor_test.cpp \
@@ -80,7 +81,7 @@ jobs:
       - name: Configure core-only build
         run: >-
           cmake -S . -B build-core
-          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_BUILD_TYPE=Debug
           -DAVM_BUILD_LEGACY=OFF
           -DAVM_BUILD_CORE_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
