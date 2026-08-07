@@ -39,6 +39,16 @@ int main()
     builder.define_function(outer, {outer_x}, builder.call(inner, {t}));
     assert(runtime.execute(builder.call(outer, {f})) == v.true_value);
 
+    const avm::LinkId shared_formal = store.create_point();
+    const avm::LinkId shadow_inner = builder.create_function_handle();
+    builder.define_function(shadow_inner, {shared_formal}, builder.parameter(shared_formal));
+    const avm::LinkId shadow_outer = builder.create_function_handle();
+    builder.define_function(
+        shadow_outer,
+        {shared_formal},
+        builder.call(shadow_inner, {f}));
+    assert(runtime.execute(builder.call(shadow_outer, {t})) == v.false_value);
+
     const avm::LinkId recurse_flag = store.create_point();
     const avm::LinkId finite_recursive = builder.create_function_handle();
     const avm::LinkId finite_body = builder.conditional(
