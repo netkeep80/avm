@@ -33,6 +33,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-format
+
       - name: Check source file sizes
         shell: bash
         run: |
