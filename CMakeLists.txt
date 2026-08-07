@@ -146,8 +146,14 @@ if(AVM_BUILD_CORE_TESTS)
         test/executor_test.cpp
         executor_tests)
 
+    avm_add_core_test(
+        avm_program_model_test
+        test/program_model_test.cpp
+        program_model_tests)
+
     add_custom_target(avm_core_tests DEPENDS
         avm_link_store_test
         avm_relations_model_test
-        avm_executor_test)
+        avm_executor_test
+        avm_program_model_test)
 endif()
