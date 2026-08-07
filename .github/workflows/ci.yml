@@ -69,7 +69,8 @@ jobs:
             test/program_model_test.cpp \
             test/boolean_runtime_test.cpp \
             test/function_runtime_test.cpp \
-            test/frame_runtime_test.cpp
+            test/frame_runtime_test.cpp \
+            test/deferred_definition_test.cpp
 
   core:
     name: Core C++20 / warnings-as-errors

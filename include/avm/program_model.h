@@ -123,6 +123,54 @@ inline std::optional<FunctionDefinition> find_function_definition(const LinkStor
 	return found;
 }
 
+inline LinkId materialize_function_definition(LinkStore &store, const BootstrapVocabulary &vocabulary, LinkId handle,
+                                              const std::vector<LinkId> &parameters, LinkId body)
+{
+	if (!store.contains(handle))
+		throw std::invalid_argument("function handle is not present in LinkStore");
+	if (!store.contains(body))
+		throw std::invalid_argument("function body is not present in LinkStore");
+	for (const LinkId parameter : parameters)
+	{
+		if (!store.contains(parameter))
+			throw std::invalid_argument("formal parameter is not present in LinkStore");
+	}
+
+	if (const auto existing = find_function_definition(store, vocabulary, handle))
+	{
+		if (existing->parameters == parameters && existing->body == body)
+			return existing->entity;
+		throw std::logic_error("function handle already has a different definition");
+	}
+
+	const LinkId parameter_list = encode_link_list(store, vocabulary.nil, parameters);
+	const LinkId payload = store.intern(parameter_list, body);
+	return encode_relation_entity(store, RelationEntity{vocabulary.function_relation, handle, payload});
+}
+
+struct DeferredFunctionDefinition
+{
+	LinkId handle;
+	std::vector<LinkId> parameters;
+	LinkId body;
+};
+
+inline DeferredFunctionDefinition
+decode_deferred_function_definition(const LinkStore &store, const BootstrapVocabulary &vocabulary, LinkId entity)
+{
+	const RelationEntity decoded = decode_relation_entity(store, entity);
+	if (decoded.relation != vocabulary.function_relation || decoded.subject != vocabulary.unit)
+		throw std::invalid_argument("entity is not an AVM deferred function definition");
+
+	const Link outer_payload = store.get(decoded.object);
+	const Link definition_payload = store.get(outer_payload.end);
+	return DeferredFunctionDefinition{
+	    outer_payload.begin,
+	    decode_link_list(store, vocabulary.nil, definition_payload.begin),
+	    definition_payload.end,
+	};
+}
+
 struct CallExpression
 {
 	LinkId function;
@@ -188,23 +236,20 @@ public:
 
 	LinkId define_function(LinkId handle, const std::vector<LinkId> &parameters, LinkId body)
 	{
+		return materialize_function_definition(store_, vocabulary_, handle, parameters, body);
+	}
+
+	LinkId deferred_function_definition(LinkId handle, const std::vector<LinkId> &parameters, LinkId body)
+	{
 		require(handle, "function handle");
 		require(body, "function body");
-		for (const LinkId parameter_id : parameters)
-			require(parameter_id, "formal parameter");
+		for (const LinkId parameter : parameters)
+			require(parameter, "formal parameter");
 
 		const LinkId parameter_list = encode_link_list(store_, vocabulary_.nil, parameters);
-		const LinkId payload = store_.intern(parameter_list, body);
-		const RelationEntity source{vocabulary_.function_relation, handle, payload};
-
-		if (const auto existing = find_function_definition(store_, vocabulary_, handle))
-		{
-			if (existing->parameters == parameters && existing->body == body)
-				return existing->entity;
-			throw std::logic_error("function handle already has a different definition");
-		}
-
-		return encode_relation_entity(store_, source);
+		const LinkId definition_payload = store_.intern(parameter_list, body);
+		const LinkId payload = store_.intern(handle, definition_payload);
+		return expression(vocabulary_.function_relation, payload);
 	}
 
 	LinkId call(LinkId function, const std::vector<LinkId> &arguments)
