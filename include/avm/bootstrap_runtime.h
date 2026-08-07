@@ -286,7 +286,20 @@ private:
 		                          {
 			                          if (context.subject == vocabulary_.function_relation)
 				                          throw std::runtime_error("function vocabulary identity is not executable");
-			                          static_cast<void>(find_function_definition(store_, vocabulary_, context.subject));
+
+			                          if (context.subject == vocabulary_.unit)
+			                          {
+				                          const DeferredFunctionDefinition definition =
+				                              decode_deferred_function_definition(store_, vocabulary_, context.entity);
+				                          static_cast<void>(materialize_function_definition(
+				                              store_, vocabulary_, definition.handle, definition.parameters, definition.body));
+				                          return vocabulary_.nil;
+			                          }
+
+			                          const auto definition =
+			                              find_function_definition(store_, vocabulary_, context.subject);
+			                          if (!definition || definition->entity != context.entity)
+				                          throw std::runtime_error("function definition entity is malformed or ambiguous");
 			                          return vocabulary_.nil;
 		                          });
 
