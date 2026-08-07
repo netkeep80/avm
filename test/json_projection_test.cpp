@@ -37,24 +37,20 @@ int main()
 	const Json nested = {{"Not", Json::array({Json{{"And", Json::array({true, false})}}})}};
 	assert(run(nested) == Json(true));
 
-	const Json deeply_nested = {{"And",
-	                             Json::array({Json{{"Or", Json::array({true, false})}},
-	                                          Json{{"Not", Json::array({false})}}})}};
+	const Json deeply_nested = {
+	    {"And", Json::array({Json{{"Or", Json::array({true, false})}}, Json{{"Not", Json::array({false})}}})}};
 	assert(run(deeply_nested) == Json(true));
 
 	assert(run(Json{{"If", Json::array({true, false, true})}}) == Json(false));
 	assert(run(Json{{"If", Json::array({false, false, true})}}) == Json(true));
 
-	const Json lazy_true = {
-	    {"If", Json::array({true, true, Json{{"Call", Json::array({"missing"})}}})}};
+	const Json lazy_true = {{"If", Json::array({true, true, Json{{"Call", Json::array({"missing"})}}})}};
 	assert(run(lazy_true) == Json(true));
 
-	const Json lazy_false = {
-	    {"If", Json::array({false, Json{{"Call", Json::array({"missing"})}}, false})}};
+	const Json lazy_false = {{"If", Json::array({false, Json{{"Call", Json::array({"missing"})}}, false})}};
 	assert(run(lazy_false) == Json(false));
 
-	const Json selected_failure = {
-	    {"If", Json::array({true, Json{{"Call", Json::array({"missing"})}}, false})}};
+	const Json selected_failure = {{"If", Json::array({true, Json{{"Call", Json::array({"missing"})}}, false})}};
 	assert(run(selected_failure).is_null());
 
 	assert(run(Json::array()).is_null());
@@ -67,25 +63,22 @@ int main()
 	assert(run(identity_program) == Json(true));
 
 	const Json two_argument_program = Json::array({
-	    Json{{"Def",
-	          Json::array({"both", Json::array({"a", "b"}), Json{{"And", Json::array({"a", "b"})}}})}},
+	    Json{{"Def", Json::array({"both", Json::array({"a", "b"}), Json{{"And", Json::array({"a", "b"})}}})}},
 	    Json{{"Call", Json::array({"both", true, false})}},
 	});
 	assert(run(two_argument_program) == Json(false));
 
 	const Json nested_calls = Json::array({
 	    Json{{"Def", Json::array({"id", Json::array({"x"}), "x"})}},
-	    Json{{"Def",
-	          Json::array({"negate", Json::array({"x"}),
-	                       Json{{"Not", Json::array({Json{{"Call", Json::array({"id", "x"})}}})}}})}},
+	    Json{{"Def", Json::array({"negate", Json::array({"x"}),
+	                              Json{{"Not", Json::array({Json{{"Call", Json::array({"id", "x"})}}})}}})}},
 	    Json{{"Call", Json::array({"negate", false})}},
 	});
 	assert(run(nested_calls) == Json(true));
 
 	const Json shadowing = Json::array({
 	    Json{{"Def", Json::array({"inner", Json::array({"x"}), "x"})}},
-	    Json{{"Def",
-	          Json::array({"outer", Json::array({"x"}), Json{{"Call", Json::array({"inner", false})}}})}},
+	    Json{{"Def", Json::array({"outer", Json::array({"x"}), Json{{"Call", Json::array({"inner", false})}}})}},
 	    Json{{"Call", Json::array({"outer", true})}},
 	});
 	assert(run(shadowing) == Json(false));
@@ -93,15 +86,13 @@ int main()
 	const Json finite_recursive = Json::array({
 	    Json{{"Def",
 	          Json::array({"recur", Json::array({"flag"}),
-	                       Json{{"If",
-	                             Json::array({"flag", Json{{"Call", Json::array({"recur", false})}}, true})}}})}},
+	                       Json{{"If", Json::array({"flag", Json{{"Call", Json::array({"recur", false})}}, true})}}})}},
 	    Json{{"Call", Json::array({"recur", true})}},
 	});
 	assert(run(finite_recursive, 16) == Json(true));
 
 	const Json infinite_recursive = Json::array({
-	    Json{{"Def",
-	          Json::array({"loop", Json::array({"x"}), Json{{"Call", Json::array({"loop", "x"})}}})}},
+	    Json{{"Def", Json::array({"loop", Json::array({"x"}), Json{{"Call", Json::array({"loop", "x"})}}})}},
 	    Json{{"Call", Json::array({"loop", true})}},
 	});
 	assert(run(infinite_recursive, 4).is_null());
@@ -113,8 +104,7 @@ int main()
 	assert(run(call_before_def).is_null());
 
 	const Json forward_reference = Json::array({
-	    Json{{"Def",
-	          Json::array({"first", Json::array({"x"}), Json{{"Call", Json::array({"second", "x"})}}})}},
+	    Json{{"Def", Json::array({"first", Json::array({"x"}), Json{{"Call", Json::array({"second", "x"})}}})}},
 	    Json{{"Def", Json::array({"second", Json::array({"y"}), "y"})}},
 	    Json{{"Call", Json::array({"first", true})}},
 	});
@@ -150,16 +140,13 @@ int main()
 	Json source = Json{{"Not", Json::array({false})}};
 	const avm::LinkId detached_root = detached_session.import_program(source);
 	source = nullptr;
-	const avm::RelationEntity detached_entity =
-	    avm::decode_relation_entity(detached_session.store(), detached_root);
+	const avm::RelationEntity detached_entity = avm::decode_relation_entity(detached_session.store(), detached_root);
 	assert(detached_entity.relation == detached_session.runtime().vocabulary().not_relation);
 	const avm::LinkId detached_result = detached_session.execute(detached_root);
 	assert(detached_session.project_result(detached_result) == Json(true));
 
 	avm::JsonCompatibilitySession persistent_session;
-	assert(persistent_session.interpret(
-	           Json{{"Def", Json::array({"id", Json::array({"x"}), "x"})}})
-	           .is_null());
+	assert(persistent_session.interpret(Json{{"Def", Json::array({"id", Json::array({"x"}), "x"})}}).is_null());
 	assert(persistent_session.interpret(Json{{"Call", Json::array({"id", false})}}) == Json(false));
 
 	assert(run(Json::object()).is_null());
