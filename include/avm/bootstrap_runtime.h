@@ -281,27 +281,27 @@ private:
 			                          throw std::logic_error("If truth table returned a non-Boolean selector");
 		                          });
 
-		executor_.register_native(vocabulary_.function_relation,
-		                          [this](const ExecutionContext &context, Executor &)
-		                          {
-			                          if (context.subject == vocabulary_.function_relation)
-				                          throw std::runtime_error("function vocabulary identity is not executable");
+		executor_.register_native(
+		    vocabulary_.function_relation,
+		    [this](const ExecutionContext &context, Executor &)
+		    {
+			    if (context.subject == vocabulary_.function_relation)
+				    throw std::runtime_error("function vocabulary identity is not executable");
 
-			                          if (context.subject == vocabulary_.unit)
-			                          {
-				                          const DeferredFunctionDefinition definition =
-				                              decode_deferred_function_definition(store_, vocabulary_, context.entity);
-				                          static_cast<void>(materialize_function_definition(
-				                              store_, vocabulary_, definition.handle, definition.parameters, definition.body));
-				                          return vocabulary_.nil;
-			                          }
+			    if (context.subject == vocabulary_.unit)
+			    {
+				    const DeferredFunctionDefinition definition =
+				        decode_deferred_function_definition(store_, vocabulary_, context.entity);
+				    static_cast<void>(materialize_function_definition(store_, vocabulary_, definition.handle,
+				                                                      definition.parameters, definition.body));
+				    return vocabulary_.nil;
+			    }
 
-			                          const auto definition =
-			                              find_function_definition(store_, vocabulary_, context.subject);
-			                          if (!definition || definition->entity != context.entity)
-				                          throw std::runtime_error("function definition entity is malformed or ambiguous");
-			                          return vocabulary_.nil;
-		                          });
+			    const auto definition = find_function_definition(store_, vocabulary_, context.subject);
+			    if (!definition || definition->entity != context.entity)
+				    throw std::runtime_error("function definition entity is malformed or ambiguous");
+			    return vocabulary_.nil;
+		    });
 
 		executor_.register_native(vocabulary_.parameter_relation,
 		                          [this](const ExecutionContext &context, Executor &)

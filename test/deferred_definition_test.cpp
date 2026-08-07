@@ -112,8 +112,8 @@ int main()
 	       recursive_v.true_value);
 
 	const avm::LinkId malformed_payload = store.create_point();
-	const avm::LinkId malformed = avm::encode_relation_entity(
-	    store, avm::RelationEntity{v.function_relation, v.unit, malformed_payload});
+	const avm::LinkId malformed =
+	    avm::encode_relation_entity(store, avm::RelationEntity{v.function_relation, v.unit, malformed_payload});
 	bool malformed_rejected = false;
 	try
 	{

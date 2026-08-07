@@ -155,9 +155,8 @@ struct DeferredFunctionDefinition
 	LinkId body;
 };
 
-inline DeferredFunctionDefinition decode_deferred_function_definition(const LinkStore &store,
-                                                                      const BootstrapVocabulary &vocabulary,
-                                                                      LinkId entity)
+inline DeferredFunctionDefinition
+decode_deferred_function_definition(const LinkStore &store, const BootstrapVocabulary &vocabulary, LinkId entity)
 {
 	const RelationEntity decoded = decode_relation_entity(store, entity);
 	if (decoded.relation != vocabulary.function_relation || decoded.subject != vocabulary.unit)
