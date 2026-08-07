@@ -49,7 +49,7 @@ public:
         if (!handler)
             throw std::invalid_argument("native relation handler is empty");
 
-        const auto [it, inserted] = native_handlers_.emplace(relation, std::move(handler));
+        const bool inserted = native_handlers_.emplace(relation, std::move(handler)).second;
         if (!inserted)
             throw std::logic_error("native relation handler is already registered");
     }
