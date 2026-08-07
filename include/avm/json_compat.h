@@ -24,9 +24,11 @@ class JsonProgramImporter
 public:
 	using Json = nlohmann::json;
 
-	JsonProgramImporter(LinkStore &store, const BootstrapVocabulary &vocabulary)
-	    : store_(store), vocabulary_(vocabulary), builder_(store, vocabulary)
+	JsonProgramImporter(LinkStore &store, const BootstrapVocabulary &vocabulary, LinkId sequence_relation)
+	    : store_(store), vocabulary_(vocabulary), sequence_relation_(sequence_relation), builder_(store, vocabulary)
 	{
+		if (!store_.contains(sequence_relation_))
+			throw std::invalid_argument("JSON compatibility sequence relation is not present in LinkStore");
 	}
 
 	LinkId import_program(const Json &expression) { return import_expression(expression); }
@@ -107,7 +109,9 @@ private:
 		expressions.reserve(sequence.size());
 		for (const Json &item : sequence)
 			expressions.push_back(import_expression(item));
-		return builder_.sequence(expressions);
+
+		const LinkId payload = encode_link_list(store_, vocabulary_.nil, expressions);
+		return encode_relation_entity(store_, RelationEntity{sequence_relation_, vocabulary_.unit, payload});
 	}
 
 	LinkId import_operator(const Json &expression)
@@ -272,6 +276,7 @@ private:
 
 	LinkStore &store_;
 	const BootstrapVocabulary &vocabulary_;
+	LinkId sequence_relation_;
 	ProgramBuilder builder_;
 	std::map<std::string, FunctionSymbol> functions_;
 	std::vector<std::map<std::string, LinkId>> parameter_scopes_;
@@ -285,8 +290,10 @@ public:
 	using Json = nlohmann::json;
 
 	explicit JsonCompatibilitySession(std::size_t max_call_depth = 1000)
-	    : store_(), runtime_(store_, max_call_depth), importer_(store_, runtime_.vocabulary())
+	    : store_(), runtime_(store_, max_call_depth), sequence_relation_(store_.create_point()),
+	      importer_(store_, runtime_.vocabulary(), sequence_relation_)
 	{
+		register_sequence_handler();
 	}
 
 	LinkId import_program(const Json &expression) { return importer_.import_program(expression); }
@@ -315,9 +322,39 @@ public:
 
 	BootstrapRuntime &runtime() { return runtime_; }
 
+	LinkId sequence_relation() const { return sequence_relation_; }
+
 private:
+	void register_sequence_handler()
+	{
+		runtime_.executor().register_native(
+		    sequence_relation_,
+		    [this](const ExecutionContext &context, Executor &executor)
+		    {
+			    if (context.subject != runtime_.vocabulary().unit)
+				    throw std::runtime_error("JSON compatibility sequence is not an executable expression");
+
+			    const std::vector<LinkId> expressions =
+			        decode_link_list(store_, runtime_.vocabulary().nil, context.object);
+			    LinkId result = runtime_.vocabulary().nil;
+			    for (const LinkId expression : expressions)
+			    {
+				    try
+				    {
+					    result = executor.execute(expression, context.entity, context.frame);
+				    }
+				    catch (const std::exception &)
+				    {
+					    result = runtime_.vocabulary().nil;
+				    }
+			    }
+			    return result;
+		    });
+	}
+
 	InMemoryLinkStore store_;
 	BootstrapRuntime runtime_;
+	LinkId sequence_relation_;
 	JsonProgramImporter importer_;
 };
 
