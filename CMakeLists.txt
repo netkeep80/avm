@@ -171,11 +171,23 @@ if(AVM_BUILD_CORE_TESTS)
         test/boolean_runtime_test.cpp
         boolean_runtime_tests)
 
+    avm_add_core_test(
+        avm_function_runtime_test
+        test/function_runtime_test.cpp
+        function_runtime_tests)
+
+    avm_add_core_test(
+        avm_frame_runtime_test
+        test/frame_runtime_test.cpp
+        frame_runtime_tests)
+
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
         avm_link_store_test
         avm_relations_model_test
         avm_executor_test
         avm_program_model_test
-        avm_boolean_runtime_test)
+        avm_boolean_runtime_test
+        avm_function_runtime_test
+        avm_frame_runtime_test)
 endif()
