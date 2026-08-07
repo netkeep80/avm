@@ -85,7 +85,8 @@ Core:
 - `boolean_runtime_tests`;
 - `function_runtime_tests`;
 - `frame_runtime_tests`;
-- `deferred_definition_tests`.
+- `deferred_definition_tests`;
+- `projection_tests` — parser-independent `ProjectionDescription`, read-only `find_projection`, explicit `realize_projection`, canonical reuse, invalid graph/anchor rejection and no-partial-write checks for missing anchors.
 
 Compatibility:
 
