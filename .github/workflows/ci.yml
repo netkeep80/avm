@@ -64,7 +64,8 @@ jobs:
             include/avm/*.h \
             test/link_store_test.cpp \
             test/relations_model_test.cpp \
-            test/executor_test.cpp
+            test/executor_test.cpp \
+            test/program_model_test.cpp
 
   core:
     name: Core C++20 / warnings-as-errors
