@@ -53,6 +53,13 @@ int main()
     assert(captured_context->subject == subject);
     assert(captured_context->object == object);
     assert(captured_context->parent == identity_entity);
+    assert(!captured_context->frame.has_value());
+
+    const avm::LinkId frame = store.create_point();
+    assert(executor.execute(parent_entity, identity_entity, frame) == object);
+    assert(captured_context.has_value());
+    assert(captured_context->parent == identity_entity);
+    assert(captured_context->frame == frame);
 
     const avm::LinkId subject_entity = avm::encode_relation_entity(
         store, avm::RelationEntity{subject_relation, subject, object});
