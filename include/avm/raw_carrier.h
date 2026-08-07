@@ -46,20 +46,11 @@ public:
 		return found->second;
 	}
 
-	bool contains(RawDocumentId id) const override
-	{
-		return documents_.contains(id);
-	}
+	bool contains(RawDocumentId id) const override { return documents_.contains(id); }
 
-	bool erase(RawDocumentId id) override
-	{
-		return documents_.erase(id) != 0;
-	}
+	bool erase(RawDocumentId id) override { return documents_.erase(id) != 0; }
 
-	std::size_t size() const override
-	{
-		return documents_.size();
-	}
+	std::size_t size() const override { return documents_.size(); }
 
 private:
 	RawDocumentId allocate_id()
