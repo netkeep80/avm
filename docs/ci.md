@@ -86,7 +86,8 @@ Core:
 - `function_runtime_tests`;
 - `frame_runtime_tests`;
 - `deferred_definition_tests`;
-- `projection_tests` — parser-independent `ProjectionDescription`, read-only `find_projection`, explicit `realize_projection`, canonical reuse, invalid graph/anchor rejection and no-partial-write checks for missing anchors.
+- `projection_tests` — parser-independent `ProjectionDescription`, read-only `find_projection`, explicit `realize_projection`, canonical reuse, invalid graph/anchor rejection and no-partial-write checks for missing anchors;
+- `raw_carrier_tests` — opaque binary raw storage, independent raw/document identity, no LinkStore mutation on load/read/delete, and survival of realized denotation after raw deletion.
 
 Compatibility:
 
