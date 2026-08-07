@@ -41,6 +41,14 @@ function(avm_apply_quality target)
     endif()
 endfunction()
 
+function(avm_enable_test_assertions target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(${target} PRIVATE -UNDEBUG)
+    endif()
+endfunction()
+
 if(AVM_BUILD_LEGACY)
     set(TARGET_NAME avm)
 
@@ -98,6 +106,7 @@ if(AVM_BUILD_LEGACY)
         "${CMAKE_CURRENT_SOURCE_DIR}/3p")
 
     target_compile_definitions(avm_unit_test PRIVATE AVM_NO_MAIN)
+    avm_enable_test_assertions(avm_unit_test)
 
     if(WIN32)
         target_link_libraries(avm_unit_test PRIVATE
@@ -128,8 +137,14 @@ if(AVM_BUILD_CORE_TESTS)
         target_include_directories(${target} PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/include")
         avm_apply_quality(${target})
+        avm_enable_test_assertions(${target})
         add_test(NAME ${test_name} COMMAND ${target})
     endfunction()
+
+    avm_add_core_test(
+        avm_assertions_enabled_test
+        test/assertions_enabled_test.cpp
+        assertions_enabled_tests)
 
     avm_add_core_test(
         avm_link_store_test
@@ -157,6 +172,7 @@ if(AVM_BUILD_CORE_TESTS)
         boolean_runtime_tests)
 
     add_custom_target(avm_core_tests DEPENDS
+        avm_assertions_enabled_test
         avm_link_store_test
         avm_relations_model_test
         avm_executor_test
