@@ -13,7 +13,7 @@ The fast validation command is:
 
 ```bash
 cmake -S . -B build-core \
-  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_BUILD_TYPE=Debug \
   -DAVM_BUILD_LEGACY=OFF \
   -DAVM_BUILD_CORE_TESTS=ON \
   -DAVM_WARNINGS_AS_ERRORS=ON
@@ -21,14 +21,20 @@ cmake --build build-core --target avm_core_tests --parallel
 ctest --test-dir build-core --output-on-failure
 ```
 
+## Assertions are part of the test contract
+
+The current C++ suites use `assert(...)` for invariant checks. CMake Release configurations normally define `NDEBUG`, which would compile those checks out. Therefore every C++ test target explicitly undefines `NDEBUG` (`-UNDEBUG` or `/UNDEBUG`) regardless of build type.
+
+`assertions_enabled_tests` additionally fails at compile time if `NDEBUG` reaches a core test target and verifies at runtime that an assertion expression is actually evaluated. The strict core lane uses Debug to maximize diagnostic visibility; the portable matrix still exercises Release builds with assertions forced active in test executables.
+
 ## Pull-request gates
 
 The `CI` workflow has four independent concerns:
 
 1. `Quality gates` — source-size policy and strict clang-format verification for the AVM 1.0 core files.
-2. `Core C++20 / warnings-as-errors` — Linux core-only build with strict warnings and CTest.
+2. `Core C++20 / warnings-as-errors` — Linux Debug core-only build with strict warnings and CTest.
 3. `Core ASan + UBSan` — Debug core-only build under AddressSanitizer and UndefinedBehaviorSanitizer.
-4. `Portable / <os>` — full compatibility build and test matrix on Linux, Windows and macOS.
+4. `Portable / <os>` — full compatibility Release build and test matrix on Linux, Windows and macOS.
 
 Recommended branch-protection required checks for `main` are:
 
@@ -42,6 +48,7 @@ The portable matrix should also stay green, but the three fast core gates are th
 
 Every new AVM 1.0 semantic layer must add a separately named CTest suite and be included in the `avm_core_tests` aggregate target. The intended progression is:
 
+- `assertions_enabled_tests`;
 - `link_store_tests`;
 - `relations_model_tests`;
 - `executor_tests`;
