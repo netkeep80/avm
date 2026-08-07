@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    tags: ['v*']
     paths-ignore:
       - '**.md'
       - '**.txt'
@@ -12,7 +13,7 @@ on:
       - 'LICENSE'
       - '.gitignore'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - '**.md'
       - '**.txt'
@@ -21,53 +22,136 @@ on:
       - '**.gif'
       - 'LICENSE'
       - '.gitignore'
+  workflow_dispatch:
 
 jobs:
-  build:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
     timeout-minutes: 5
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-      fail-fast: false
-
-    runs-on: ${{ matrix.os }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check file sizes
-        if: runner.os == 'Linux'
+      - name: Check source file sizes
+        shell: bash
         run: |
+          set -euo pipefail
           MAX_LINES=1500
           FAILED=0
-          for file in $(find src/ include/ -name "*.cpp" -o -name "*.h" 2>/dev/null); do
+          while IFS= read -r file; do
             lines=$(wc -l < "$file")
             if [ "$lines" -gt "$MAX_LINES" ]; then
               echo "ERROR: $file has $lines lines (max: $MAX_LINES)"
               FAILED=1
             fi
-          done
-          if [ "$FAILED" -eq 1 ]; then
-            echo "File size check failed. Please split large files into smaller modules."
+          done < <(find src include -type f \( -name '*.cpp' -o -name '*.h' \) -print)
+          if [ "$FAILED" -ne 0 ]; then
             exit 1
           fi
-          echo "All source files are within the $MAX_LINES line limit."
 
-      - name: Check formatting with clang-format
-        if: runner.os == 'Linux'
-        continue-on-error: true
+      - name: Check AVM 1.0 core formatting
+        shell: bash
         run: |
-          sudo apt-get install -y clang-format-17 > /dev/null 2>&1
-          echo "Checking formatting of source files..."
-          find src/ include/ -name "*.cpp" -o -name "*.h" | xargs clang-format-17 --dry-run --Werror 2>&1 || echo "::warning::Code formatting issues found. Run clang-format to fix."
+          set -euo pipefail
+          clang-format --version
+          clang-format --dry-run --Werror \
+            include/avm/*.h \
+            test/link_store_test.cpp \
+            test/relations_model_test.cpp \
+            test/executor_test.cpp
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+  core:
+    name: Core C++20 / warnings-as-errors
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure core-only build
+        run: >-
+          cmake -S . -B build-core
+          -DCMAKE_BUILD_TYPE=Release
+          -DAVM_BUILD_LEGACY=OFF
+          -DAVM_BUILD_CORE_TESTS=ON
+          -DAVM_WARNINGS_AS_ERRORS=ON
+
+      - name: Build core tests
+        run: cmake --build build-core --target avm_core_tests --parallel
+
+      - name: Run core tests
+        run: ctest --test-dir build-core --output-on-failure
+
+  sanitizers:
+    name: Core ASan + UBSan
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure sanitizer build
+        run: >-
+          cmake -S . -B build-sanitizers
+          -DCMAKE_BUILD_TYPE=Debug
+          -DAVM_BUILD_LEGACY=OFF
+          -DAVM_BUILD_CORE_TESTS=ON
+          -DAVM_WARNINGS_AS_ERRORS=ON
+          -DAVM_ENABLE_SANITIZERS=ON
+
+      - name: Build sanitizer tests
+        run: cmake --build build-sanitizers --target avm_core_tests --parallel
+
+      - name: Run sanitizer tests
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ctest --test-dir build-sanitizers --output-on-failure
+
+  portable:
+    name: Portable / ${{ matrix.os }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure full compatibility build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAVM_BUILD_LEGACY=ON -DAVM_BUILD_CORE_TESTS=ON
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --parallel
 
-      - name: Run tests
-        working-directory: build
-        run: ctest -C Release --output-on-failure
+      - name: Run all tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  release-artifact:
+    name: Tagged Linux artifact
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [core, sanitizers]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure release build
+        run: cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DAVM_BUILD_LEGACY=ON
+
+      - name: Build AVM executable
+        run: cmake --build build-release --target avm --parallel
+
+      - name: Upload tagged executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: avm-${{ github.ref_name }}-linux-x86_64
+          path: build-release/avm
+          if-no-files-found: error
