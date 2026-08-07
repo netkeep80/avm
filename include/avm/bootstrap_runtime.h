@@ -334,7 +334,7 @@ private:
                 if (context.subject == vocabulary_.function_relation)
                     throw std::runtime_error("function vocabulary identity is not executable");
                 static_cast<void>(find_function_definition(store_, vocabulary_, context.subject));
-                return context.subject;
+                return vocabulary_.nil;
             });
 
         executor_.register_native(
