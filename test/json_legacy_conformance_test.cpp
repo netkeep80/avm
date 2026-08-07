@@ -2,6 +2,7 @@
 #include "avm/json_compat.h"
 
 #include <cassert>
+#include <iostream>
 #include <vector>
 
 rel_t *interpret(const json &expr);
@@ -28,7 +29,16 @@ json new_result(const json &expression)
 
 void require_same(const json &expression)
 {
-	assert(new_result(expression) == legacy_result(expression));
+	const json legacy = legacy_result(expression);
+	const json current = new_result(expression);
+	if (current != legacy)
+	{
+		std::cerr << "JSON conformance mismatch\n"
+		          << "expression: " << expression.dump() << '\n'
+		          << "legacy:     " << legacy.dump() << '\n'
+		          << "new:        " << current.dump() << std::endl;
+	}
+	assert(current == legacy);
 }
 
 } // namespace
