@@ -110,7 +110,6 @@ if(AVM_BUILD_LEGACY)
     target_include_directories(avm_unit_test PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/3p")
-    avm_apply_quality(avm_unit_test)
     avm_enable_test_assertions(avm_unit_test)
     avm_link_legacy_windows(avm_unit_test)
     add_test(NAME unit_tests COMMAND avm_unit_test)
