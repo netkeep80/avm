@@ -1,6 +1,6 @@
 # JSON compatibility is a projection layer
 
-AVM 1.0 does not execute a JSON AST. JSON remains supported as an external compatibility syntax, but the semantic path is now:
+AVM 1.0 does not execute a JSON AST. JSON remains supported as an external compatibility syntax, but the only semantic path is:
 
 ```text
 JSON
@@ -11,7 +11,7 @@ JSON
   -> JSON result projection
 ```
 
-Once `import_program()` returns a root LinkId, execution no longer depends on the source JSON object. The conformance suite explicitly destroys/replaces the source JSON value before executing the imported graph.
+Once `import_program()` returns a root LinkId, execution no longer depends on the source JSON object. `json_projection_tests` explicitly replace the source JSON value before executing the imported graph.
 
 ## Text names stop at the importer
 
@@ -25,7 +25,7 @@ The runtime receives:
 - link-native call frames and bindings;
 - expression payloads represented as canonical dyads.
 
-There is no string operator dispatcher, function-name map or parameter-name map in `Executor` or `BootstrapRuntime`.
+There is no `resolve_operator`, JSON function-body map or parameter-name stack in production execution.
 
 ## Function symbols and deferred Def
 
@@ -45,23 +45,36 @@ A later storage/data-model issue can replace these opaque values without changin
 
 ## Compatibility sequence
 
-The link-native core `sequence_relation` is fail-fast: an exception in a child expression aborts execution. The historical JSON interpreter behaved differently because malformed/undefined child expressions returned `E`, and an array continued with later elements.
+The link-native core `sequence_relation` is fail-fast: an exception in a child expression aborts execution. The historical JSON-facing API returned null for malformed/undefined child expressions and continued with later array elements.
 
-To preserve that behavior without weakening the core, `JsonCompatibilitySession` owns a separate compatibility sequence relation. Its handler executes each already-projected child through `Executor`, converts a child runtime failure to `nil`, and continues to the next expression.
+To preserve that outward behavior without weakening the core, `JsonCompatibilitySession` owns a separate compatibility sequence relation. Its handler executes each already-projected child through `Executor`, converts a child runtime failure to `nil`, and continues to the next expression.
 
-Thus compatibility policy remains at the adapter boundary rather than becoming a VM invariant.
+Compatibility policy therefore remains at the adapter boundary rather than becoming a VM invariant.
 
 ## Error boundary
 
 `JsonProgramImporter` throws `JsonProjectionError` for malformed syntax. Lower AVM layers throw explicit runtime/logic errors for malformed link structures or execution failures.
 
-`JsonCompatibilitySession::interpret()` is the legacy-shaped convenience facade: it maps those failures to JSON `null`. Direct users of `import_program()` and `execute()` retain explicit errors.
+`JsonCompatibilitySession::interpret()` is the JSON-shaped convenience facade: it maps those failures to JSON `null`. Direct users of `import_program()` and `execute()` retain explicit errors.
 
-## Conformance strategy
+## Historical `interpret(json)` API
 
-During migration, two independent suites are used:
+The old C++ API symbol is retained temporarily for source compatibility, but it no longer interprets JSON recursively:
 
-1. `json_projection_tests` asserts intended behavior of the new projection/runtime path without depending on the old semantic interpreter.
-2. `json_legacy_conformance_tests` executes a representative corpus through both the historical interpreter and the new path and compares projected results.
+```text
+interpret(json)
+  -> persistent JsonCompatibilitySession
+  -> JSON result
+  -> legacy import_json(result)
+  -> rel_t* outward value
+```
 
-The side-by-side suite exists only for the migration window. After conformance is established and the old semantic interpreter is deleted in #48, the independent projection suite becomes the permanent compatibility contract.
+`clear_func_env()` is likewise only a compatibility name. It resets the persistent `JsonCompatibilitySession`; there is no function-environment map or parameter stack behind it.
+
+The historical `import_json` / `export_json` functions remain as a data codec for callers and roundtrip tests that still consume `rel_t*`. They do not define program execution semantics.
+
+## Migration evidence
+
+Before removing the historical recursive interpreter, `json_legacy_conformance_tests` executed a representative corpus through both implementations. The suite passed in the portable Linux, Windows and macOS CI matrix together with the independent JSON projection tests and ASan/UBSan checks.
+
+After that evidence was obtained, the duplicate interpreter and the side-by-side harness were deleted. `json_projection_tests`, `legacy_facade_tests`, the historical data-codec tests and portable CI now protect the single production semantic path.
