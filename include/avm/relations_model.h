@@ -45,11 +45,7 @@ inline RelationEntity decode_relation_entity(const LinkStore &store, LinkId enti
     const Link outer = store.get(entity);
     const Link subject_object = store.get(outer.end);
 
-    return RelationEntity{
-        .relation = outer.begin,
-        .subject = subject_object.begin,
-        .object = subject_object.end,
-    };
+    return RelationEntity{outer.begin, subject_object.begin, subject_object.end};
 }
 
 } // namespace avm
