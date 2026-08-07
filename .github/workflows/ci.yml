@@ -24,9 +24,6 @@ on:
       - '.gitignore'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   quality:
     name: Quality gates
@@ -35,8 +32,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Install clang-format
         run: |
@@ -60,36 +55,11 @@ jobs:
             exit 1
           fi
 
-      - name: One-time format AVM 1.0 core
-        if: github.head_ref == 'agent/function-frames'
-        shell: bash
-        run: |
-          set -euo pipefail
-          clang-format --version
-          clang-format -i \
-            include/avm/*.h \
-            test/assertions_enabled_test.cpp \
-            test/link_store_test.cpp \
-            test/relations_model_test.cpp \
-            test/executor_test.cpp \
-            test/program_model_test.cpp \
-            test/boolean_runtime_test.cpp \
-            test/function_runtime_test.cpp \
-            test/frame_runtime_test.cpp
-          if git diff --quiet; then
-            echo "Core files already formatted"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add include/avm test/*.cpp
-          git commit -m "style: clang-format AVM 1.0 core"
-          git push origin HEAD:${{ github.head_ref }}
-
       - name: Check AVM 1.0 core formatting
         shell: bash
         run: |
           set -euo pipefail
+          clang-format --version
           clang-format --dry-run --Werror \
             include/avm/*.h \
             test/assertions_enabled_test.cpp \
