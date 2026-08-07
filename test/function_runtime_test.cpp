@@ -16,7 +16,7 @@ int main()
     const avm::LinkId identity = builder.create_function_handle();
     const avm::LinkId identity_body = builder.parameter(x);
     const avm::LinkId identity_definition = builder.define_function(identity, {x}, identity_body);
-    assert(runtime.execute(identity_definition) == identity);
+    assert(runtime.execute(identity_definition) == v.nil);
     assert(runtime.execute(builder.call(identity, {t})) == v.true_value);
     assert(runtime.execute(builder.call(identity, {f})) == v.false_value);
 
