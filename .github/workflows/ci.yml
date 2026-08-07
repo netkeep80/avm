@@ -82,6 +82,7 @@ jobs:
             test/function_runtime_test.cpp \
             test/frame_runtime_test.cpp \
             test/deferred_definition_test.cpp \
+            test/projection_test.cpp \
             test/json_projection_test.cpp \
             test/legacy_facade_test.cpp
 
