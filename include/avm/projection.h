@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace avm
