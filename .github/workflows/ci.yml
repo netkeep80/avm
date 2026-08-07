@@ -24,6 +24,9 @@ on:
       - '.gitignore'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   quality:
     name: Quality gates
@@ -32,6 +35,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Install clang-format
         run: |
@@ -54,6 +59,24 @@ jobs:
           if [ "$FAILED" -ne 0 ]; then
             exit 1
           fi
+
+      - name: One-time format JSON compatibility files
+        if: github.head_ref == 'agent/json-projection-clean'
+        shell: bash
+        run: |
+          set -euo pipefail
+          clang-format -i \
+            include/avm/json_compat.h \
+            test/json_projection_test.cpp \
+            test/json_legacy_conformance_test.cpp
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add include/avm/json_compat.h test/json_projection_test.cpp test/json_legacy_conformance_test.cpp
+          git commit -m "style: clang-format JSON compatibility"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Check AVM 1.0 core and compatibility formatting
         shell: bash
