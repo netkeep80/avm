@@ -91,6 +91,25 @@ jobs:
             exit 1
           fi
 
+      - name: Verify public version contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_version=$(sed -nE 's/^set\(CMAKE_PROJECT_VERSION ([0-9]+\.[0-9]+\.[0-9]+)\)$/\1/p' CMakeLists.txt)
+          header_version=$(sed -nE 's/^inline constexpr std::string_view version_string = "([0-9]+\.[0-9]+\.[0-9]+)";$/\1/p' include/avm/version.h)
+          header_major=$(sed -nE 's/^inline constexpr int version_major = ([0-9]+);$/\1/p' include/avm/version.h)
+          header_minor=$(sed -nE 's/^inline constexpr int version_minor = ([0-9]+);$/\1/p' include/avm/version.h)
+          header_patch=$(sed -nE 's/^inline constexpr int version_patch = ([0-9]+);$/\1/p' include/avm/version.h)
+          header_numeric="${header_major}.${header_minor}.${header_patch}"
+
+          test -n "$project_version"
+          test "$project_version" = "$header_version"
+          test "$project_version" = "$header_numeric"
+
+          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            test "v${project_version}" = "${GITHUB_REF_NAME}"
+          fi
+
       - name: Check AVM 1.0 formatting
         shell: bash
         run: |
