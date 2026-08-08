@@ -128,6 +128,43 @@ BoundedExecutionTrace     = optional host-memory tooling storage
 
 The collector does not own an `Executor`, `LinkStore`, backend, protocol adapter or persistence target. It never writes traces into links or files implicitly.
 
+## Persistent reopen and backend-neutral equivalence
+
+Trace comparison must respect opaque `LinkId` identity. Raw numeric LinkIds are meaningful only inside one logical store; AVM does not define a global LinkId namespace across independent stores.
+
+Two different conformance claims therefore use different comparison rules.
+
+### Same persistent logical store across reopen
+
+`PersistentLinkStore` preserves its LinkIds across close/reopen. After program construction and link-native call-frame/binding state have converged, the same stored program and explicit bootstrap vocabulary must produce the exact same complete `ExecutionEvent` sequence after reopen, including the numeric values of every LinkId field.
+
+The reopen contract covers:
+
+```text
+entity / relation / subject / object
+optional parent / frame
+optional result
+kind / failure_phase
+```
+
+Repeated reopen/execution of the converged program must not grow the store merely because observation is attached.
+
+### Independent stores/backends
+
+An independently constructed `InMemoryLinkStore` and `PersistentLinkStore` may assign different numeric LinkIds to equivalent structure. Comparing raw numbers between them would violate opaque identity semantics.
+
+Backend-neutral conformance therefore compares complete traces modulo a bijective renaming of observed LinkIds. The reference test uses canonical first-occurrence renaming:
+
+1. walk events in execution order;
+2. visit each LinkId-bearing field in fixed order: `entity`, `relation`, `subject`, `object`, `parent`, `frame`, `result`;
+3. assign a local ordinal when an observed LinkId first appears;
+4. reuse that ordinal on every later occurrence of the same LinkId;
+5. preserve `nullopt`, `ExecutionEventKind` and `ExecutionFailurePhase` exactly.
+
+This normalization preserves equality/aliasing relationships while discarding backend-local numeric allocation choices. It is a conformance helper, not a production identity registry or serialization format.
+
+A truncated trace is not eligible for an equivalence claim: it represents only a retained prefix, so normalization/comparison must reject it or otherwise explicitly decline completeness.
+
 ## Diagnostics policy
 
 The deterministic trace contract intentionally stops at AVM-owned failure phase. Human-readable exception text remains runtime diagnostic information, not stable event identity. C++ exception type names, `std::exception_ptr`, stack addresses and backend/protocol errors are not stored in `ExecutionEvent`.
@@ -145,6 +182,8 @@ AVM 1.3 observability does not provide:
 - an unbounded/implicitly complete trace guarantee;
 - profiler timestamps;
 - exception objects or exception strings inside deterministic events;
+- globally comparable numeric LinkIds across independent stores;
+- a production trace-normalization identity registry;
 - JSON/Anum-specific trace events;
 - debugger UI or REPL commands.
 
