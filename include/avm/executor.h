@@ -21,6 +21,11 @@ class Executor
 public:
 	explicit Executor(LinkStore &store, ExecutionObserver *observer = nullptr) : store_(store), observer_(observer) {}
 
+	Executor(const Executor &) = delete;
+	Executor &operator=(const Executor &) = delete;
+	Executor(Executor &&) = delete;
+	Executor &operator=(Executor &&) = delete;
+
 	LinkStore &store() { return store_; }
 
 	const LinkStore &store() const { return store_; }

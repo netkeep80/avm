@@ -1,8 +1,20 @@
+#include "avm/bootstrap_runtime.h"
 #include "avm/executor.h"
 
 #include <cassert>
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
+
+static_assert(!std::is_copy_constructible_v<avm::Executor>);
+static_assert(!std::is_copy_assignable_v<avm::Executor>);
+static_assert(!std::is_move_constructible_v<avm::Executor>);
+static_assert(!std::is_move_assignable_v<avm::Executor>);
+
+static_assert(!std::is_copy_constructible_v<avm::BootstrapRuntime>);
+static_assert(!std::is_copy_assignable_v<avm::BootstrapRuntime>);
+static_assert(!std::is_move_constructible_v<avm::BootstrapRuntime>);
+static_assert(!std::is_move_assignable_v<avm::BootstrapRuntime>);
 
 int main()
 {
