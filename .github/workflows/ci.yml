@@ -73,6 +73,15 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce external protocol-parser boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E '#include.*([Aa]num|[Aa]bit)|anum_parser|AnumParser|[Aa]bits?' src include/avm; then
+            echo "ERROR: Anum grammar/parser coupling must stay outside AVM production core"
+            exit 1
+          fi
+
       - name: Check AVM 1.0 and compatibility formatting
         shell: bash
         run: |
@@ -93,6 +102,7 @@ jobs:
             test/deferred_definition_test.cpp \
             test/projection_test.cpp \
             test/raw_carrier_test.cpp \
+            test/protocol_adapter_boundary_test.cpp \
             test/json_projection_test.cpp \
             test/legacy_facade_test.cpp
 
