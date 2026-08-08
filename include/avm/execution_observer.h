@@ -4,12 +4,20 @@
 #include "avm/semantic_context.h"
 
 #include <optional>
+#include <utility>
 
 namespace avm
 {
 
 struct ExecutionContext
 {
+	ExecutionContext(LinkId entity, LinkId relation, LinkId subject, LinkId object, std::optional<LinkId> parent,
+	                 std::optional<LinkId> frame, SemanticContextView semantic = {})
+	    : entity(entity), relation(relation), subject(subject), object(object), parent(parent), frame(frame),
+	      semantic(std::move(semantic))
+	{
+	}
+
 	LinkId entity;
 	LinkId relation;
 	LinkId subject;
