@@ -60,7 +60,7 @@ install(FILES
 option(AVM_BUILD_CLI "Build the AVM JSON CLI" ON)
 option(AVM_BUILD_CORE_TESTS "Build AVM 1.0 core tests" ON)
 option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection/session tests" ON)
-option(AVM_BUILD_ANUM_ADAPTER_TESTS "Build external Anum L3/L4 adapter tests" ON)
+option(AVM_BUILD_ANUM_ADAPTER_TESTS "Build canonical Anum denotation adapter tests" ON)
 option(AVM_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(AVM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
@@ -190,6 +190,23 @@ if(AVM_BUILD_CORE_TESTS)
         avm_json_value_codec_test)
 endif()
 
+if(AVM_BUILD_ANUM_ADAPTER_TESTS)
+    add_executable(avm_anum_denotation_bridge_test "${CMAKE_CURRENT_SOURCE_DIR}/test/anum_denotation_bridge_test.cpp")
+    target_link_libraries(avm_anum_denotation_bridge_test PRIVATE avm_core)
+    target_include_directories(avm_anum_denotation_bridge_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/adapters"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+    avm_apply_quality(avm_anum_denotation_bridge_test)
+    avm_enable_test_assertions(avm_anum_denotation_bridge_test)
+    add_test(
+        NAME anum_denotation_bridge_tests
+        COMMAND avm_anum_denotation_bridge_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/conformance/anum-denotation-conformance-v0.2.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/conformance/anum-recursive-denotation-conformance-v0.2.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/conformance/anum-v0.2-provenance.json")
+    add_custom_target(avm_anum_adapter_tests DEPENDS avm_anum_denotation_bridge_test)
+endif()
+
 if(AVM_BUILD_JSON_COMPAT_TESTS)
     add_executable(avm_json_projection_test "${CMAKE_CURRENT_SOURCE_DIR}/test/json_projection_test.cpp")
     avm_add_json_includes(avm_json_projection_test)
@@ -204,15 +221,4 @@ if(AVM_BUILD_JSON_COMPAT_TESTS)
     add_test(NAME json_session_tests COMMAND avm_json_session_test)
 
     add_custom_target(avm_json_compat_tests DEPENDS avm_json_projection_test avm_json_session_test)
-endif()
-
-if(AVM_BUILD_ANUM_ADAPTER_TESTS)
-    add_executable(avm_anum_projection_bridge_test "${CMAKE_CURRENT_SOURCE_DIR}/test/anum_projection_bridge_test.cpp")
-    target_link_libraries(avm_anum_projection_bridge_test PRIVATE avm_core)
-    target_include_directories(avm_anum_projection_bridge_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    avm_apply_quality(avm_anum_projection_bridge_test)
-    avm_enable_test_assertions(avm_anum_projection_bridge_test)
-    add_test(NAME anum_projection_bridge_tests COMMAND avm_anum_projection_bridge_test)
-
-    add_custom_target(avm_anum_adapter_tests DEPENDS avm_anum_projection_bridge_test)
 endif()
