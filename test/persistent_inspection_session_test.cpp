@@ -17,8 +17,7 @@ namespace
 std::filesystem::path temporary_path()
 {
 	const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
-	return std::filesystem::temp_directory_path() /
-	       ("avm-persistent-inspection-" + std::to_string(nonce) + ".bin");
+	return std::filesystem::temp_directory_path() / ("avm-persistent-inspection-" + std::to_string(nonce) + ".bin");
 }
 
 struct FileCleanup
