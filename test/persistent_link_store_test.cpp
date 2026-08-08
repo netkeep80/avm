@@ -110,8 +110,8 @@ void test_reopen_identity_and_indexes()
 	{
 		avm::PersistentLinkStore reopened_again(path);
 		assert(reopened_again.find(first, second) == pair);
-		assert(avm::decode_relation_entity(reopened_again, entity) ==
-		       (avm::RelationEntity{first, second, first}));
+		const avm::RelationEntity reopened_entity = avm::decode_relation_entity(reopened_again, entity);
+		assert(reopened_entity == (avm::RelationEntity{first, second, first}));
 	}
 }
 
