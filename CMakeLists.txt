@@ -135,6 +135,26 @@ if(AVM_BUILD_CLI)
                 -DTEST_DIR=${TEST_DIR}
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/run_test.cmake")
     endforeach()
+
+    function(avm_add_trace_cli_test test_name test_case test_file)
+        add_test(
+            NAME ${test_name}
+            COMMAND ${CMAKE_COMMAND}
+                -DAVM_EXECUTABLE=$<TARGET_FILE:avm>
+                -DTEST_DIR=${TEST_DIR}
+                -DCASE=${test_case}
+                -DTEST_FILE=${test_file}
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/run_trace_cli_test.cmake")
+    endfunction()
+
+    avm_add_trace_cli_test(cli_usage usage "")
+    avm_add_trace_cli_test(cli_trace_legacy legacy "${TEST_DIR}/trace_boolean.json")
+    avm_add_trace_cli_test(cli_trace_success success "${TEST_DIR}/trace_boolean.json")
+    avm_add_trace_cli_test(cli_trace_function function "${TEST_DIR}/trace_function.json")
+    avm_add_trace_cli_test(cli_trace_truncate truncate "${TEST_DIR}/trace_boolean.json")
+    avm_add_trace_cli_test(cli_trace_failure failure "${TEST_DIR}/trace_failure.json")
+    avm_add_trace_cli_test(cli_trace_nonexpression nonexpression "${TEST_DIR}/true.json")
+    avm_add_trace_cli_test(cli_trace_badlimit badlimit "${TEST_DIR}/trace_boolean.json")
 endif()
 
 if(AVM_BUILD_CORE_TESTS)
