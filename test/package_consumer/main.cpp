@@ -43,7 +43,8 @@ int main()
 		return 4;
 
 	const std::size_t size_after = store.size();
-	if (runtime.execute(materialize) != pair || runtime.execute(begin_expression) != begin || store.size() != size_after)
+	if (runtime.execute(materialize) != pair || runtime.execute(begin_expression) != begin ||
+	    store.size() != size_after)
 		return 5;
 
 	return 0;
