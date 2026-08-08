@@ -7,6 +7,7 @@ on:
       - 'compat/jsonrvm-semantics.json'
       - 'compat/jsonrvm-semantics-details.json'
       - 'compat/jsonrvm-golden.json'
+      - 'compat/jsonrvm-oracle-golden.json'
       - 'docs/jsonrvm-compatibility.md'
       - 'tools/validate_jsonrvm_compatibility.py'
       - '.github/workflows/jsonrvm-compatibility.yml'
@@ -16,9 +17,14 @@ on:
       - 'compat/jsonrvm-semantics.json'
       - 'compat/jsonrvm-semantics-details.json'
       - 'compat/jsonrvm-golden.json'
+      - 'compat/jsonrvm-oracle-golden.json'
       - 'docs/jsonrvm-compatibility.md'
       - 'tools/validate_jsonrvm_compatibility.py'
       - '.github/workflows/jsonrvm-compatibility.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
