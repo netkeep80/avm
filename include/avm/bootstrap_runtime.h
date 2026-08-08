@@ -292,43 +292,46 @@ private:
 			                          return result;
 		                          });
 
-		executor_.register_native(
-		    vocabulary_.begin_relation,
-		    [this](const ExecutionContext &context, Executor &executor)
-		    {
-			    const std::vector<LinkId> arguments = expression_arguments(context, 1);
-			    const LinkId value = executor.execute(arguments[0], context.entity, context.frame);
-			    return store_.get(value).begin;
-		    });
+		executor_.register_native(vocabulary_.begin_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 1);
+			                          const LinkId value =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          return store_.get(value).begin;
+		                          });
 
-		executor_.register_native(
-		    vocabulary_.end_relation,
-		    [this](const ExecutionContext &context, Executor &executor)
-		    {
-			    const std::vector<LinkId> arguments = expression_arguments(context, 1);
-			    const LinkId value = executor.execute(arguments[0], context.entity, context.frame);
-			    return store_.get(value).end;
-		    });
+		executor_.register_native(vocabulary_.end_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 1);
+			                          const LinkId value =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          return store_.get(value).end;
+		                          });
 
-		executor_.register_native(
-		    vocabulary_.same_relation,
-		    [this](const ExecutionContext &context, Executor &executor)
-		    {
-			    const std::vector<LinkId> arguments = expression_arguments(context, 2);
-			    const LinkId left = executor.execute(arguments[0], context.entity, context.frame);
-			    const LinkId right = executor.execute(arguments[1], context.entity, context.frame);
-			    return left == right ? vocabulary_.true_value : vocabulary_.false_value;
-		    });
+		executor_.register_native(vocabulary_.same_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 2);
+			                          const LinkId left =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          const LinkId right =
+			                              executor.execute(arguments[1], context.entity, context.frame);
+			                          return left == right ? vocabulary_.true_value : vocabulary_.false_value;
+		                          });
 
-		executor_.register_native(
-		    vocabulary_.link_exists_relation,
-		    [this](const ExecutionContext &context, Executor &executor)
-		    {
-			    const std::vector<LinkId> arguments = expression_arguments(context, 2);
-			    const LinkId begin = executor.execute(arguments[0], context.entity, context.frame);
-			    const LinkId end = executor.execute(arguments[1], context.entity, context.frame);
-			    return store_.find(begin, end) ? vocabulary_.true_value : vocabulary_.false_value;
-		    });
+		executor_.register_native(vocabulary_.link_exists_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 2);
+			                          const LinkId begin =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          const LinkId end =
+			                              executor.execute(arguments[1], context.entity, context.frame);
+			                          return store_.find(begin, end) ? vocabulary_.true_value
+			                                                         : vocabulary_.false_value;
+		                          });
 
 		executor_.register_native(
 		    vocabulary_.not_relation,
