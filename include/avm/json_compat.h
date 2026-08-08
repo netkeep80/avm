@@ -25,7 +25,7 @@ public:
 	using Json = nlohmann::json;
 
 	JsonProgramImporter(LinkStore &store, const BootstrapVocabulary &vocabulary, LinkId sequence_relation)
-	    : store_(store), vocabulary_(vocabulary), sequence_relation_(sequence_relation), builder_(store, vocabulary)
+	    : store_(store), vocabulary_(vocabulary), sequence_relation_(sequence_relation), builder_(store, vocabulary_)
 	{
 		if (!store_.contains(sequence_relation_))
 			throw std::invalid_argument("JSON compatibility sequence relation is not present in LinkStore");
@@ -275,7 +275,7 @@ private:
 	}
 
 	LinkStore &store_;
-	const BootstrapVocabulary &vocabulary_;
+	BootstrapVocabulary vocabulary_;
 	LinkId sequence_relation_;
 	ProgramBuilder builder_;
 	std::map<std::string, FunctionSymbol> functions_;

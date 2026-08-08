@@ -9,6 +9,7 @@ int main()
 	avm::InMemoryLinkStore store;
 	const avm::BootstrapVocabulary vocabulary = avm::BootstrapVocabulary::create(store);
 	avm::ProgramBuilder builder(store, vocabulary);
+	avm::ProgramBuilder temporary_vocabulary_builder(store, avm::BootstrapVocabulary(vocabulary));
 
 	const std::vector<avm::LinkId> vocabulary_ids{
 	    vocabulary.unit,
@@ -57,7 +58,12 @@ int main()
 	}
 	assert(cycle_rejected);
 
+	const avm::LinkId temporary_literal = temporary_vocabulary_builder.literal(vocabulary.true_value);
+	assert(avm::decode_relation_entity(store, temporary_literal) ==
+	       (avm::RelationEntity{vocabulary.quote_relation, vocabulary.unit, vocabulary.true_value}));
+
 	const avm::LinkId true_literal = builder.literal(vocabulary.true_value);
+	assert(true_literal == temporary_literal);
 	const std::size_t before_literal_rebuild = store.size();
 	assert(builder.literal(vocabulary.true_value) == true_literal);
 	assert(store.size() == before_literal_rebuild);

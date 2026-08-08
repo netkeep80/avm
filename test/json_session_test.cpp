@@ -13,6 +13,21 @@ namespace
 
 using Json = nlohmann::json;
 
+void test_importer_owns_vocabulary_snapshot()
+{
+	avm::InMemoryLinkStore store;
+	const avm::BootstrapVocabulary vocabulary = avm::BootstrapVocabulary::create(store);
+	const avm::LinkId sequence_relation = store.create_point();
+	avm::JsonProgramImporter importer(store, avm::BootstrapVocabulary(vocabulary), sequence_relation);
+
+	const avm::LinkId root = importer.import_program(Json(false));
+	const avm::RelationEntity decoded = avm::decode_relation_entity(store, root);
+	assert(decoded.relation == vocabulary.quote_relation);
+	assert(decoded.subject == vocabulary.unit);
+	assert(decoded.object == vocabulary.false_value);
+	assert(importer.project_value(vocabulary.false_value) == Json(false));
+}
+
 void test_primitives()
 {
 	avm::JsonCompatibilitySession session;
@@ -69,6 +84,7 @@ void test_lazy_if()
 
 int main()
 {
+	test_importer_owns_vocabulary_snapshot();
 	test_primitives();
 	test_persistent_definition_session();
 	test_undefined_function_compatibility();
