@@ -2,6 +2,7 @@
 #include "avm/semantic_context.h"
 
 #include <cassert>
+#include <type_traits>
 #include <vector>
 
 namespace
@@ -17,9 +18,15 @@ public:
 
 } // namespace
 
+static_assert(std::is_nothrow_copy_constructible_v<avm::SemanticContextView>);
+static_assert(std::is_nothrow_copy_constructible_v<avm::ExecutionEvent>);
+
 int main()
 {
 	avm::InMemoryLinkStore store;
+
+	const avm::SemanticContextView empty;
+	assert(!empty.has_value());
 
 	const avm::LinkId root_entity = store.create_point();
 	const avm::LinkId root_relation_state = store.create_point();
@@ -33,6 +40,7 @@ int main()
 	};
 	const avm::SemanticContextView root = avm::SemanticContextView::root(root_frame);
 
+	assert(root.has_value());
 	assert(root.depth() == 0);
 	assert(root.current() == root_frame);
 	assert(root.role(avm::SemanticContextRole::Entity) == root_entity);
@@ -93,7 +101,7 @@ int main()
 	                         [](const avm::ExecutionContext &context, avm::Executor &)
 	                         {
 		                         assert(context.semantic.has_value());
-		                         return context.semantic->role(avm::SemanticContextRole::RelationState);
+		                         return context.semantic.role(avm::SemanticContextRole::RelationState);
 	                         });
 	const avm::LinkId context_entity =
 	    avm::encode_relation_entity(store, avm::RelationEntity{context_relation, dispatch_subject, dispatch_object});
@@ -105,9 +113,9 @@ int main()
 	assert(observer.events[0].context.relation == context_relation);
 	assert(observer.events[0].context.relation != root_relation_state);
 	assert(observer.events[0].context.semantic.has_value());
-	assert(*observer.events[0].context.semantic == root);
+	assert(observer.events[0].context.semantic == root);
 	assert(observer.events[1].context.semantic.has_value());
-	assert(*observer.events[1].context.semantic == root);
+	assert(observer.events[1].context.semantic == root);
 	assert(observer.events[1].result == root_relation_state);
 
 	observer.events.clear();
@@ -116,7 +124,7 @@ int main()
 	                         [](const avm::ExecutionContext &context, avm::Executor &)
 	                         {
 		                         assert(context.semantic.has_value());
-		                         return context.semantic->role(avm::SemanticContextRole::Subject);
+		                         return context.semantic.role(avm::SemanticContextRole::Subject);
 	                         });
 	const avm::LinkId same_child =
 	    avm::encode_relation_entity(store, avm::RelationEntity{same_child_relation, dispatch_subject, dispatch_object});
@@ -133,7 +141,7 @@ int main()
 	assert(observer.events[1].context.entity == same_child);
 	assert(observer.events[1].context.parent == same_parent);
 	assert(observer.events[1].context.semantic.has_value());
-	assert(*observer.events[1].context.semantic == root);
+	assert(observer.events[1].context.semantic == root);
 
 	observer.events.clear();
 	const avm::LinkId child_relation = store.create_point();
@@ -141,9 +149,9 @@ int main()
 	                         [child_frame](const avm::ExecutionContext &context, avm::Executor &)
 	                         {
 		                         assert(context.semantic.has_value());
-		                         assert(context.semantic->depth() == 1);
-		                         assert(context.semantic->current() == child_frame);
-		                         return context.semantic->role(avm::SemanticContextRole::Object);
+		                         assert(context.semantic.depth() == 1);
+		                         assert(context.semantic.current() == child_frame);
+		                         return context.semantic.role(avm::SemanticContextRole::Object);
 	                         });
 	const avm::LinkId explicit_child =
 	    avm::encode_relation_entity(store, avm::RelationEntity{child_relation, dispatch_subject, dispatch_object});
@@ -160,7 +168,7 @@ int main()
 	assert(observer.events.size() == 4);
 	assert(observer.events[1].context.parent == explicit_parent);
 	assert(observer.events[1].context.semantic.has_value());
-	assert(*observer.events[1].context.semantic == child);
+	assert(observer.events[1].context.semantic == child);
 
 	observer.events.clear();
 	const avm::LinkId legacy_relation = store.create_point();
