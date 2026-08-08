@@ -255,7 +255,7 @@ avm --trace-limit 64 program.json
 
 Inspection layer не владеет отдельным executor или storage semantics.
 
-### Gate 20 — conformance persistent inspection session ✅
+### Gate 20 — проверка persistent inspection session ✅
 
 Проверено, что после reopen:
 
