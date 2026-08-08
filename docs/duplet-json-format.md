@@ -6,15 +6,15 @@
 
 Этот документ определяет нативный JSON frontend AVM версии `duplet-json/1`.
 
-Формат принадлежит AVM. Он **не заменяет** и не изменяет JSON-язык `jsonRVM`. Исторический `jsonRVM` сохраняет формы `$rel/$sub/$obj` и используется как compatibility/oracle source.
+Формат принадлежит AVM. Он **не заменяет** и не изменяет JSON-язык `jsonRVM`: исторический `jsonRVM` сохраняет `$rel/$sub/$obj` и остаётся compatibility/oracle source.
 
-Главный принцип новой нотации:
+Главный принцип:
 
 ```text
 JSON-пара описывает ровно Link(begin, end)
 ```
 
-а триединая сущность Модели Отношений является только частным структурным паттерном пары.
+Триединая сущность Модели Отношений является только частным структурным паттерном пары.
 
 ## Канонический порядок ролей
 
@@ -30,15 +30,15 @@ JSON-пара описывает ровно Link(begin, end)
 (rel, sub, obj) = (rel, (sub, obj))
 ```
 
-Следовательно AVM RelationEntity структурно равна:
+Следовательно:
 
 ```text
-Link(relation, Link(subject, object))
+RelationEntity = Link(relation, Link(subject, object))
 ```
 
-В старом `jsonRVM#10` исторически была записана перестановка `(rel,(obj,sub))`. Она **не является** compatibility-вариантом AVM и не поддерживается native frontend-ом.
+В старом `jsonRVM#10` исторически была записана перестановка `(rel,(obj,sub))`. Она не является compatibility-вариантом AVM и в native frontend не поддерживается.
 
-## Базовая JSON-форма дуплета
+## Базовая форма дуплета
 
 Единственная структурная primitive-форма:
 
@@ -56,7 +56,7 @@ Link(relation, Link(subject, object))
 >> = end
 ```
 
-Объект пары должен содержать **ровно** два поля `<<` и `>>`.
+Объект пары должен содержать ровно два поля `<<` и `>>`.
 
 Недопустимы:
 
@@ -76,7 +76,7 @@ Parser обязан отвергнуть такие формы до любой m
 
 ## Триединая сущность
 
-Явный relation pattern:
+RelationEntity записывается обычной вложенностью пар:
 
 ```json
 {
@@ -88,40 +88,23 @@ Parser обязан отвергнуть такие формы до любой m
 }
 ```
 
-Это **не отдельная JSON-конструкция** и не специальный opcode parser-а. Это обычная пара, у которой `end` также является парой.
-
-Именно Executor позднее интерпретирует полученный canonical `LinkId` как RelationEntity по существующему контракту:
-
-```text
-decode_relation_entity(entity)
- -> relation
- -> subject
- -> object
-```
-
-Native JSON adapter не исполняет этот паттерн и не знает controller semantics.
+Это не отдельная JSON-конструкция и не opcode parser-а. Только Executor позднее интерпретирует полученный canonical `LinkId` как исполняемую RelationEntity.
 
 ## Почему используются `<<` и `>>`
 
-Короткий вариант через JSON array:
+Запись `[begin,end]` короче, но не выбрана нормативной, потому что:
 
-```json
-[begin, end]
-```
+1. `jsonRVM` исторически использует JSON arrays как исполняемые последовательности;
+2. array визуально не показывает направление связи;
+3. `<<` и `>>` позволяют глазами читать begin/end рекурсивной асети.
 
-не выбран как нормативный по трём причинам:
+Эти ключи не имеют execution semantics.
 
-1. `jsonRVM` исторически использует arrays как исполняемые последовательности;
-2. визуально array не показывает направление связи;
-3. `<<` и `>>` позволяют глазами читать рекурсивную асеть как begin/end links.
+## Документ и отдельный терм
 
-При этом символы не имеют execution meaning. Они являются только transport spelling полей `begin` и `end`.
+### Версионированный файл
 
-## Документ и bare term
-
-### Versioned file/document
-
-Файл AVM Native JSON версии 1 имеет envelope:
+Файл Native JSON версии 1 имеет envelope:
 
 ```json
 {
@@ -130,19 +113,17 @@ Native JSON adapter не исполняет этот паттерн и не зн
 }
 ```
 
-Envelope относится только к transport layer.
+`$avm` и `$root` относятся только к transport layer и не материализуются как связи.
 
-`$avm` и `$root` **не материализуются** как связи и не входят в semantic identity программы.
+Version marker обязателен для file/CLI format.
 
-Version marker обязателен для file/CLI format, чтобы будущая версия могла менять surface protocol без эвристического определения формата.
+### API отдельного терма
 
-### Bare term API
+Library adapter может принимать непосредственно `<term>`, если вызывающий код уже явно выбрал parser `duplet-json/1`.
 
-Library adapter может принимать непосредственно `<term>`, если вызывающий код уже явно выбрал parser версии `duplet-json/1`.
+Bare term не используется для эвристического определения формата файла.
 
-Bare term не должен использоваться для автоматического определения формата файла.
-
-## Term и leaf
+## Терм и лист
 
 Концептуальная grammar:
 
@@ -160,22 +141,20 @@ Pair := {
 }
 
 Leaf := protocol-level token,
-        который разрешается внешним leaf resolver
+        разрешаемый внешним leaf resolver
 ```
 
-JSON parser отвечает только за синтаксис Pair/Document.
+Parser отвечает за структуру пары, но не имеет права сам решать, какой `LinkId` соответствует произвольному JSON scalar/object.
 
-Он не имеет права самостоятельно решать, какой `LinkId` соответствует произвольному JSON scalar/object.
+## Минимальный лист: существующий LinkId
 
-## Минимальный стандартный leaf: существующий LinkId
-
-Первый raw resolver должен поддержать явную ссылку на существующую AVM identity:
+Первый raw resolver поддерживает явную ссылку на уже существующую AVM identity:
 
 ```json
 {"$link": 42}
 ```
 
-Нормативная семантика:
+Семантика:
 
 ```text
 {"$link": N}
@@ -188,9 +167,9 @@ JSON parser отвечает только за синтаксис Pair/Document.
 - `0` запрещён как `invalid_link_id`;
 - parser/resolver не создаёт отсутствующий LinkId;
 - `find_projection` при отсутствующем anchor возвращает miss;
-- `realize_projection` при отсутствующем anchor завершает операцию ошибкой **до** materialization prefix.
+- `realize_projection` при отсутствующем anchor завершается ошибкой до materialization prefix.
 
-Пример RelationEntity над существующими anchors:
+Пример:
 
 ```json
 {
@@ -205,7 +184,7 @@ JSON parser отвечает только за синтаксис Pair/Document.
 }
 ```
 
-После projection/realization структура обязана быть:
+После realization:
 
 ```text
 args   = Link(20, 30)
@@ -214,9 +193,9 @@ entity = Link(10, args)
 
 то есть `(rel,(sub,obj))`.
 
-## Расширяемые leaf resolvers
+## Расширяемые resolvers листьев
 
-Будущие задачи могут добавить protocol-level leaves:
+Будущие задачи могут добавить:
 
 ```text
 symbolic anchor
@@ -226,9 +205,7 @@ Text
 context/reference expression
 ```
 
-Но эти формы должны реализовываться отдельным resolver/projection contract.
-
-Запрещено вводить правило:
+Но запрещено вводить правила:
 
 ```text
 "unknown string" -> store.create_point()
@@ -240,56 +217,28 @@ context/reference expression
 JSON scalar -> hidden host-side value keyed by LinkId
 ```
 
-Такой подход создаёт вторую невидимую semantic universe и нарушает persistence/find semantics.
+Рабочие spelling-и `$symbol`, `$integer`, `$text` не становятся нормативными до #173.
 
-## Рекомендуемые будущие spelling-и
-
-Следующие spelling-и зарезервированы как рабочее пространство resolver-а, но **не становятся нормативными до #173**:
-
-```json
-{"$symbol": "integer_add"}
-{"$integer": 7}
-{"$text": "hello"}
-```
-
-Raw v1 parser должен передавать неизвестный непарный object leaf resolver-у, а стандартный resolver обязан детерминированно отвергать неизвестный leaf kind.
-
-Это позволяет расширять protocol layer без изменения `ProjectionDescription` и LinkStore.
-
-## Parser и `ProjectionDescription`
+## Проекция в `ProjectionDescription`
 
 Нативный путь:
 
 ```text
 Duplet JSON
  -> parse JSON
- -> validate Document/Pair syntax
+ -> validate Document/Pair
  -> resolve Leaf -> ProjectionRef
  -> post-order build ProjectionNode list
  -> ProjectionDescription
 ```
 
-Для пары:
-
-```json
-{"<<": B, ">>": E}
-```
-
-adapter сначала проецирует `B` и `E`, затем добавляет:
-
-```text
-ProjectionNode{begin_ref, end_ref}
-```
-
-и возвращает `ProjectionRef::Node(new_index)`.
+Для пары `{"<<":B,">>":E}` adapter сначала проецирует `B` и `E`, затем добавляет `ProjectionNode{begin_ref,end_ref}`.
 
 Post-order нужен, потому что `ProjectionDescription` разрешает Node ссылаться только на более ранние nodes.
 
-## `find` и `realize` остаются разными операциями
+## Разделение поиска и материализации
 
-Parser/projector не принимает решение materialize.
-
-После него caller явно выбирает:
+Parser/projector не принимает решение materialize. Caller явно выбирает:
 
 ```text
 find_projection(store, description)
@@ -301,90 +250,58 @@ find_projection(store, description)
 realize_projection(store, description)
 ```
 
-### Find
+### Поиск
 
 - не вызывает `intern`;
 - не вызывает `create_point`;
-- miss не меняет `LinkStore::size()`;
-- одинаково работает для in-memory и persistent stores.
+- miss не меняет `LinkStore::size()`.
 
-### Realize
+### Материализация
 
 - сначала валидирует description и anchors;
 - затем явно вызывает canonical `intern(begin,end)`;
-- повторный вызов идемпотентен;
-- одинаковые пары могут получить одну structural identity только здесь, а не потому что parser видел одинаковые JSON subtrees.
+- повторный вызов идемпотентен.
 
-## JSON tree не является графом identity
+Одинаковые пары получают одну structural identity только благодаря canonical `intern`, а не потому что parser увидел одинаковые JSON subtrees.
 
-JSON AST — дерево occurrence-ов. LinkStore — граф canonical links.
+## JSON-дерево не является графом identity
 
-Два одинаковых фрагмента:
+JSON AST содержит occurrences. LinkStore содержит canonical graph identities.
 
-```json
-{"<<": {"$link": 1}, ">>": {"$link": 2}}
-```
+Два одинаковых JSON-фрагмента являются двумя syntax occurrences, но после explicit realization могут схлопнуться в один `LinkId`.
 
-в двух местах JSON являются двумя syntax occurrences.
+Нельзя использовать адрес DOM node, pointer parser-а или occurrence index как semantic identity AVM.
 
-При `realize_projection` они могут схлопнуться в один canonical `LinkId`, потому что `intern(1,2)` каноничен.
+## Именованные определения и общие ссылки
 
-Запрещено использовать:
+Raw `duplet-json/1` не вводит `$defs`, forward references или graph labels автоматически.
 
-- адрес JSON DOM node;
-- pointer на parser object;
-- индекс occurrence без explicit document semantics
+Такая возможность требует отдельного identity contract, потому что имя может означать:
 
-как semantic identity AVM.
-
-## Named definitions и shared references
-
-`duplet-json/1` raw tree не вводит `$defs`, forward references или graph labels автоматически.
-
-Они могут появиться отдельным document-level расширением после определения identity ownership.
-
-Причина: named definition может означать разные вещи:
-
-1. имя существующего anchor;
-2. создание новой независимой point identity;
+1. существующий anchor;
+2. создание независимой point identity;
 3. alias на уже описанный duplet;
 4. external symbol resolver entry.
 
-Смешивать эти варианты одной строкой опасно для persistence и `find != realize`.
+До решения #173 эти случаи не смешиваются.
 
-## Обычные JSON values не являются structural Pair
+## Обычные JSON-значения
 
-Любой JSON object, который не содержит pair-marker `<<`/`>>`, является Leaf token для resolver-а.
+Object без `<<`/`>>` является Leaf token для resolver-а.
 
-Если object содержит хотя бы один pair-marker, parser применяет strict pair validation:
+Если object содержит хотя бы один pair-marker, применяется strict pair validation: должны присутствовать оба marker-а и не должно быть чужих members.
 
-- есть оба `<<` и `>>`;
-- нет других members.
+Arrays и scalars также являются leaf tokens до определения конкретного resolver-а.
 
-Это не даёт malformed pair случайно уйти в generic leaf resolver.
+## Дубликаты ключей JSON
 
-JSON arrays и scalars также являются leaf tokens на raw adapter boundary, пока конкретный resolver не определит их projection.
+DOM parser может потерять duplicate members до semantic validation.
 
-## Дубликаты JSON keys
+CLI/file frontend #172 должен обнаруживать duplicate `<<`, `>>`, `$avm`, `$root` и отвергать неоднозначный документ.
 
-Стандартный DOM parser может потерять информацию о duplicate object members до semantic validation.
+## Structural converter и native parser разделены
 
-CLI/file frontend должен использовать parse mode/callback, который обнаруживает duplicate members, либо отдельную pre-validation стратегию.
-
-Документ с duplicate `<<`, `>>`, `$avm` или `$root` должен быть отвергнут как неоднозначный.
-
-До реализации такого контроля #172 не считается завершённым.
-
-## Structural converter и native parser — разные компоненты
-
-Strict converter #171 переводит surface syntax:
-
-```text
-explicit triplet JSON
- -> duplet JSON
-```
-
-и **не обязан** уметь разрешить листья в LinkId.
+Strict converter #171 преобразует syntax и не обязан разрешать листья в LinkId.
 
 Например:
 
@@ -392,7 +309,7 @@ explicit triplet JSON
 {"$rel":"+","$sub":1,"$obj":2}
 ```
 
-структурно преобразуется в:
+преобразуется в:
 
 ```json
 {
@@ -404,11 +321,9 @@ explicit triplet JSON
 }
 ```
 
-Это корректный результат structural migration, но он станет executable native AVM program только когда resolver определит canonical meaning листьев `"+"`, `1`, `2`.
+Это корректная structural migration. Исполняемой AVM-программой результат станет только после resolver-а, который определит canonical meaning `"+"`, `1`, `2`.
 
-Converter не должен ради удобства создавать identities или встраивать hidden symbol table.
-
-## Structural converter v1
+## Структурный конвертер версии 1
 
 Поддерживаемый source relation-form:
 
@@ -439,79 +354,48 @@ convert(R,S,O)
 }
 ```
 
-Порядок `S`/`O` является conformance-veto.
+Порядок `S/O` является veto-gate.
 
-## Неполные legacy relation forms
+## Неполные legacy-формы
 
-Старый jsonRVM допускает context-dependent формы, в которых `$sub` или `$obj` отсутствует.
+Старый jsonRVM допускает context-dependent relation forms, в которых `$sub` или `$obj` отсутствует.
 
-Например runtime может подставлять текущее semantic relation-state.
+Strict converter не исполняет context semantics и поэтому обязан отвергать их, а не угадывать недостающий operand.
 
-Strict structural converter **не исполняет context semantics**, поэтому v1 обязан отвергать:
+Полная миграция относится к #174.
 
-```json
-{"$rel":"+","$obj":1}
-```
+## Смешанные legacy-формы
 
-а не угадывать недостающий subject.
+Объект с `$rel/$sub/$obj` и дополнительными members strict converter отвергает как неоднозначный, потому что механический converter не имеет права терять или переинтерпретировать поля.
 
-Полная миграция таких программ относится к #174 после context/reference contracts.
+## Обратный конвертер
 
-## Смешанные legacy relation forms
-
-Объект вида:
-
-```json
-{
-  "$rel": R,
-  "$sub": S,
-  "$obj": O,
-  "extra": X
-}
-```
-
-strict converter отвергает как неоднозначный.
-
-Причина: неизвестно, является `extra` частью data projection, metadata или ошибкой source format. Механический converter не имеет права терять member или придумывать representation.
-
-## Inverse converter
-
-Для conformance нужен обратный путь поддерживаемого relation-shaped subset:
+Для round-trip conformance поддерживается:
 
 ```text
 Pair(R, Pair(S,O))
  -> {"$rel":R,"$sub":S,"$obj":O}
 ```
 
-Он предназначен прежде всего для проверки:
+Он предназначен для relation-shaped subset и не является общим представлением произвольного `Link(A,B)` в jsonRVM.
 
-```text
-triplet -> duplet -> triplet
-```
+Standalone duplet, который нельзя однозначно выразить explicit triplet-ом, отвергается.
 
-и **не является** общим способом представить произвольную пару в старом jsonRVM.
+## Формат вывода конвертера
 
-Произвольный `Link(A,B)`, где `B` не relation-arguments pair, не имеет однозначного explicit-triplet representation и должен быть отвергнут inverse converter-ом.
+Converter:
 
-## Формат converter output
-
-Converter должен:
-
-- использовать UTF-8 JSON;
-- выдавать deterministic pretty-print с отступом 2 пробела;
-- создавать pair keys в порядке `<<`, затем `>>`;
-- создавать inverse triplet keys в порядке `$rel`, `$sub`, `$obj`;
-- завершать файл переводом строки;
-- не нормализовывать значения чисел/строк сверх поведения JSON parser/serializer;
-- не менять ordinary object members кроме рекурсивного преобразования их values.
-
-Converter output не получает `$avm` envelope автоматически: mechanical conversion может применяться к fragment-у внутри произвольного legacy document.
-
-Отдельный `--envelope` может быть добавлен позднее после появления полноценного native leaf resolver.
+- использует UTF-8 JSON;
+- печатает отступ 2 пробела;
+- создаёт keys `<<`, затем `>>`;
+- inverse создаёт `$rel`, `$sub`, `$obj`;
+- завершает output переводом строки;
+- сохраняет ordinary leaves;
+- не добавляет `$avm` envelope автоматически.
 
 ## Граница с `JsonCompatibilitySession`
 
-Существующий `JsonCompatibilitySession` остаётся compatibility frontend-ом и не переписывается под `<<`/`>>`.
+Существующий `JsonCompatibilitySession` остаётся старым compatibility frontend-ом.
 
 Разделение:
 
@@ -524,65 +408,48 @@ native AVM duplet JSON
  -> ProjectionDescription
 ```
 
-Нельзя добавлять branch вида:
+Не допускается общий interpreter с ветками `$rel` и `<<`.
+
+## Диагностика
+
+Ошибки должны содержать JSON path, например:
 
 ```text
-if object has "$rel" ... else if object has "<<" ...
+$.items[2].program: incomplete legacy relation form: expected $rel, $sub and $obj
 ```
 
-в один общий interpreter. Это снова смешало бы два protocol языка и сделало JSON частью runtime semantics.
+Диагностика является tooling text и не входит в semantic Link structure.
 
-## Ошибки
+## Проверки соответствия
 
-Ошибки native parser/converter должны содержать JSON path к проблемной форме, например:
+Минимальный corpus:
 
-```text
-$.items[2].program: incomplete legacy relation form: expected $rel/$sub/$obj
-```
-
-или:
-
-```text
-$.$root.>>: malformed duplet: fields << and >> must appear together
-```
-
-Диагностика является host tooling text, а не частью semantic Link structure.
-
-## Conformance
-
-Минимальный набор:
-
-1. один explicit triplet;
-2. sentinel `relation=R, subject=S, object=O`, доказывающий `(R,(S,O))`;
-3. relation в relation slot;
-4. relation в subject slot;
-5. relation в object slot;
-6. triplet внутри array;
-7. triplet внутри ordinary object;
-8. incomplete `$sub`;
-9. incomplete `$obj`;
-10. mixed legacy members;
-11. malformed pair без `<<`;
-12. malformed pair без `>>`;
-13. mixed pair members;
-14. forward/inverse round-trip supported subset;
-15. raw native anchors -> `ProjectionDescription` -> canonical RelationEntity;
-16. find miss не пишет;
-17. repeated realize возвращает тот же canonical root.
+1. explicit triplet;
+2. sentinel `R/S/O`, доказывающий `(R,(S,O))`;
+3. relation в relation/subject/object slots;
+4. triplet внутри array;
+5. triplet внутри ordinary object;
+6. incomplete `$sub`;
+7. incomplete `$obj`;
+8. mixed legacy members;
+9. malformed pair без одного marker-а;
+10. mixed pair members;
+11. forward/inverse round-trip;
+12. raw anchors -> `ProjectionDescription` -> canonical RelationEntity;
+13. find miss не пишет;
+14. repeated realize возвращает тот же root.
 
 ## Влияние на jsonRVM
 
 Никакого.
 
-`jsonRVM#10` закрывается как перенесённый в AVM. Existing jsonRVM source files, parser, tests и runtime остаются в старой нотации.
-
-Это позволяет использовать jsonRVM как стабильный semantic oracle во время разработки AVM, вместо одновременного изменения и источника, и целевой реализации.
+`jsonRVM#10` закрывается как перенесённый. Existing parser/runtime/tests jsonRVM остаются в старой нотации и продолжают служить стабильным semantic oracle.
 
 ## Нормативные запреты
 
 Запрещено:
 
-- поддерживать `(rel,(obj,sub))` в native AVM;
+- поддерживать `(rel,(obj,sub))` в AVM native syntax;
 - считать `<<`/`>>` execution opcodes;
 - выполнять `realize` внутри parser-а;
 - создавать point из неизвестного JSON leaf;
@@ -592,9 +459,7 @@ $.$root.>>: malformed duplet: fields << and >> must appear together
 - превращать structural converter в jsonRVM evaluator;
 - silently convert incomplete context-dependent triplets.
 
-## Следующие gates
-
-После этого ADR:
+## Следующие этапы
 
 1. #171 — strict structural converter;
 2. #172 — native duplet parser/projector;
