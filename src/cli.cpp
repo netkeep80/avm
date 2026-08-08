@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 namespace
 {
@@ -186,16 +187,16 @@ void print_usage()
 
 int main(int argc, char *argv[])
 {
-	const std::optional<CliOptions> options = parse_options(argc, argv);
-	if (!options)
-	{
-		print_usage();
-		return 0;
-	}
-
 	Json root;
 	try
 	{
+		const std::optional<CliOptions> options = parse_options(argc, argv);
+		if (!options)
+		{
+			print_usage();
+			return 0;
+		}
+
 		get_json(root, options->path);
 
 		Json result;
