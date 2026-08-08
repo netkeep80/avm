@@ -74,7 +74,7 @@ result = 3
 
 Это фиксирует left-to-right ordered sequence behavior для `EXEC-ARRAY-SEQ-001` без утверждения о будущей parallel projection semantics.
 
-### Child context `foreachobj`
+### Дочерний context `foreachobj`
 
 Fixture `foreach-object-context.json` выполняет child relation над каждым object элемента массива и через `$ref: "$obj"` наблюдает child object.
 
@@ -86,7 +86,7 @@ Fixture `foreach-object-context.json` выполняет child relation над �
 
 Покрываются `EXEC-FOREACH-OBJ-001` и наблюдение текущего child context. Этот fixture **не** считается доказательством `foreachsub`; `EXEC-FOREACH-SUB-001` остаётся отдельной незамороженной задачей.
 
-### Boolean branch
+### Булева ветвь
 
 Fixture `boolean-branch.json` выбирает object-branch отношения `if_rel_then_obj_else_sub` при `rel=true`.
 

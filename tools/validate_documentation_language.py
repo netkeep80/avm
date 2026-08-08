@@ -58,20 +58,21 @@ def is_technical_heading(heading: str) -> bool:
     return len(heading) >= 2 and heading.startswith("`") and heading.endswith("`")
 
 
-def validate(path: pathlib.Path) -> None:
+def validate(path: pathlib.Path) -> list[str]:
     relative = path.relative_to(ROOT).as_posix()
     if relative in EXCLUDED_RELATIVE_PATHS:
-        return
+        return []
 
+    errors: list[str] = []
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
-        fail(f"{relative}: документ должен быть UTF-8: {exc}")
+        return [f"{relative}: документ должен быть UTF-8: {exc}"]
 
     prose = prose_lines(text)
     prose_text = "\n".join(line for _, line in prose)
     if not CYRILLIC.search(prose_text):
-        fail(f"{relative}: нет русского prose")
+        errors.append(f"{relative}: нет русского prose")
 
     words = WORD.findall(prose_text)
     if words:
@@ -79,7 +80,7 @@ def validate(path: pathlib.Path) -> None:
         # Guard против случайного возврата целого документа к английскому.
         # Порог намеренно мягкий: API identifiers и англоязычные термины разрешены.
         if cyrillic_words / len(words) < 0.25:
-            fail(
+            errors.append(
                 f"{relative}: русский prose составляет слишком малую долю текста "
                 f"({cyrillic_words}/{len(words)} слов)"
             )
@@ -92,16 +93,25 @@ def validate(path: pathlib.Path) -> None:
         if is_technical_heading(heading):
             continue
         if LATIN.search(heading) and not CYRILLIC.search(heading):
-            fail(
+            errors.append(
                 f"{relative}:{number}: полностью английский Markdown-заголовок: "
                 f"{heading!r}"
             )
 
+    return errors
+
 
 def main() -> int:
     docs = project_documents()
+    errors: list[str] = []
     for path in docs:
-        validate(path)
+        errors.extend(validate(path))
+
+    if errors:
+        for error in errors:
+            print(f"documentation-language: {error}", file=sys.stderr)
+        print(f"documentation-language: найдено нарушений: {len(errors)}", file=sys.stderr)
+        return 1
 
     print(f"Документация AVM: русский language guard OK ({len(docs)} Markdown-файлов)")
     return 0
