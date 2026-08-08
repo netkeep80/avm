@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "netkeep80/jsonRVM",
+    "commit": "843b3326141e090ccd1a106ba0a4a21ce72805b7",
+    "runtime_version": "3.0.0",
+    "oracle": "tools/run_jsonrvm_legacy_oracle.py"
+  },
+  "cases": [
+    {
+      "id": "CASE-ARITHMETIC",
+      "fixture": "compat/jsonrvm-legacy-fixtures/arithmetic-add.json",
+      "avm_target": "#128/#131",
+      "equivalence": "observable-json-value",
+      "covers": ["VALUE-ARITH-001"],
+      "assertions": [
+        {"path": "/result", "equals": 2}
+      ]
+    },
+    {
+      "id": "CASE-SEQUENCE-ORDER",
+      "fixture": "compat/jsonrvm-legacy-fixtures/sequence-order.json",
+      "avm_target": "#127/#131",
+      "equivalence": "observable-json-value",
+      "covers": ["EXEC-ARRAY-SEQ-001"],
+      "assertions": [
+        {"path": "/result", "equals": 3}
+      ]
+    },
+    {
+      "id": "CASE-FOREACH-CONTEXT",
+      "fixture": "compat/jsonrvm-legacy-fixtures/foreach-object-context.json",
+      "avm_target": "#125/#127/#131",
+      "equivalence": "observable-json-value",
+      "covers": ["CTX-CURRENT-001", "EXEC-FOREACH-OBJ-001"],
+      "assertions": [
+        {"path": "/result", "equals": [1, 2, 3]}
+      ]
+    },
+    {
+      "id": "CASE-BOOLEAN-BRANCH",
+      "fixture": "compat/jsonrvm-legacy-fixtures/boolean-branch.json",
+      "avm_target": "#131",
+      "equivalence": "observable-json-value",
+      "covers": ["CTRL-IF-001"],
+      "assertions": [
+        {"path": "/result", "equals": 42}
+      ]
+    },
+    {
+      "id": "CASE-PURE-RELATION-COMPOSITION",
+      "fixture": "compat/jsonrvm-legacy-fixtures/pure-relation-composition.json",
+      "avm_target": "#124/#127/#128/#131",
+      "equivalence": "observable-json-value",
+      "covers": ["CTX-CURRENT-001", "EXEC-ARRAY-SEQ-001", "VALUE-ARITH-001"],
+      "assertions": [
+        {"path": "/result", "equals": 5}
+      ]
+    },
+    {
+      "id": "CASE-MISSING-REFERENCE",
+      "fixture": "compat/jsonrvm-legacy-fixtures/missing-reference.json",
+      "avm_target": "#126/#131",
+      "equivalence": "observable-failure",
+      "covers": ["REF-ABSOLUTE-001"],
+      "failure": {
+        "exit_code": 1,
+        "diagnostic_json": true,
+        "contains": "__avm_missing_reference_oracle__"
+      }
+    }
+  ]
+}
