@@ -1,0 +1,10 @@
+{
+  "$rel/result": {
+    "$obj": [1, 2, 3],
+    "$rel": "foreachobj",
+    "$sub": {
+      "$obj": {"$ref": "$obj"},
+      "$rel": "="
+    }
+  }
+}
