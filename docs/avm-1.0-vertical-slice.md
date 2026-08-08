@@ -27,7 +27,7 @@ JSON используется только importer-ом. `Executor` получ�
 
 Одни и те же materialized program entities исполняются через абстрактный `LinkStore` contract. Тест покрывает NOT/AND/OR, lazy `If`, `Def`/`Call` и representative recursive call.
 
-## Persistent reopen
+## Повторное открытие persistent store
 
 Persistent scenario имеет две отдельные фазы.
 
