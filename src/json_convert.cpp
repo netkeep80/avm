@@ -1,4 +1,5 @@
 #include "json_duplet_converter.h"
+#include "nlohmann/json.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -7,6 +8,8 @@
 
 namespace
 {
+
+using Json = nlohmann::ordered_json;
 
 struct Options
 {
@@ -106,11 +109,11 @@ Options parse_options(int argc, char **argv)
 	return options;
 }
 
-avm::json_duplet::Json read_json(const std::string &path)
+Json read_json(const std::string &path)
 {
 	if (path == "-")
 	{
-		avm::json_duplet::Json value;
+		Json value;
 		std::cin >> value;
 		return value;
 	}
@@ -119,12 +122,12 @@ avm::json_duplet::Json read_json(const std::string &path)
 	if (!input)
 		throw std::runtime_error("cannot open input file: " + path);
 
-	avm::json_duplet::Json value;
+	Json value;
 	input >> value;
 	return value;
 }
 
-void write_json(const std::string &path, const avm::json_duplet::Json &value)
+void write_json(const std::string &path, const Json &value)
 {
 	if (path == "-")
 	{
@@ -147,9 +150,9 @@ int main(int argc, char **argv)
 	try
 	{
 		const Options options = parse_options(argc, argv);
-		const avm::json_duplet::Json input = read_json(options.input);
+		const Json input = read_json(options.input);
 
-		avm::json_duplet::Json output;
+		Json output;
 		if (options.from == "jsonrvm-triplet")
 			output = avm::json_duplet::convert_explicit_triplets_to_duplets(input);
 		else
