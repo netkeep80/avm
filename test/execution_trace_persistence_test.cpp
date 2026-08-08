@@ -8,6 +8,7 @@
 #include <map>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace
@@ -58,14 +59,14 @@ std::vector<NormalizedExecutionEvent> normalize_trace(const avm::BoundedExecutio
 
 	std::map<avm::LinkId, std::size_t> ordinals;
 	std::size_t next_ordinal = 0;
-	const auto ordinal = [&ordinals, &next_ordinal](avm::LinkId id) mutable
+	auto ordinal = [&ordinals, &next_ordinal](avm::LinkId id)
 	{
 		const auto [it, inserted] = ordinals.emplace(id, next_ordinal);
 		if (inserted)
 			++next_ordinal;
 		return it->second;
 	};
-	const auto optional_ordinal = [&ordinal](std::optional<avm::LinkId> id) mutable -> std::optional<std::size_t>
+	auto optional_ordinal = [&ordinal](std::optional<avm::LinkId> id) -> std::optional<std::size_t>
 	{
 		if (!id)
 			return std::nullopt;
