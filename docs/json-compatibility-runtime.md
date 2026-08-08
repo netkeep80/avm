@@ -41,7 +41,7 @@ Boolean/null в program projection отображаются в bootstrap vocabul
 
 Важно: JSON является frontend/value codec, а не окончательной primitive-value model AVM. AVM 1.5 #128 определяет canonical value denotations независимо от quirks `nlohmann::json`.
 
-## Compatibility sequence
+## Совместимость последовательностей
 
 Core `sequence_relation` является fail-fast: exception child expression прерывает исполнение.
 
