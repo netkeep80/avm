@@ -21,10 +21,13 @@ struct DirectTriuneVocabulary
 
 	static DirectTriuneVocabulary create(LinkStore &store)
 	{
-		return DirectTriuneVocabulary{
-		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
-		    store.create_point(),
-		};
+		DirectTriuneVocabulary vocabulary{};
+		vocabulary.subject_value_relation = store.create_point();
+		vocabulary.pair_find_relation = store.create_point();
+		vocabulary.pair_realize_relation = store.create_point();
+		vocabulary.pair_target_begin_relation = store.create_point();
+		vocabulary.pair_target_end_relation = store.create_point();
+		return vocabulary;
 	}
 
 	void validate(const LinkStore &store) const
