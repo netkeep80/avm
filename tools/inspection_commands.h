@@ -79,10 +79,9 @@ struct TraceResetCommand
 {
 };
 
-using InspectionCommand =
-    std::variant<InspectLinkCommand, FindPairCommand, OutgoingCommand, IncomingCommand, DecodeRelationCommand,
-                 QueryRelationsCommand, FunctionDefinitionCommand, CallFrameCommand, ExecuteCommand, TraceExecuteCommand,
-                 TraceResetCommand>;
+using InspectionCommand = std::variant<InspectLinkCommand, FindPairCommand, OutgoingCommand, IncomingCommand,
+                                       DecodeRelationCommand, QueryRelationsCommand, FunctionDefinitionCommand,
+                                       CallFrameCommand, ExecuteCommand, TraceExecuteCommand, TraceResetCommand>;
 
 struct InspectLinkResult
 {
@@ -148,9 +147,9 @@ struct TraceResetResult
 {
 };
 
-using InspectionResult =
-    std::variant<InspectLinkResult, FindPairResult, AdjacencyResult, DecodeRelationResult, QueryRelationsResult,
-                 FunctionDefinitionResult, CallFrameResult, ExecuteResult, TraceExecuteResult, TraceResetResult>;
+using InspectionResult = std::variant<InspectLinkResult, FindPairResult, AdjacencyResult, DecodeRelationResult,
+                                      QueryRelationsResult, FunctionDefinitionResult, CallFrameResult, ExecuteResult,
+                                      TraceExecuteResult, TraceResetResult>;
 
 namespace detail
 {
@@ -369,8 +368,7 @@ inline InspectionCommand parse_inspection_command(std::string_view line)
 inline InspectionResult execute_inspection_command(InspectionSession &session, const InspectionCommand &command)
 {
 	return std::visit(
-	    [&session](const auto &typed) -> InspectionResult
-	    {
+	    [&session](const auto &typed) -> InspectionResult {
 		    using Command = std::decay_t<decltype(typed)>;
 		    if constexpr (std::is_same_v<Command, InspectLinkCommand>)
 			    return InspectLinkResult{typed.id, session.inspect_link(typed.id)};
@@ -393,11 +391,8 @@ inline InspectionResult execute_inspection_command(InspectionSession &session, c
 		    else if constexpr (std::is_same_v<Command, TraceExecuteCommand>)
 		    {
 			    const LinkId result = session.trace_execute(typed.root);
-			    return TraceExecuteResult{
-			        result,
-			        std::vector<ExecutionEvent>(session.trace_events().begin(), session.trace_events().end()),
-			        session.trace_truncated(),
-			    };
+			    std::vector<ExecutionEvent> events(session.trace_events().begin(), session.trace_events().end());
+			    return TraceExecuteResult{result, std::move(events), session.trace_truncated()};
 		    }
 		    else if constexpr (std::is_same_v<Command, TraceResetCommand>)
 		    {
@@ -405,7 +400,9 @@ inline InspectionResult execute_inspection_command(InspectionSession &session, c
 			    return TraceResetResult{};
 		    }
 		    else
+		    {
 			    static_assert(detail::always_false<Command>, "unhandled InspectionCommand alternative");
+		    }
 	    },
 	    command);
 }
@@ -413,8 +410,7 @@ inline InspectionResult execute_inspection_command(InspectionSession &session, c
 inline std::string render_inspection_result(const InspectionResult &result)
 {
 	return std::visit(
-	    [](const auto &typed)
-	    {
+	    [](const auto &typed) {
 		    using Result = std::decay_t<decltype(typed)>;
 		    std::ostringstream output;
 		    if constexpr (std::is_same_v<Result, InspectLinkResult>)
@@ -468,7 +464,9 @@ inline std::string render_inspection_result(const InspectionResult &result)
 		    else if constexpr (std::is_same_v<Result, TraceResetResult>)
 			    output << "trace reset";
 		    else
+		    {
 			    static_assert(detail::always_false<Result>, "unhandled InspectionResult alternative");
+		    }
 		    return output.str();
 	    },
 	    result);
