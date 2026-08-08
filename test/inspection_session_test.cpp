@@ -2,7 +2,6 @@
 
 #include "avm/relations_model.h"
 
-#include <algorithm>
 #include <cassert>
 #include <optional>
 #include <stdexcept>
@@ -46,8 +45,10 @@ void verify_read_only_inspection_never_materializes()
 	avm::tooling::InspectionSession session(fixture.store, fixture.vocabulary, 128);
 	const std::size_t size_before = fixture.store.size();
 
-	assert(session.inspect_link(fixture.point_a) == avm::Link{fixture.point_a, fixture.point_a});
-	assert(session.inspect_link(fixture.pair) == avm::Link{fixture.point_a, fixture.point_b});
+	const avm::Link expected_point{fixture.point_a, fixture.point_a};
+	const avm::Link expected_pair{fixture.point_a, fixture.point_b};
+	assert(session.inspect_link(fixture.point_a) == expected_point);
+	assert(session.inspect_link(fixture.pair) == expected_pair);
 	assert(session.find_pair(fixture.point_a, fixture.point_b) == fixture.pair);
 
 	const avm::LinkId missing_begin = fixture.store.create_point();
@@ -65,8 +66,8 @@ void verify_read_only_inspection_never_materializes()
 	    .object = fixture.point_c,
 	};
 	assert(session.query_relations(query) == avm::query_relation_entities(fixture.store, query));
-	assert(session.decode_relation(fixture.relation_entity) ==
-	       avm::RelationEntity{fixture.relation, fixture.point_a, fixture.point_c});
+	const avm::RelationEntity expected_entity{fixture.relation, fixture.point_a, fixture.point_c};
+	assert(session.decode_relation(fixture.relation_entity) == expected_entity);
 
 	const auto definition = session.function_definition(fixture.function);
 	assert(definition);
