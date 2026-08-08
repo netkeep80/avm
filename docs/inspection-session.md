@@ -29,7 +29,7 @@ Session принимает `BootstrapVocabulary` по значению и пер
 
 Session не подключает collector к внешнему runtime. `Executor::set_observer` — non-owning setter без observer stack/getter; владение runtime предотвращает скрытую замену observer другого caller.
 
-## Read-only inspection
+## Read-only инспекция
 
 Операции:
 
@@ -84,7 +84,7 @@ Text/script command parser является отдельным presentation laye
 
 Persistent reopen также использует ту же `InspectionSession`, explicit persisted vocabulary/root identities и существующие LinkId/trace contracts.
 
-## Non-goals
+## Явные ограничения
 
 Session не добавляет:
 
