@@ -76,6 +76,7 @@ public:
 	{
 		if (max_call_depth_ == 0)
 			throw std::invalid_argument("maximum call depth must be greater than zero");
+		upgrade_structural_vocabulary_if_needed();
 		validate_vocabulary();
 		materialize_truth_tables();
 		register_handlers();
@@ -92,6 +93,26 @@ public:
 	LinkId execute(LinkId root) { return executor_.execute(root); }
 
 private:
+	void upgrade_structural_vocabulary_if_needed()
+	{
+		const bool begin_missing = vocabulary_.begin_relation == invalid_link_id;
+		const bool end_missing = vocabulary_.end_relation == invalid_link_id;
+		const bool same_missing = vocabulary_.same_relation == invalid_link_id;
+		const bool exists_missing = vocabulary_.link_exists_relation == invalid_link_id;
+		const unsigned missing = static_cast<unsigned>(begin_missing) + static_cast<unsigned>(end_missing) +
+		                         static_cast<unsigned>(same_missing) + static_cast<unsigned>(exists_missing);
+
+		if (missing == 0)
+			return;
+		if (missing != 4)
+			throw std::invalid_argument("bootstrap structural vocabulary must be fully present or fully absent");
+
+		vocabulary_.begin_relation = store_.create_point();
+		vocabulary_.end_relation = store_.create_point();
+		vocabulary_.same_relation = store_.create_point();
+		vocabulary_.link_exists_relation = store_.create_point();
+	}
+
 	void validate_vocabulary() const
 	{
 		const std::vector<LinkId> ids{
