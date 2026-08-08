@@ -173,7 +173,6 @@ if(AVM_BUILD_JSON_TOOLS)
     set_target_properties(avm_json_convert PROPERTIES OUTPUT_NAME "avm-json-convert")
     avm_add_json_adapter_includes(avm_json_convert)
     avm_apply_quality(avm_json_convert)
-    install(TARGETS avm_json_convert RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
 if(AVM_BUILD_CORE_TESTS)
