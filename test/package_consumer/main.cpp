@@ -2,9 +2,10 @@
 
 int main()
 {
-	static_assert(avm::version_major == 0);
+	static_assert(avm::version_major == 1);
 	static_assert(avm::version_minor == 0);
-	static_assert(avm::version_patch == 5);
+	static_assert(avm::version_patch == 0);
+	static_assert(avm::version_string == "1.0.0");
 
 	avm::InMemoryLinkStore store;
 	avm::BootstrapRuntime runtime(store);
