@@ -158,12 +158,14 @@ void verify_pair_intern_of_nonpoint_self_pair_is_new_identity()
 	const avm::LinkId left = store.create_point();
 	const avm::LinkId right = store.create_point();
 	const avm::LinkId nonpoint = store.intern(left, right);
-	assert(store.get(nonpoint) != avm::Link{nonpoint, nonpoint});
+	const avm::Link nonpoint_as_self{nonpoint, nonpoint};
+	assert(store.get(nonpoint) != nonpoint_as_self);
 
 	const avm::LinkId expression = builder.pair_intern(builder.literal(nonpoint), builder.literal(nonpoint));
 	const avm::LinkId self_pair = runtime.execute(expression);
+	const avm::Link expected{nonpoint, nonpoint};
 	assert(self_pair != nonpoint);
-	assert(store.get(self_pair) == avm::Link{nonpoint, nonpoint});
+	assert(store.get(self_pair) == expected);
 	assert(store.find(nonpoint, nonpoint) == self_pair);
 }
 
