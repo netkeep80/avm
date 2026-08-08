@@ -113,6 +113,19 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce read-only Relations query layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -n -E '(intern|create_point)[[:space:]]*\(|store\.size[[:space:]]*\(' include/avm/relations_query.h; then
+            echo "ERROR: Relations queries must not materialize links or guess full-store enumeration"
+            exit 1
+          fi
+          if grep -n -E 'PersistentLinkStore|InMemoryLinkStore|nlohmann|json\.hpp|[Aa]num' include/avm/relations_query.h; then
+            echo "ERROR: Relations query layer must depend only on the LinkStore/Relations Model contracts"
+            exit 1
+          fi
+
       - name: Verify public version contract
         shell: bash
         run: |
@@ -132,7 +145,7 @@ jobs:
             test "v${project_version}" = "${GITHUB_REF_NAME}"
           fi
 
-      - name: Check AVM 1.0 formatting
+      - name: Check AVM formatting
         shell: bash
         run: |
           set -euo pipefail
@@ -144,6 +157,7 @@ jobs:
             test/assertions_enabled_test.cpp \
             test/link_store_test.cpp \
             test/relations_model_test.cpp \
+            test/relations_query_test.cpp \
             test/executor_test.cpp \
             test/program_model_test.cpp \
             test/boolean_runtime_test.cpp \
