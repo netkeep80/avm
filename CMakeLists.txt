@@ -214,6 +214,15 @@ if(AVM_BUILD_CORE_TESTS)
         test/persistent_link_store_test.cpp
         persistent_link_store_tests)
 
+    add_executable(avm_vertical_slice_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/vertical_slice_test.cpp")
+    target_include_directories(avm_vertical_slice_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+    avm_apply_quality(avm_vertical_slice_test)
+    avm_enable_test_assertions(avm_vertical_slice_test)
+    add_test(NAME vertical_slice_tests COMMAND avm_vertical_slice_test)
+
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
         avm_link_store_test
@@ -227,7 +236,8 @@ if(AVM_BUILD_CORE_TESTS)
         avm_projection_test
         avm_raw_carrier_test
         avm_protocol_adapter_boundary_test
-        avm_persistent_link_store_test)
+        avm_persistent_link_store_test
+        avm_vertical_slice_test)
 endif()
 
 if(AVM_BUILD_JSON_COMPAT_TESTS)
