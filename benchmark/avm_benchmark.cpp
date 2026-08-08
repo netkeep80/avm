@@ -143,25 +143,22 @@ int main()
 		static_cast<void>(avm::encode_relation_entity(store, {points[5000 + i], query_subject, query_object}));
 	}
 
-	const auto relation_driven_query = [&](std::size_t) {
-		sink ^= avm::query_relation_entities(store, {.relation = query_relation}).size();
-	};
-	print(measure("relations_query_relation", relation_query_iterations, relation_driven_query));
+	const avm::RelationQuery relation_q{.relation = query_relation};
+	const avm::RelationQuery subject_q{.subject = query_subject};
+	const avm::RelationQuery object_q{.object = query_object};
+	const avm::RelationQuery pair_q{.subject = query_subject, .object = query_object};
 
-	const auto subject_driven_query = [&](std::size_t) {
-		sink ^= avm::query_relation_entities(store, {.subject = query_subject}).size();
-	};
-	print(measure("relations_query_subject", relation_query_iterations, subject_driven_query));
+	const auto relation_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(store, relation_q).size(); };
+	print(measure("relations_query_relation", relation_query_iterations, relation_bench));
 
-	const auto object_driven_query = [&](std::size_t) {
-		sink ^= avm::query_relation_entities(store, {.object = query_object}).size();
-	};
-	print(measure("relations_query_object", relation_query_iterations, object_driven_query));
+	const auto subject_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(store, subject_q).size(); };
+	print(measure("relations_query_subject", relation_query_iterations, subject_bench));
 
-	const auto subject_object_query = [&](std::size_t) {
-		sink ^= avm::query_relation_entities(store, {.subject = query_subject, .object = query_object}).size();
-	};
-	print(measure("relations_query_subject_object", relation_query_iterations, subject_object_query));
+	const auto object_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(store, object_q).size(); };
+	print(measure("relations_query_object", relation_query_iterations, object_bench));
+
+	const auto pair_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(store, pair_q).size(); };
+	print(measure("relations_query_subject_object", relation_query_iterations, pair_bench));
 
 	avm::BootstrapRuntime runtime(store);
 	avm::ProgramBuilder builder = runtime.builder();
