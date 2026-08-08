@@ -95,11 +95,21 @@ private:
 	void validate_vocabulary() const
 	{
 		const std::vector<LinkId> ids{
-		    vocabulary_.unit,            vocabulary_.nil,              vocabulary_.true_value,
-		    vocabulary_.false_value,     vocabulary_.quote_relation,   vocabulary_.parameter_relation,
-		    vocabulary_.sequence_relation, vocabulary_.not_relation,    vocabulary_.and_relation,
-		    vocabulary_.or_relation,     vocabulary_.if_relation,      vocabulary_.function_relation,
-		    vocabulary_.call_relation,   vocabulary_.binding_relation, vocabulary_.frame_relation,
+		    vocabulary_.unit,
+		    vocabulary_.nil,
+		    vocabulary_.true_value,
+		    vocabulary_.false_value,
+		    vocabulary_.quote_relation,
+		    vocabulary_.parameter_relation,
+		    vocabulary_.sequence_relation,
+		    vocabulary_.not_relation,
+		    vocabulary_.and_relation,
+		    vocabulary_.or_relation,
+		    vocabulary_.if_relation,
+		    vocabulary_.function_relation,
+		    vocabulary_.call_relation,
+		    vocabulary_.binding_relation,
+		    vocabulary_.frame_relation,
 		};
 
 		std::set<LinkId> unique;
