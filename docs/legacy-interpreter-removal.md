@@ -52,7 +52,7 @@ JSON -> LinkStore -> Executor
 - архитектурные grep/quality guards;
 - AVM 1.5 semantic inventory и frozen `jsonRVM` corpus для дальнейшей differential migration.
 
-## CI regression guards
+## Регрессионные проверки CI
 
 Quality job запрещает возврат бывших semantic side-channel identifiers в production sources:
 
