@@ -31,7 +31,15 @@ def run_fixture(executable: pathlib.Path, fixture: pathlib.Path) -> subprocess.C
     entry_point = fixture.stem
     with tempfile.TemporaryDirectory(prefix=f"avm-jsonrvm-oracle-{entry_point}-") as directory:
         work = pathlib.Path(directory)
-        shutil.copyfile(fixture, work / f"{entry_point}.json")
+
+        # Pinned jsonRVM console creates file_database_t(".\\") and then
+        # concatenates that string with '<entry>.json'. On Windows this is the
+        # normal spelling of a relative path; on POSIX the backslash is a
+        # literal filename character. Preserve the legacy spelling instead of
+        # patching the old runtime for the audit job.
+        legacy_fixture = work / f".\\{entry_point}.json"
+        shutil.copyfile(fixture, legacy_fixture)
+
         return subprocess.run(
             [str(executable), entry_point],
             cwd=work,
