@@ -53,8 +53,8 @@ int main()
 	assert(converted.at(">>").at("<<") == "S");
 	assert(converted.at(">>").at(">>") == "O");
 
-	const Json nested = relation(relation("RR", "RS", "RO"), relation("SR", "SS", "SO"),
-	                             relation("OR", "OS", "OO"));
+	const Json nested =
+	    relation(relation("RR", "RS", "RO"), relation("SR", "SS", "SO"), relation("OR", "OS", "OO"));
 	const Json nested_converted = avm::json_duplet::convert_explicit_triplets_to_duplets(nested);
 	assert(nested_converted.at("<<") == duplet("RR", duplet("RS", "RO")));
 	assert(nested_converted.at(">>").at("<<") == duplet("SR", duplet("SS", "SO")));
