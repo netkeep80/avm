@@ -65,8 +65,8 @@ ImportedProgram import_and_execute(avm::LinkStore &store)
 
 	const Json recursive_body = {
 	    {"If", Json::array({"x", true, Json{{"Call", Json::array({"eventually_true", true})}}})}};
-	const Json recursive_definition = {
-	    {"Def", Json::array({"eventually_true", Json::array({"x"}), recursive_body})}};
+	const Json recursive_definition_arguments = Json::array({"eventually_true", Json::array({"x"}), recursive_body});
+	const Json recursive_definition = {{"Def", recursive_definition_arguments}};
 	const avm::LinkId recursive_definition_root = importer.import_program(recursive_definition);
 	assert(runtime.execute(recursive_definition_root) == vocabulary.nil);
 
