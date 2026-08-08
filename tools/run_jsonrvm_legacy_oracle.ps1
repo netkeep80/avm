@@ -137,6 +137,11 @@ Invoke-LegacyCase `
     -FixtureName "boolean-branch.json" `
     -ExpectedJson '{"result":42}'
 
+Invoke-LegacyCase `
+    -CaseId "CASE-PURE-RELATION-COMPOSITION" `
+    -FixtureName "pure-relation-composition.json" `
+    -ExpectedJson '{"result":5}'
+
 Invoke-MissingReferenceCase `
     -FixtureName "missing-reference.json" `
     -ReferenceMarker "__avm_missing_reference_oracle__"
