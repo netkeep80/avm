@@ -211,11 +211,11 @@ Properties:
 - installed package consumer validates the API on Linux/Windows/macOS;
 - strict warnings, ASan+UBSan and portable matrix are green.
 
-### Gate 15 — deterministic failure phase and unwind observation (current)
+### Gate 15 — deterministic failure phase and unwind observation ✅
 
-Child: #98.
+Implemented through #98/#99.
 
-Extend `Fail` with a finite AVM-owned phase taxonomy:
+`Fail` carries a finite AVM-owned phase taxonomy:
 
 ```text
 Dispatch
@@ -223,7 +223,7 @@ Handler
 ResultValidation
 ```
 
-Requirements:
+Properties:
 
 - phase identifies the canonical execution boundary that failed, not exception text/type;
 - no `std::exception_ptr`, host exception object or backend/protocol diagnostic in `ExecutionEvent`;
@@ -234,13 +234,40 @@ Requirements:
 - repeated failure against unchanged state produces identical events;
 - observation does not materialize links.
 
+### Gate 16 — bounded reusable execution trace collector (current)
+
+Child: #100.
+
+Provide a host-memory tooling collector over the stable observer contract without moving trace storage into semantic state.
+
+Initial contract:
+
+```text
+BoundedExecutionTrace(max_events)
+  -> stores exact ExecutionEvent prefix
+  -> complete when all events fit
+  -> truncated when configured capacity is exceeded
+```
+
+Requirements:
+
+- capacity/storage reservation is established before normal attachment/execution;
+- capacity exhaustion never fabricates events and is reported explicitly by `truncated()`;
+- zero capacity is defined;
+- `reset()` preserves configured capacity while clearing events/truncation;
+- event access is immutable;
+- collector owns no `Executor`, `LinkStore`, backend, parser/protocol or persistence target;
+- collector attachment does not change program results or LinkStore effects;
+- failure phases from Gate 15 pass through unchanged;
+- installed public package can use the collector on Linux/Windows/macOS;
+- strict warnings, ASan+UBSan and portable matrix stay green.
+
 ### Later AVM 1.3 gates
 
-After Gate 15 is stable:
+After Gate 16 is stable:
 
-1. reusable collector/tooling layer outside semantic state;
-2. InMemory/Persistent reopen trace equivalence;
-3. debugger/REPL consumer built on observation rather than a traced executor fork.
+1. InMemory/Persistent reopen trace equivalence;
+2. debugger/REPL consumer built on observation rather than a traced executor fork.
 
 ## Later AVM 1.x directions
 

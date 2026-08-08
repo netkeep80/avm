@@ -2,6 +2,7 @@
 
 #include "avm/bootstrap_runtime.h"
 #include "avm/execution_observer.h"
+#include "avm/execution_trace.h"
 #include "avm/executor.h"
 #include "avm/link_store.h"
 #include "avm/persistent_link_store.h"
