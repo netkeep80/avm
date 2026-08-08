@@ -175,13 +175,13 @@ Executable JSON arrays в старой модели играют роль ordere
 
 Смысл относится к canonical semantics, JSON array — нет. AVM уже имеет canonical link lists и `sequence`; #127 расширяет их до deterministic projection/foreach semantics.
 
-### Parallel object execution
+### Параллельное исполнение object projection
 
 Старый runtime экспериментировал с parallel object-like projections через C++ execution policies и mutex-protected mutable JSON.
 
 Scheduler semantics намеренно не переносится сейчас. При materialization/effects порядок может быть observable. Parallel execution допустим только после explicit purity/effect model.
 
-### Pure value vocabulary
+### Чистый value vocabulary
 
 Старый `import_relations_model_to` регистрирует большой vocabulary:
 
@@ -196,7 +196,7 @@ Scheduler semantics намеренно не переносится сейчас.
 
 Нельзя механически port-ить эти operators до определения canonical value denotation. Coercion/type behavior `nlohmann::json` не является автоматически нормативным. Это gate #128.
 
-### External vocabulary
+### Внешний vocabulary
 
 Filesystem, HTTP и dynamic dictionary loading являются capabilities. Они не являются основанием для implicit host calls внутри core. #129 вводит explicit capabilities и deterministic fake providers до масштабной effect-vocabulary migration.
 
