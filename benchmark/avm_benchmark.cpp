@@ -65,6 +65,7 @@ int main()
 {
 	constexpr std::size_t sample_size = 20000;
 	constexpr std::size_t query_iterations = 100000;
+	constexpr std::size_t persistent_sample_size = 256;
 
 	std::cout << "name\toperations\telapsed_ns\tns_per_op\n";
 
@@ -137,10 +138,10 @@ int main()
 	{
 		avm::PersistentLinkStore persistent(persistent_path);
 		std::vector<avm::LinkId> persistent_points;
-		persistent_points.reserve(sample_size + 1);
-		for (std::size_t i = 0; i < sample_size + 1; ++i)
+		persistent_points.reserve(persistent_sample_size + 1);
+		for (std::size_t i = 0; i < persistent_sample_size + 1; ++i)
 			persistent_points.push_back(persistent.create_point());
-		for (std::size_t i = 0; i < sample_size; ++i)
+		for (std::size_t i = 0; i < persistent_sample_size; ++i)
 			static_cast<void>(persistent.intern(persistent_points[i], persistent_points[i + 1]));
 	}
 
