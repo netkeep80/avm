@@ -5,9 +5,8 @@
 #include <cassert>
 #include <chrono>
 #include <filesystem>
-#include <functional>
-#include <optional>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -99,22 +98,25 @@ void assert_matches(const avm::LinkStore &store, const avm::RelationQuery &query
 
 void verify_all_constraint_combinations(const avm::LinkStore &store, const Fixture &fixture)
 {
+	const auto pair_s1_o1 = store.find(fixture.s1, fixture.o1);
+	const auto pair_s2_o1 = store.find(fixture.s2, fixture.o1);
+	assert(pair_s1_o1.has_value());
+	assert(pair_s2_o1.has_value());
+
 	assert_matches(store, {.relation = fixture.r1}, sorted({fixture.r1, fixture.e1, fixture.e2, fixture.e3}));
-	assert_matches(store, {.subject = fixture.s1}, sorted({fixture.s1, fixture.e1, fixture.e2, fixture.e4, fixture.e6}));
-	assert_matches(store, {.object = fixture.o1}, sorted({fixture.o1, fixture.e1, fixture.e3, fixture.e4}));
+	assert_matches(store, {.subject = fixture.s1},
+	               sorted({fixture.s1, fixture.e1, fixture.e2, fixture.e4, fixture.e6}));
+	assert_matches(store, {.object = fixture.o1},
+	               sorted({fixture.o1, *pair_s1_o1, *pair_s2_o1, fixture.e1, fixture.e3, fixture.e4}));
 	assert_matches(store, {.relation = fixture.r1, .subject = fixture.s1}, sorted({fixture.e1, fixture.e2}));
 	assert_matches(store, {.relation = fixture.r1, .object = fixture.o1}, sorted({fixture.e1, fixture.e3}));
 	assert_matches(store, {.subject = fixture.s1, .object = fixture.o1}, sorted({fixture.e1, fixture.e4}));
-	assert_matches(store,
-	               {.relation = fixture.r1, .subject = fixture.s1, .object = fixture.o1},
-	               sorted({fixture.e1}));
+	assert_matches(store, {.relation = fixture.r1, .subject = fixture.s1, .object = fixture.o1}, sorted({fixture.e1}));
 }
 
 void verify_point_endpoint_entity(const avm::LinkStore &store, const Fixture &fixture)
 {
-	assert_matches(store,
-	               {.relation = fixture.r2, .subject = fixture.s1, .object = fixture.s1},
-	               sorted({fixture.e6}));
+	assert_matches(store, {.relation = fixture.r2, .subject = fixture.s1, .object = fixture.s1}, sorted({fixture.e6}));
 }
 
 void verify_missing_constraints_are_empty_and_non_materializing(const avm::LinkStore &store, const Fixture &fixture)
@@ -149,8 +151,8 @@ void verify_unconstrained_query_is_rejected(const avm::LinkStore &store)
 void verify_noise_does_not_match_unrelated_constraints(const avm::LinkStore &store, const Fixture &fixture)
 {
 	const std::vector<avm::RelationMatch> matches = avm::query_relation_entities(store, {.relation = fixture.r1});
-	assert(std::none_of(matches.begin(), matches.end(), [&](const avm::RelationMatch &match)
-	                    { return match.entity_id == fixture.noise; }));
+	assert(std::none_of(matches.begin(), matches.end(),
+	                    [&](const avm::RelationMatch &match) { return match.entity_id == fixture.noise; }));
 }
 
 void verify_backend(avm::LinkStore &store, const Fixture &fixture)
