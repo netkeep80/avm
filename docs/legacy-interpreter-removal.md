@@ -1,56 +1,79 @@
-# Removal of the legacy JSON semantic interpreter
+# Удаление legacy JSON semantic interpreter
 
-AVM 1.0 has one production execution model. The historical recursive JSON interpreter was removed after the link-native path passed side-by-side conformance on Linux, Windows and macOS.
+В AVM существует один production execution model. Исторический recursive JSON interpreter был удалён после того, как link-native path прошёл side-by-side conformance на Linux, Windows и macOS.
 
-## Removed production state
+## Что удалено
 
-The old `src/main.cpp` combined unrelated responsibilities and contained a second virtual-machine implementation based on:
+Старый runtime совмещал несвязанные ответственности и фактически содержал вторую виртуальную машину:
 
-- string-to-operator dispatch in `resolve_operator()`;
-- `func_def` structures containing JSON function bodies;
-- the global `func_env` function-name map;
-- the global `param_stack` parameter-binding stack;
-- recursive traversal of JSON nodes in `interpret(const json&)`.
+- string-to-operator dispatch через `resolve_operator()`;
+- `func_def` с JSON function bodies;
+- глобальный `func_env` с именами функций;
+- глобальный `param_stack` с bindings параметров;
+- recursive traversal JSON nodes в `interpret(const json&)`;
+- позднее удалённый pointer-based `rel_t` storage/identity compatibility path.
 
-Those mechanisms no longer exist in the working tree. Git remains the history of the implementation; no dead copy is retained in production source.
+Эти механизмы больше не существуют в working tree. Историю реализации хранит Git; dead production copy намеренно не сохраняется.
 
-## Replacement source boundaries
+## Текущие границы исходного кода
 
 `src/cli.cpp`
-: File I/O and the command-line compatibility decision: treat the input as an AVM JSON expression or as historical JSON data. Operator strings here are syntax recognition only; they never select runtime semantics.
+: File I/O, CLI policy и presentation. Text tokens могут распознаваться как frontend syntax, но не выбирают runtime semantics.
 
 `include/avm/json_compat.h`
-: JSON syntax projection into the link-native program graph and result projection back to JSON.
+: JSON program projection в link-native graph и обратная result projection.
 
-`src/legacy_json_compat.cpp`
-: Historical `rel_t` data codec and a thin outward `interpret(json)` shim. The shim delegates execution to `JsonCompatibilitySession` and converts the resulting JSON value to the old `rel_t*` return representation.
+`include/avm/json_value_codec.h`
+: Представление JSON как данных в canonical `LinkStore`; это не executor.
 
 `BootstrapRuntime` / `Executor`
-: The only production semantic execution path.
+: Единственный production semantic execution path.
 
-## Compatibility reset
+## Почему side-by-side harness удалён
 
-`clear_func_env()` is kept temporarily because existing callers/tests use the name. Its implementation now only destroys the persistent `JsonCompatibilitySession`. It does not clear a hidden second function environment because no such environment remains.
+Во время миграции differential harness был полезен, потому что одновременно существовали две semantic implementations. Он сравнивал старый interpreter с путем:
 
-## Why the old conformance harness was deleted
+```text
+JSON -> LinkStore -> Executor
+```
 
-During #47, `json_legacy_conformance_tests` was valuable because two semantic implementations genuinely existed. It compared the old interpreter with JSON -> LinkStore -> Executor for Boolean operations, control flow, functions, recursion, errors and scalar results.
+для Boolean operations, control flow, functions, recursion, errors и scalar results.
 
-Once #47 was green across all supported CI operating systems, retaining that test would require retaining the obsolete implementation solely to compare against itself forever. #48 therefore deletes both at the same architectural boundary.
+После зелёного conformance на поддерживаемых OS хранить harness означало бы сохранять obsolete implementation только ради бесконечного сравнения с ней. Поэтому old interpreter и временный side-by-side suite были удалены на одной архитектурной границе.
 
-Permanent coverage is now provided by:
+Постоянное покрытие обеспечивают:
 
 - independent core suites;
-- `json_projection_tests`;
-- `legacy_facade_tests`;
-- historical `rel_t` codec/unit tests;
-- CLI JSON roundtrip fixtures;
-- strict warnings and formatting gates;
-- ASan/UBSan for core + JSON projection;
-- Linux/Windows/macOS portable builds.
+- JSON projection/session/value-codec tests;
+- CLI JSON fixtures;
+- strict warnings и formatting gates;
+- ASan/UBSan;
+- Linux/Windows/macOS portable builds;
+- архитектурные grep/quality guards;
+- AVM 1.5 semantic inventory и frozen `jsonRVM` corpus для дальнейшей differential migration.
 
-## CI regression guard
+## CI regression guards
 
-The quality job rejects reintroduction of the former semantic side-channel identifiers `resolve_operator`, `func_def` or `param_stack` anywhere under production `src`/`include`.
+Quality job запрещает возврат бывших semantic side-channel identifiers в production sources:
 
-This is deliberately stronger than a documentation promise: a pull request that recreates those mechanisms cannot pass the required quality gate without explicitly changing the architecture policy.
+```text
+resolve_operator
+func_def
+param_stack
+```
+
+Отдельный guard запрещает возврат удалённого pointer-based storage path:
+
+```text
+rel_t
+legacy_json_compat
+UnitedMemoryLinks
+```
+
+Это сильнее документационного обещания: PR, восстанавливающий второй runtime/storage universe, не может пройти quality gate без явного изменения архитектурной политики.
+
+## Правило развития
+
+Compatibility реализуется переносом observable behavior на canonical execution path, а не сохранением старого evaluator как fallback.
+
+После миграции consumers legacy implementation удаляется. Git является механизмом исторической совместимости для археологии кода; production tree содержит только актуальную архитектуру.
