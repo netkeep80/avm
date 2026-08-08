@@ -1,6 +1,7 @@
 #include "avm/bootstrap_runtime.h"
 #include "avm/execution_trace.h"
 
+#include <array>
 #include <cassert>
 #include <stdexcept>
 
