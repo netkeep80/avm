@@ -1,10 +1,10 @@
-# Execution observability contract
+# Контракт наблюдаемости исполнения
 
-AVM 1.3 adds observation to the existing execution path without adding a traced executor, debugger-specific runtime or second semantic representation.
+AVM 1.3 добавляет наблюдение к существующему execution path, не создавая traced executor, debugger-specific runtime или второе semantic representation.
 
-## Boundary
+## Граница
 
-There is still one execution path:
+Путь исполнения остаётся единственным:
 
 ```text
 entity LinkId
@@ -18,11 +18,11 @@ entity LinkId
   -> result LinkId
 ```
 
-If execution fails after a valid `ExecutionContext` exists, the invocation emits `Fail` and rethrows the original exception. Failures before a context can be decoded do not emit an event.
+Если execution завершается ошибкой после создания валидного `ExecutionContext`, invocation публикует `Fail` и повторно бросает исходное exception. Ошибка до декодирования context события не создаёт.
 
-## Public event model
+## Публичная модель событий
 
-`ExecutionEvent` contains only deterministic AVM data:
+`ExecutionEvent` содержит только детерминированные данные AVM:
 
 ```text
 kind = Enter | Return | Fail
@@ -38,29 +38,29 @@ optional result LinkId
 optional failure phase
 ```
 
-`result` is present only for `Return`. `failure_phase` is present only for `Fail` and uses the finite AVM-owned taxonomy:
+`result` присутствует только у `Return`. `failure_phase` — только у `Fail` и принимает одно из значений:
 
 ```text
-Dispatch          — no native handler exists for the decoded relation
-Handler           — the selected handler throws
-ResultValidation  — the handler returns a LinkId that is absent from LinkStore
+Dispatch          — для relation нет native handler
+Handler           — выбранный handler бросил exception
+ResultValidation  — handler вернул LinkId, отсутствующий в LinkStore
 ```
 
-The phase says where canonical execution failed. It does not encode the exception message, C++ type, backend error or protocol-specific diagnostic.
+Phase указывает, на какой канонической границе AVM произошёл отказ. Она не кодирует exception message/type, backend error или protocol-specific diagnostic.
 
-There are deliberately no timestamps, thread IDs, pointers, textual opcode names, JSON values, Anum values or backend-specific data in the event contract.
+В event contract намеренно нет timestamps, thread IDs, pointers, textual opcode names, JSON/Anum values или backend-specific data.
 
-## Non-controlling observer
+## Наблюдатель не управляет программой
 
-An `ExecutionObserver` receives immutable `ExecutionEvent` values. It is not passed an `Executor`, `LinkStore`, mutable context or mutable result reference.
+`ExecutionObserver` получает immutable `ExecutionEvent`. Ему не передаются `Executor`, `LinkStore`, mutable context или mutable result reference.
 
-Observer delivery is isolated inside `Executor`: exceptions thrown by `ExecutionObserver::observe` are suppressed and cannot replace the program result or program exception. This applies to successful return and to every failure phase. An external collector may therefore use ordinary C++ facilities without becoming semantic control flow.
+Доставка события изолирована внутри `Executor`: exceptions из `ExecutionObserver::observe` подавляются и не могут заменить program result или program exception. Это правило действует и для success, и для каждой failure phase.
 
-The observer object is caller-owned. `Executor` stores only a non-owning pointer set at construction or by `set_observer`; the caller must keep the observer alive while attached.
+Observer принадлежит caller. `Executor` хранит только non-owning pointer; caller обязан обеспечить lifetime observer, пока он подключён.
 
-## Event ordering and unwind
+## Порядок событий и unwind
 
-Each invocation that reaches a valid context emits:
+Каждый invocation с валидным context создаёт:
 
 ```text
 Enter(context)
@@ -68,7 +68,7 @@ Enter(context)
 Return(context,result)
 ```
 
-or:
+или:
 
 ```text
 Enter(context)
@@ -76,7 +76,7 @@ Enter(context)
 Fail(context,phase)
 ```
 
-Nested calls are observed naturally because handlers already recurse through the same canonical `Executor::execute` method. Failure unwind therefore remains stack-shaped without a second trace stack. If a child handler throws while executing inside a parent handler, the event order is:
+Nested calls наблюдаются естественно, потому что handlers рекурсивно используют тот же `Executor::execute`. Для ошибки child внутри parent handler порядок остаётся stack-shaped:
 
 ```text
 Enter(parent)
@@ -85,17 +85,19 @@ Fail(child, Handler)
 Fail(parent, Handler)
 ```
 
-The original child exception continues to propagate unchanged.
+Исходное child exception продолжает распространяться без изменения.
 
-## Determinism and execution state
+## Детерминизм и execution state
 
-For the same canonical store/program/vocabulary state, an observer sees the same LinkId-based event sequence and the same AVM failure phases. Function calls remain link-native: bindings and call frames may be materialized by existing runtime semantics. Once those canonical structures converge, repeated identical calls produce the same event sequence and do not need a separate host-language trace stack.
+Для одного canonical store/program/vocabulary state observer получает ту же последовательность LinkId-based events и те же AVM failure phases.
 
-Observation itself never materializes links. Attaching or detaching an observer does not change `LinkStore` semantics.
+Function calls остаются link-native: bindings и call frames могут materialize-иться существующим runtime contract. После convergence этих canonical structures одинаковые повторные calls дают одинаковый trace.
 
-## Bounded tooling collector
+Само наблюдение links не материализует. Подключение observer не меняет semantics `LinkStore`.
 
-`BoundedExecutionTrace` is a reusable host-memory consumer of `ExecutionObserver`. It is a tooling utility, not part of AVM semantic state:
+## Ограниченный collector для tooling
+
+`BoundedExecutionTrace` — reusable host-memory consumer `ExecutionObserver`, а не semantic state AVM:
 
 ```cpp
 avm::BoundedExecutionTrace trace(128);
@@ -104,41 +106,39 @@ const avm::LinkId result = runtime.execute(root);
 
 for (const avm::ExecutionEvent &event : trace.events())
 {
-    // inspect deterministic AVM events
+    // анализ детерминированных событий AVM
 }
 
 if (trace.truncated())
 {
-    // configured capacity was insufficient
+    // заданной ёмкости не хватило
 }
 ```
 
-The event capacity is fixed when the collector is constructed. Its `std::vector` storage is reserved in the constructor, before the collector is normally attached to an executor. Construction/reservation may therefore report normal host allocation failures to the caller before execution starts.
+Capacity фиксируется при construction, а storage резервируется до обычного подключения к executor. Ошибка host allocation поэтому может быть сообщена caller до начала execution.
 
-During observation, configured capacity exhaustion does not allocate, throw or fabricate an event. The collector retains the exact event prefix that fits and sets `truncated()==true`. A zero-capacity collector stores no events and becomes truncated as soon as any event arrives.
+При observation переполнение заданной capacity не alloc-ит, не бросает exception и не выдумывает event. Collector сохраняет точный помещающийся prefix и устанавливает `truncated()==true`. Zero-capacity collector хранит ноль событий и помечается truncated после первого события.
 
-`reset()` clears retained events and truncation state while preserving the configured `max_events()` and reserved storage policy. Event access is exposed as an immutable `std::span<const ExecutionEvent>`.
+`reset()` очищает events и truncation, сохраняя `max_events()` и reserved-storage policy. Events доступны как immutable `std::span<const ExecutionEvent>`.
 
-This bounded policy distinguishes two concepts that must not be conflated:
+Следует различать:
 
 ```text
-ExecutionEvent semantics  = canonical AVM observation contract
-BoundedExecutionTrace     = optional host-memory tooling storage
+ExecutionEvent semantics  = канонический контракт наблюдения AVM
+BoundedExecutionTrace     = опциональное host-memory хранение tooling
 ```
 
-The collector does not own an `Executor`, `LinkStore`, backend, protocol adapter or persistence target. It never writes traces into links or files implicitly.
+Collector не владеет `Executor`, `LinkStore`, backend, protocol adapter или persistence target и ничего не записывает в links/files скрыто.
 
-## Persistent reopen and backend-neutral equivalence
+## Persistent reopen и backend-neutral equivalence
 
-Trace comparison must respect opaque `LinkId` identity. Raw numeric LinkIds are meaningful only inside one logical store; AVM does not define a global LinkId namespace across independent stores.
+Сравнение trace должно уважать opaque `LinkId`. Numeric values имеют смысл только внутри одного logical store; глобального namespace `LinkId` AVM не определяет.
 
-Two different conformance claims therefore use different comparison rules.
+### Один persistent logical store после reopen
 
-### Same persistent logical store across reopen
+`PersistentLinkStore` сохраняет `LinkId` после close/reopen. После convergence program и link-native frame/binding state одна и та же сохранённая программа с тем же bootstrap vocabulary должна давать **точно одинаковую** полную последовательность `ExecutionEvent`, включая numeric `LinkId`.
 
-`PersistentLinkStore` preserves its LinkIds across close/reopen. After program construction and link-native call-frame/binding state have converged, the same stored program and explicit bootstrap vocabulary must produce the exact same complete `ExecutionEvent` sequence after reopen, including the numeric values of every LinkId field.
-
-The reopen contract covers:
+Сравниваются:
 
 ```text
 entity / relation / subject / object
@@ -147,81 +147,81 @@ optional result
 kind / failure_phase
 ```
 
-Repeated reopen/execution of the converged program must not grow the store merely because observation is attached.
+Повторное execution после reopen не должно увеличивать store только из-за attached observation.
 
-### Independent stores/backends
+### Независимые stores/backends
 
-An independently constructed `InMemoryLinkStore` and `PersistentLinkStore` may assign different numeric LinkIds to equivalent structure. Comparing raw numbers between them would violate opaque identity semantics.
+Независимые `InMemoryLinkStore` и `PersistentLinkStore` могут присвоить equivalent structure разные numeric IDs. Сравнивать raw numbers между ними некорректно.
 
-Backend-neutral conformance therefore compares complete traces modulo a bijective renaming of observed LinkIds. The reference test uses canonical first-occurrence renaming:
+Backend-neutral conformance сравнивает полные traces с точностью до биективного переименования наблюдаемых `LinkId`. Reference test использует first-occurrence normalization:
 
-1. walk events in execution order;
-2. visit each LinkId-bearing field in fixed order: `entity`, `relation`, `subject`, `object`, `parent`, `frame`, `result`;
-3. assign a local ordinal when an observed LinkId first appears;
-4. reuse that ordinal on every later occurrence of the same LinkId;
-5. preserve `nullopt`, `ExecutionEventKind` and `ExecutionFailurePhase` exactly.
+1. идти по events в execution order;
+2. обходить поля `entity`, `relation`, `subject`, `object`, `parent`, `frame`, `result` в фиксированном порядке;
+3. выдавать local ordinal при первом появлении `LinkId`;
+4. переиспользовать ordinal при каждом повторе той же identity;
+5. сохранять `nullopt`, `ExecutionEventKind` и `ExecutionFailurePhase` точно.
 
-This normalization preserves equality/aliasing relationships while discarding backend-local numeric allocation choices. It is a conformance helper, not a production identity registry or serialization format.
+Normalization сохраняет equality/aliasing relations и отбрасывает только backend-local numeric allocation choices. Это conformance helper, не production identity registry и не serialization format.
 
-A truncated trace is not eligible for an equivalence claim: it represents only a retained prefix, so normalization/comparison must reject it or otherwise explicitly decline completeness.
+Truncated trace не может использоваться как доказательство полной equivalence.
 
-## Trace-enabled CLI consumer
+## CLI как consumer observer boundary
 
-The repository CLI is the first user-facing consumer of the AVM 1.3 observability boundary. Its normal compatibility mode remains unchanged:
+CLI — первый user-facing consumer AVM observability.
+
+Обычный режим:
 
 ```text
 avm program.json
 ```
 
-Trace mode is explicit:
+Trace mode:
 
 ```text
 avm --trace program.json
 avm --trace-limit 64 program.json
 ```
 
-The execution path is still the existing JSON compatibility projection and canonical runtime:
+Путь остаётся каноническим:
 
 ```text
 JSON input
   -> JsonProgramImporter
   -> LinkId program
-  -> attach BoundedExecutionTrace to JsonCompatibilitySession::runtime().executor()
+  -> attach BoundedExecutionTrace
   -> BootstrapRuntime::execute(LinkId)
   -> result LinkId
-  -> existing JSON result projection
+  -> JSON result projection
 ```
 
-There is no `TraceExecutor`, copied evaluator or trace-specific opcode dispatch. JSON is a frontend format only; the trace collector sees the same `ExecutionEvent` values that any core observer sees.
+Нет `TraceExecutor`, copied evaluator или trace-specific opcode dispatch. Text labels в rendering являются presentation, а не semantic identity.
 
-CLI trace rendering is presentation, not semantic identity. Each line displays the event kind and numeric LinkId fields (`entity`, `relation`, `subject`, `object`, optional `parent`, `frame`, `result`) plus the AVM failure phase. Human labels such as `enter`, `return`, `handler` or `dispatch` are textual renderings of the enums, not execution opcodes.
+Summary всегда сообщает число retained events и `complete`/`truncated` status. `--trace-limit` делает ресурсное ограничение явным.
 
-The final summary reports retained event count and `complete`/`truncated` status. `--trace-limit` exists so resource bounds are explicit rather than silently dropping events.
+При failed execution retained `Fail(phase)` events могут быть выведены до обычного host diagnostic; original exception и exit-status policy сохраняются.
 
-Trace mode intentionally uses `import_program` + `execute` + `project_result` instead of the convenience `interpret()` wrapper. This allows a failing execution to render its retained `Fail(phase)` events and still propagate the original failure to the CLI top-level diagnostic/exit-status policy. Normal compatibility mode continues to use `interpret()` and therefore keeps its historical behavior.
+Non-expression JSON допустим в value-roundtrip mode, но trace mode его отклоняет: execution context для наблюдения не существует, и AVM не выдумывает события сериализации.
 
-A non-expression JSON value is valid in normal roundtrip mode but rejected explicitly in trace mode because there is no execution context to observe. AVM does not fabricate execution events for value serialization.
+## Политика diagnostics
 
-## Diagnostics policy
+Детерминированный contract заканчивается на AVM-owned failure phase. Human-readable exception text — runtime diagnostic, а не stable event identity.
 
-The deterministic trace contract intentionally stops at AVM-owned failure phase. Human-readable exception text remains runtime diagnostic information, not stable event identity. C++ exception type names, `std::exception_ptr`, stack addresses and backend/protocol errors are not stored in `ExecutionEvent`.
+C++ exception type names, `std::exception_ptr`, addresses и backend/protocol errors не хранятся в `ExecutionEvent`. CLI может показать пойманное host exception рядом с trace, не объявляя его canonical semantics AVM.
 
-The CLI may display the host exception it catches alongside the deterministic trace, but it does not reinterpret that host diagnostic as canonical AVM semantics.
+## Явные non-goals
 
-## Non-goals
+Observability не предоставляет:
 
-AVM 1.3 observability does not provide:
-
-- breakpoints or step control;
-- handler replacement or result substitution;
-- a global trace singleton;
-- implicit trace persistence in `LinkStore` or files;
-- an unbounded/implicitly complete trace guarantee;
+- breakpoints/step control;
+- handler replacement или result substitution;
+- global trace singleton;
+- implicit persistence trace в `LinkStore` или files;
+- неограниченную гарантию complete trace;
 - profiler timestamps;
-- exception objects or exception strings inside deterministic events;
-- globally comparable numeric LinkIds across independent stores;
-- a production trace-normalization identity registry;
+- exception objects/strings в deterministic events;
+- globally comparable numeric `LinkId` между stores;
+- production trace-normalization registry;
 - JSON/Anum-specific canonical trace events;
-- an interactive debugger UI or REPL command language.
+- отдельный interactive debugger runtime.
 
-Those facilities may consume the observer boundary later, but they must not become a second execution path.
+Будущий debugger может быть consumer этого boundary, но не вторым execution path.
