@@ -78,10 +78,10 @@ struct ShowcaseModel
 		target_begin = store.create_point();
 		target_end = store.create_point();
 
-		subject_entity_a = avm::encode_relation_entity(
-		    store, avm::RelationEntity{direct.subject_value_relation, subject_a, object});
-		subject_entity_b = avm::encode_relation_entity(
-		    store, avm::RelationEntity{direct.subject_value_relation, subject_b, object});
+		subject_entity_a =
+		    avm::encode_relation_entity(store, avm::RelationEntity{direct.subject_value_relation, subject_a, object});
+		subject_entity_b =
+		    avm::encode_relation_entity(store, avm::RelationEntity{direct.subject_value_relation, subject_b, object});
 
 		target_descriptor = avm::materialize_pair_target(store, direct, target_begin, target_end);
 		find_entity = avm::encode_relation_entity(
@@ -186,7 +186,8 @@ void draw_relation_graph(ShowcaseModel &model)
 		draw_node(draw_list, subject_pos, "subject", decoded.subject, ImGui::GetColorU32(ImGuiCol_FrameBg));
 		draw_node(draw_list, object_pos, "object", decoded.object, ImGui::GetColorU32(ImGuiCol_FrameBg));
 
-		if (decoded.relation == model.direct.pair_find_relation || decoded.relation == model.direct.pair_realize_relation)
+		if (decoded.relation == model.direct.pair_find_relation ||
+		    decoded.relation == model.direct.pair_realize_relation)
 		{
 			const avm::PairTarget target = avm::decode_pair_target(model.store, model.direct, decoded.object);
 			ImGui::SeparatorText("PairTarget");
@@ -271,8 +272,7 @@ void draw_trace(ShowcaseModel &model)
 		return;
 	}
 
-	const std::size_t selected_index =
-	    model.selected_trace < events.size() ? model.selected_trace : events.size() - 1;
+	const std::size_t selected_index = model.selected_trace < events.size() ? model.selected_trace : events.size() - 1;
 	const avm::ExecutionEvent &event = events[selected_index];
 	ImGui::SeparatorText("Selected event");
 	ImGui::Text("%s", event_kind_name(event.kind));
