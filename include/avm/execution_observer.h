@@ -26,11 +26,19 @@ enum class ExecutionEventKind
 	Fail,
 };
 
+enum class ExecutionFailurePhase
+{
+	Dispatch,
+	Handler,
+	ResultValidation,
+};
+
 struct ExecutionEvent
 {
 	ExecutionEventKind kind;
 	ExecutionContext context;
 	std::optional<LinkId> result;
+	std::optional<ExecutionFailurePhase> failure_phase = std::nullopt;
 
 	bool operator==(const ExecutionEvent &) const = default;
 };
