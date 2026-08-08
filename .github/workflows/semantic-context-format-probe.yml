@@ -1,0 +1,37 @@
+name: Semantic context format probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'include/avm/executor.h'
+      - 'include/avm/semantic_context.h'
+      - 'test/semantic_context_test.cpp'
+      - '.github/workflows/semantic-context-format-probe.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-format
+      - run: >-
+          clang-format -i
+          include/avm/executor.h
+          include/avm/semantic_context.h
+          test/semantic_context_test.cpp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: semantic-context-formatted
+          path: |
+            include/avm/executor.h
+            include/avm/semantic_context.h
+            test/semantic_context_test.cpp
+          if-no-files-found: error
