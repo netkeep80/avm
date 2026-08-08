@@ -1,0 +1,45 @@
+#pragma once
+
+#include "avm/link_store.h"
+
+#include <optional>
+
+namespace avm
+{
+
+struct ExecutionContext
+{
+	LinkId entity;
+	LinkId relation;
+	LinkId subject;
+	LinkId object;
+	std::optional<LinkId> parent;
+	std::optional<LinkId> frame;
+
+	bool operator==(const ExecutionContext &) const = default;
+};
+
+enum class ExecutionEventKind
+{
+	Enter,
+	Return,
+	Fail,
+};
+
+struct ExecutionEvent
+{
+	ExecutionEventKind kind;
+	ExecutionContext context;
+	std::optional<LinkId> result;
+
+	bool operator==(const ExecutionEvent &) const = default;
+};
+
+class ExecutionObserver
+{
+public:
+	virtual ~ExecutionObserver() = default;
+	virtual void observe(const ExecutionEvent &event) = 0;
+};
+
+} // namespace avm

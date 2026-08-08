@@ -1,5 +1,6 @@
 #pragma once
 
+#include "avm/execution_observer.h"
 #include "avm/relations_model.h"
 
 #include <functional>
@@ -12,27 +13,19 @@
 namespace avm
 {
 
-struct ExecutionContext
-{
-	LinkId entity;
-	LinkId relation;
-	LinkId subject;
-	LinkId object;
-	std::optional<LinkId> parent;
-	std::optional<LinkId> frame;
-};
-
 class Executor;
 using NativeRelationHandler = std::function<LinkId(const ExecutionContext &, Executor &)>;
 
 class Executor
 {
 public:
-	explicit Executor(LinkStore &store) : store_(store) {}
+	explicit Executor(LinkStore &store, ExecutionObserver *observer = nullptr) : store_(store), observer_(observer) {}
 
 	LinkStore &store() { return store_; }
 
 	const LinkStore &store() const { return store_; }
+
+	void set_observer(ExecutionObserver *observer) noexcept { observer_ = observer; }
 
 	void register_native(LinkId relation, NativeRelationHandler handler)
 	{
@@ -58,20 +51,45 @@ public:
 		const ExecutionContext context{
 		    entity, decoded.relation, decoded.subject, decoded.object, parent, frame,
 		};
+		notify(ExecutionEvent{ExecutionEventKind::Enter, context, std::nullopt});
 
-		const auto handler = native_handlers_.find(context.relation);
-		if (handler == native_handlers_.end())
-			throw std::runtime_error("unknown relation LinkId: " + std::to_string(context.relation));
+		try
+		{
+			const auto handler = native_handlers_.find(context.relation);
+			if (handler == native_handlers_.end())
+				throw std::runtime_error("unknown relation LinkId: " + std::to_string(context.relation));
 
-		const LinkId result = handler->second(context, *this);
-		if (!store_.contains(result))
-			throw std::runtime_error("native relation returned an unknown LinkId");
+			const LinkId result = handler->second(context, *this);
+			if (!store_.contains(result))
+				throw std::runtime_error("native relation returned an unknown LinkId");
 
-		return result;
+			notify(ExecutionEvent{ExecutionEventKind::Return, context, result});
+			return result;
+		}
+		catch (...)
+		{
+			notify(ExecutionEvent{ExecutionEventKind::Fail, context, std::nullopt});
+			throw;
+		}
 	}
 
 private:
+	void notify(const ExecutionEvent &event) noexcept
+	{
+		if (observer_ == nullptr)
+			return;
+
+		try
+		{
+			observer_->observe(event);
+		}
+		catch (...)
+		{
+		}
+	}
+
 	LinkStore &store_;
+	ExecutionObserver *observer_ = nullptr;
 	std::map<LinkId, NativeRelationHandler> native_handlers_;
 };
 

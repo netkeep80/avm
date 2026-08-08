@@ -118,7 +118,7 @@ Decision:
 
 No backend-specific map is promoted into semantic code merely for convenience.
 
-## AVM 1.2 — link-native structural standard library
+## AVM 1.2 — link-native structural standard library — complete ✅
 
 Epic: #88.
 
@@ -161,13 +161,11 @@ Properties:
 - vocabulary migration supports complete 15-ID, 19-ID and current 20-ID generations with prevalidation before writes;
 - persistent reopen preserves the materialized LinkId.
 
-### Gate 13 — standard-library composition (current)
+### Gate 13 — standard-library composition ✅
 
-Child: #93.
+Implemented through #93/#94.
 
-Goal: prove that higher-level structural operations are ordinary AVM functions instead of new native handlers.
-
-Initial compositions:
+Higher-level structural operations are ordinary AVM functions instead of new native handlers:
 
 ```text
 is_self_link(x) = identity_equal(link_begin(x), link_end(x))
@@ -176,7 +174,7 @@ pair_matches(x,b,e) = AND(identity_equal(link_begin(x), b),
                           identity_equal(link_end(x), e))
 ```
 
-Requirements:
+Properties:
 
 - function bodies are ordinary link-native expressions;
 - function handles have no native handlers;
@@ -185,18 +183,54 @@ Requirements:
 - effect accounting keeps existing link-native binding/call-frame materialization visible instead of hiding it in an ephemeral host-language stack;
 - no new production relation identity or storage API merely for a reducible library operation.
 
-Completion of this gate closes AVM 1.2.
+## AVM 1.3 — execution observability and debugger boundary
+
+Epic: #95.
+
+### Gate 14 — deterministic non-controlling execution observer (current)
+
+Child: #96.
+
+Goal: make the canonical `Executor::execute` path observable without turning tracing/debugging into a second execution path or control channel.
+
+Initial event model:
+
+```text
+Enter(ExecutionContext)
+Return(ExecutionContext, result LinkId)
+Fail(ExecutionContext)
+```
+
+Requirements:
+
+- events contain canonical LinkId/context data only;
+- no timestamps, host pointers, textual opcode names, JSON/Anum or backend data in the semantic event contract;
+- observer receives no mutable `Executor`, `LinkStore`, context or result reference;
+- observer exceptions cannot replace program success/failure;
+- nested calls are observed through the same `Executor::execute` recursion;
+- observer presence/absence does not change program result or store effects;
+- pre-context failures emit no context event;
+- installed package consumer validates the observer API on Linux/Windows/macOS;
+- strict warnings, ASan+UBSan and portable matrix remain green.
+
+### Later AVM 1.3 gates
+
+After Gate 14 is stable:
+
+1. failure/unwind trace hardening and explicit diagnostics policy;
+2. reusable collector/tooling layer outside semantic state;
+3. InMemory/Persistent reopen trace equivalence;
+4. debugger/REPL consumer built on observation rather than a traced executor fork.
 
 ## Later AVM 1.x directions
 
-After the structural standard-library foundation:
+After the observability boundary:
 
 1. additional thin protocol/front-end adapters;
-2. debugger/REPL and execution observability;
-3. packaging/integration tooling;
-4. visualization/GUI;
-5. production physical backends and persistence experiments;
-6. standard-library growth by link-native composition, with new native primitives only for irreducible observation/effect boundaries.
+2. packaging/integration tooling;
+3. visualization/GUI;
+4. production physical backends and persistence experiments;
+5. standard-library growth by link-native composition, with new native primitives only for irreducible observation/effect boundaries.
 
 Every extension must reuse the existing `LinkStore -> Relations Model -> Executor` architecture.
 

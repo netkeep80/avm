@@ -4,7 +4,7 @@
 
 AVM is an experimental C++20 virtual machine built on the Relations Model and a canonical store of directed links.
 
-**Current public version: 1.2.0.**
+**Current public version: 1.3.0.**
 
 ## Semantic path
 
@@ -70,7 +70,7 @@ Fan-out benchmarks at 1/8/64/256 demonstrated the expected candidate-expansion c
 
 See [Relations Model query contract](docs/relations-query.md).
 
-## AVM 1.2 — structural standard library
+## AVM 1.2 — structural standard library — complete
 
 AVM 1.2 makes canonical dyad structure directly usable by link-native programs.
 
@@ -86,7 +86,7 @@ pair_intern(a,b)       -> canonical LinkId(a,b), explicit effect
 
 `link_exists` does not use `nil` as a missing sentinel because `nil` is itself a valid self-link. `pair_intern` is the explicit materialization boundary and is idempotent through `LinkStore::intern`.
 
-Operations reducible to this kernel should be ordinary AVM functions rather than new C++ native handlers. For example:
+Operations reducible to this kernel are ordinary AVM functions rather than new C++ native handlers. For example:
 
 ```text
 is_self_link(x) = identity_equal(link_begin(x), link_end(x))
@@ -95,6 +95,16 @@ is_self_link(x) = identity_equal(link_begin(x), link_end(x))
 Function definitions, bindings and call frames remain links. A first function call may therefore materialize canonical execution-state links even when the composed function body contains only observational primitives; this is existing call-frame semantics, not a hidden library effect.
 
 See [Structural standard library](docs/structural-standard-library.md).
+
+## AVM 1.3 — execution observability
+
+AVM 1.3 begins with an optional deterministic observer attached to the existing `Executor::execute` path. It emits immutable `Enter`, `Return` and `Fail` events containing only canonical `ExecutionContext`/`LinkId` data.
+
+Observers cannot replace handlers, skip execution or substitute results. Observer exceptions are isolated from program control flow, and observation itself does not materialize links. Nested calls are observed through the same executor path, including explicit parent/frame identities.
+
+This is the boundary for future debugger/REPL tooling; no traced executor, JSON opcode trace or second program representation is introduced.
+
+See [Execution observability contract](docs/execution-observability.md).
 
 ## Supported core library API
 
@@ -138,10 +148,10 @@ cmake -S . -B build-install \
 cmake --install build-install
 ```
 
-A consuming CMake project can require the current AVM 1.2 package:
+A consuming CMake project can require the current AVM 1.3 package:
 
 ```cmake
-find_package(avm 1.2 CONFIG REQUIRED)
+find_package(avm 1.3 CONFIG REQUIRED)
 target_link_libraries(my_program PRIVATE avm::core)
 ```
 
@@ -175,6 +185,7 @@ CI installs the package into a staging prefix and builds an external consumer on
 
 - [AVM architecture contract](docs/architecture.md)
 - [Execution kernel](docs/execution-kernel.md)
+- [Execution observability contract](docs/execution-observability.md)
 - [External protocol adapter contract](docs/protocol-adapter-contract.md)
 - [Anum L3→L4 bridge](docs/anum-l3-l4-bridge.md)
 - [Relations Model query contract](docs/relations-query.md)
@@ -186,7 +197,7 @@ CI installs the package into a staging prefix and builds an external consumer on
 
 ## Project status
 
-AVM 1.0 foundation and AVM 1.1 read-only query gates are complete. AVM 1.2 provides link-native structural observation plus explicit canonical pair materialization, and is closing with proof that higher-level structural operations compose as ordinary AVM functions instead of expanding the native registry.
+AVM 1.0 foundation, AVM 1.1 read-only queries and AVM 1.2 structural standard-library gates are complete. AVM 1.3 is introducing deterministic non-controlling execution observation as the prerequisite for debugger/REPL tooling without creating a second execution path.
 
 ## Dependencies
 

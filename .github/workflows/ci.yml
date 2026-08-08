@@ -126,6 +126,19 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce execution observer isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -n -E 'PersistentLinkStore|InMemoryLinkStore|nlohmann|json\.hpp|[Aa]num|[Aa]bit' include/avm/execution_observer.h; then
+            echo "ERROR: execution observer contract must remain backend/protocol neutral"
+            exit 1
+          fi
+          if grep -n -E 'Executor|LinkStore[[:space:]]*[&*]' include/avm/execution_observer.h; then
+            echo "ERROR: observer events must not expose mutable execution/storage control"
+            exit 1
+          fi
+
       - name: Verify public version contract
         shell: bash
         run: |
@@ -159,6 +172,7 @@ jobs:
             test/relations_model_test.cpp \
             test/relations_query_test.cpp \
             test/executor_test.cpp \
+            test/execution_observer_test.cpp \
             test/program_model_test.cpp \
             test/boolean_runtime_test.cpp \
             test/structural_runtime_test.cpp \
