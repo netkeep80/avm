@@ -3,6 +3,7 @@
 #include "avm/executor.h"
 #include "avm/program_model.h"
 
+#include <initializer_list>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -93,6 +94,18 @@ public:
 	LinkId execute(LinkId root) { return executor_.execute(root); }
 
 private:
+	void validate_vocabulary_ids(std::initializer_list<LinkId> ids) const
+	{
+		std::set<LinkId> unique;
+		for (const LinkId id : ids)
+		{
+			if (!store_.contains(id))
+				throw std::invalid_argument("bootstrap vocabulary contains an unknown LinkId");
+			if (!unique.insert(id).second)
+				throw std::invalid_argument("bootstrap vocabulary identities must be distinct");
+		}
+	}
+
 	void upgrade_structural_vocabulary_if_needed()
 	{
 		const bool begin_missing = vocabulary_.begin_relation == invalid_link_id;
@@ -107,6 +120,24 @@ private:
 		if (missing != 4)
 			throw std::invalid_argument("bootstrap structural vocabulary must be fully present or fully absent");
 
+		validate_vocabulary_ids({
+		    vocabulary_.unit,
+		    vocabulary_.nil,
+		    vocabulary_.true_value,
+		    vocabulary_.false_value,
+		    vocabulary_.quote_relation,
+		    vocabulary_.parameter_relation,
+		    vocabulary_.sequence_relation,
+		    vocabulary_.not_relation,
+		    vocabulary_.and_relation,
+		    vocabulary_.or_relation,
+		    vocabulary_.if_relation,
+		    vocabulary_.function_relation,
+		    vocabulary_.call_relation,
+		    vocabulary_.binding_relation,
+		    vocabulary_.frame_relation,
+		});
+
 		vocabulary_.begin_relation = store_.create_point();
 		vocabulary_.end_relation = store_.create_point();
 		vocabulary_.same_relation = store_.create_point();
@@ -115,7 +146,7 @@ private:
 
 	void validate_vocabulary() const
 	{
-		const std::vector<LinkId> ids{
+		validate_vocabulary_ids({
 		    vocabulary_.unit,
 		    vocabulary_.nil,
 		    vocabulary_.true_value,
@@ -135,16 +166,7 @@ private:
 		    vocabulary_.end_relation,
 		    vocabulary_.same_relation,
 		    vocabulary_.link_exists_relation,
-		};
-
-		std::set<LinkId> unique;
-		for (const LinkId id : ids)
-		{
-			if (!store_.contains(id))
-				throw std::invalid_argument("bootstrap vocabulary contains an unknown LinkId");
-			if (!unique.insert(id).second)
-				throw std::invalid_argument("bootstrap vocabulary identities must be distinct");
-		}
+		});
 	}
 
 	static void require_expression_subject(const ExecutionContext &context, LinkId unit)
