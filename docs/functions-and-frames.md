@@ -1,10 +1,10 @@
-# AVM 1.0 functions, bindings and call frames
+# Функции, bindings и call frames в AVM
 
-This layer moves function runtime state out of the legacy C++ `func_env` / `param_stack` side channel and into the same `LinkStore` used by program and data entities.
+Этот слой переносит runtime-state функций из исторического C++ side channel `func_env` / `param_stack` в тот же `LinkStore`, где находятся программы и данные.
 
-## Function definitions
+## Определения функций
 
-A function still uses the program-model encoding introduced by #35:
+Функция использует encoding, заданный link-native program model:
 
 ```text
 parameters = List(formal1, formal2, ...)
@@ -12,23 +12,25 @@ payload    = Link(parameters, bodyRoot)
 definition = (function, handle, payload)
 ```
 
-The handle is an independently created LinkId, so a recursive body can refer to its own function before the immutable definition entity is materialized.
+`handle` — независимо созданный `LinkId`. Поэтому recursive body может ссылаться на собственную функцию ещё до материализации immutable definition entity.
 
-Executing a definition validates the stored shape and returns `nil`. Definition availability itself is structural: a link-native call references the handle directly. A future JSON compatibility importer is responsible for preserving textual declaration order while resolving names to handles.
+Выполнение definition валидирует сохранённую структуру и возвращает `nil`. Доступность определения структурна: link-native call напрямую ссылается на handle.
+
+JSON compatibility importer отвечает только за сохранение textual declaration order и resolution имён в handles; сама runtime-функция не зависит от textual names.
 
 ## Bindings
 
-Each evaluated actual argument is bound to its formal parameter with a Relations Model entity:
+Каждый вычисленный actual argument связывается со своим formal parameter сущностью Модели Отношений:
 
 ```text
 (binding, formal, actualValue)
 ```
 
-There is no `map<string, value>` in the new runtime. Formal identity is a LinkId and actual values are LinkIds.
+В новом runtime нет `map<string, value>`. Formal identity — это `LinkId`, actual values — тоже `LinkId`.
 
 ## Call frames
 
-Bindings are collected into a canonical link list and attached to an immutable call frame:
+Bindings собираются в канонический link-list и присоединяются к immutable call frame:
 
 ```text
 bindings = List(binding1, binding2, ...)
@@ -36,54 +38,74 @@ payload  = Link(functionHandle, bindings)
 frame    = (frame, parentFrameOrNil, payload)
 ```
 
-`ExecutionContext` carries the current frame LinkId. Every recursive execution of a child expression preserves that frame unless a function call deliberately creates a child frame.
+`ExecutionContext` несёт текущий frame `LinkId`. Рекурсивное исполнение child expression сохраняет frame, пока function call явно не создаст дочерний frame.
 
-Nested calls therefore form a parent-frame chain entirely in the associative store. Parameter resolution walks the chain from the current frame toward `nil`, validating that every referenced binding really has `binding_relation`.
+Nested calls формируют parent-frame chain целиком в ассоциативном store. Parameter resolution идёт от текущего frame к `nil` и проверяет, что каждая используемая строка binding действительно имеет `binding_relation`.
 
-## Call execution
+## Выполнение call
 
-For `(call, unit, payload)` the runtime performs:
+Для `(call, unit, payload)` runtime выполняет:
 
-1. decode function handle and argument-expression list;
-2. locate the immutable function definition;
-3. verify arity;
-4. verify the current frame depth against the configured recursion limit;
-5. evaluate actual arguments in the caller frame;
-6. materialize binding entities;
-7. materialize a child frame linked to the caller frame;
-8. execute the function body with the child frame.
+1. декодирует function handle и список argument expressions;
+2. находит immutable function definition;
+3. проверяет arity;
+4. проверяет текущую глубину frame относительно recursion limit;
+5. вычисляет actual arguments в caller frame;
+6. материализует binding entities;
+7. материализует child frame, связанный с caller frame;
+8. исполняет body функции в child frame.
 
-This preserves lexical parameter identity without a global C++ stack. Recursive calls work because the function body already contains the same handle LinkId.
+Так lexical parameter identity сохраняется без глобального C++ stack. Recursive calls работают, потому что body уже содержит тот же function-handle `LinkId`.
 
-## Recursion guard
+## Ограничение рекурсии
 
-`BootstrapRuntime` accepts a maximum call depth, defaulting to 1000. Depth is derived by traversing parent-frame links rather than by reading a C++ container size. Malformed frame chains, non-frame parents and invalid frame payloads fail explicitly.
+`BootstrapRuntime` принимает максимальную call depth; значение по умолчанию — 1000.
 
-The frame vocabulary identity itself is a self-link, like all bootstrap identities. It must not be confused with a frame instance; `decode_call_frame` rejects it explicitly. This invariant is covered by tests because the relation identity naturally appears in `LinkStore::outgoing(frame_relation)`.
+Depth вычисляется обходом parent-frame links, а не размером C++ container. Malformed frame chains, non-frame parents и invalid frame payloads приводят к явным ошибкам.
 
-## Test coverage
+Vocabulary identity отношения `frame` сама является self-link, как и другие bootstrap identities. Её нельзя путать с экземпляром frame; `decode_call_frame` явно отклоняет этот случай. Тест нужен потому, что relation identity естественно появляется в `LinkStore::outgoing(frame_relation)`.
 
-`function_runtime_tests` covers:
+## Материализация execution state
 
-- one- and two-parameter functions;
-- Boolean expressions inside a function body;
+Bindings и frames являются реальными links. Поэтому function call может увеличивать `LinkStore`, даже если body содержит только наблюдающие operations.
+
+Это не скрытый host-language side effect, а явная часть текущего link-native call-state contract.
+
+AVM 1.5 должен учитывать это при формализации более общего execution context и distinguishing pure value computation от materialized manifestation/call state.
+
+## Покрытие тестами
+
+`function_runtime_tests` проверяет:
+
+- функции с одним и двумя параметрами;
+- Boolean expressions внутри body;
 - nested calls;
-- finite recursion;
-- unbounded recursion hitting the depth guard;
+- конечную recursion;
+- unbounded recursion и depth guard;
 - arity mismatch;
 - undefined functions;
 - unbound parameters;
-- malformed frames and definitions;
-- physical presence of binding/frame entities in `LinkStore`.
+- malformed frames/definitions;
+- физическое наличие binding/frame entities в `LinkStore`.
 
-`frame_runtime_tests` separately covers:
+`frame_runtime_tests` отдельно проверяет:
 
-- decoded root-frame structure;
+- структуру декодированного root frame;
 - formal→actual binding rows;
-- executing a parameter against an explicit frame LinkId;
-- parent/child frame linkage for nested calls;
-- rejection of the frame vocabulary self-link;
-- rejection of non-binding entries and invalid parent frames;
-- rejection of a zero recursion-depth configuration.
+- execution parameter с явным frame `LinkId`;
+- parent/child linkage nested calls;
+- отклонение frame vocabulary self-link;
+- отклонение non-binding entries и invalid parents;
+- запрет zero recursion-depth configuration.
 
-Together with the existing suites, this keeps function semantics independently testable without JSON or the legacy LinksPlatform path.
+Совместно с остальными suites это делает function semantics независимо тестируемой без JSON и без legacy LinksPlatform path.
+
+## Инварианты
+
+- function definitions находятся в links;
+- bindings находятся в links;
+- call frames находятся в links;
+- runtime parameters не хранятся в string maps;
+- recursion depth выводится из frame chain;
+- textual function names принадлежат projection layer;
+- function execution использует тот же `Executor` и canonical `LinkStore`.
