@@ -50,7 +50,7 @@ jobs:
               echo "ERROR: $file has $lines lines (max: $MAX_LINES)"
               FAILED=1
             fi
-          done < <(find src include adapters -type f \( -name '*.cpp' -o -name '*.h' \) -print)
+          done < <(find src include adapters tools -type f \( -name '*.cpp' -o -name '*.h' \) -print)
           if [ "$FAILED" -ne 0 ]; then
             exit 1
           fi
@@ -161,6 +161,19 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce inspection session tooling isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -n -E '(intern|create_point|register_native|register_handler)[[:space:]]*\(|PersistentLinkStore|InMemoryLinkStore|nlohmann|json\.hpp|[Aa]num|[Aa]bit' tools/inspection_session.h; then
+            echo "ERROR: inspection session must compose existing neutral APIs without defining storage/protocol semantics"
+            exit 1
+          fi
+          if grep -n -E 'DebugExecutor|ShellExecutor|TraceExecutor' tools/inspection_session.h; then
+            echo "ERROR: inspection tooling must reuse BootstrapRuntime/Executor rather than fork execution"
+            exit 1
+          fi
+
       - name: Verify public version contract
         shell: bash
         run: |
@@ -187,32 +200,10 @@ jobs:
           clang-format --version
           clang-format --dry-run --Werror \
             include/avm/*.h \
-            adapters/anum_denotation_bridge.h \
-            src/cli.cpp \
-            test/assertions_enabled_test.cpp \
-            test/link_store_test.cpp \
-            test/relations_model_test.cpp \
-            test/relations_query_test.cpp \
-            test/executor_test.cpp \
-            test/execution_observer_test.cpp \
-            test/execution_trace_test.cpp \
-            test/execution_trace_persistence_test.cpp \
-            test/program_model_test.cpp \
-            test/boolean_runtime_test.cpp \
-            test/structural_runtime_test.cpp \
-            test/structural_library_test.cpp \
-            test/function_runtime_test.cpp \
-            test/frame_runtime_test.cpp \
-            test/deferred_definition_test.cpp \
-            test/projection_test.cpp \
-            test/raw_carrier_test.cpp \
-            test/protocol_adapter_boundary_test.cpp \
-            test/persistent_link_store_test.cpp \
-            test/vertical_slice_test.cpp \
-            test/json_value_codec_test.cpp \
-            test/json_projection_test.cpp \
-            test/json_session_test.cpp \
-            test/anum_denotation_bridge_test.cpp \
+            adapters/*.h \
+            tools/*.h \
+            src/*.cpp \
+            test/*.cpp \
             test/package_consumer/main.cpp
 
   core:
