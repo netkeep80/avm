@@ -35,9 +35,18 @@ context = {
   optional frame
 }
 optional result LinkId
+optional failure phase
 ```
 
-`result` is present only for `Return`.
+`result` is present only for `Return`. `failure_phase` is present only for `Fail` and uses the finite AVM-owned taxonomy:
+
+```text
+Dispatch          — no native handler exists for the decoded relation
+Handler           — the selected handler throws
+ResultValidation  — the handler returns a LinkId that is absent from LinkStore
+```
+
+The phase says where canonical execution failed. It does not encode the exception message, C++ type, backend error or protocol-specific diagnostic.
 
 There are deliberately no timestamps, thread IDs, pointers, textual opcode names, JSON values, Anum values or backend-specific data in the event contract.
 
@@ -45,11 +54,11 @@ There are deliberately no timestamps, thread IDs, pointers, textual opcode names
 
 An `ExecutionObserver` receives immutable `ExecutionEvent` values. It is not passed an `Executor`, `LinkStore`, mutable context or mutable result reference.
 
-Observer delivery is isolated inside `Executor`: exceptions thrown by `ExecutionObserver::observe` are suppressed and cannot replace the program result or program exception. This lets an external collector use ordinary C++ facilities while keeping observer failure outside semantic control flow.
+Observer delivery is isolated inside `Executor`: exceptions thrown by `ExecutionObserver::observe` are suppressed and cannot replace the program result or program exception. This applies to successful return and to every failure phase. An external collector may therefore use ordinary C++ facilities without becoming semantic control flow.
 
 The observer object is caller-owned. `Executor` stores only a non-owning pointer set at construction or by `set_observer`; the caller must keep the observer alive while attached.
 
-## Event ordering
+## Event ordering and unwind
 
 Each invocation that reaches a valid context emits:
 
@@ -64,20 +73,35 @@ or:
 ```text
 Enter(context)
   ...nested execute events...
-Fail(context)
+Fail(context,phase)
 ```
 
-Nested calls are observed naturally because handlers already recurse through the same canonical `Executor::execute` method.
+Nested calls are observed naturally because handlers already recurse through the same canonical `Executor::execute` method. Failure unwind therefore remains stack-shaped without a second trace stack. If a child handler throws while executing inside a parent handler, the event order is:
+
+```text
+Enter(parent)
+Enter(child)
+Fail(child, Handler)
+Fail(parent, Handler)
+```
+
+The original child exception continues to propagate unchanged.
 
 ## Determinism and execution state
 
-For the same canonical store/program/vocabulary state, an observer sees the same LinkId-based event sequence. Function calls remain link-native: bindings and call frames may be materialized by existing runtime semantics. Once those canonical structures converge, repeated identical calls produce the same event sequence and do not need a separate host-language trace stack.
+For the same canonical store/program/vocabulary state, an observer sees the same LinkId-based event sequence and the same AVM failure phases. Function calls remain link-native: bindings and call frames may be materialized by existing runtime semantics. Once those canonical structures converge, repeated identical calls produce the same event sequence and do not need a separate host-language trace stack.
 
 Observation itself never materializes links. Attaching or detaching an observer does not change `LinkStore` semantics.
 
+## Diagnostics policy
+
+The deterministic trace contract intentionally stops at AVM-owned failure phase. Human-readable exception text remains runtime diagnostic information, not stable event identity. C++ exception type names, `std::exception_ptr`, stack addresses and backend/protocol errors are not stored in `ExecutionEvent`.
+
+A later debugger/REPL layer may display the exception it catches alongside the deterministic trace, but it must not reinterpret that host diagnostic as canonical AVM semantics.
+
 ## Non-goals
 
-AVM 1.3 gate 1 does not provide:
+AVM 1.3 observability does not provide:
 
 - breakpoints or step control;
 - handler replacement or result substitution;
@@ -85,6 +109,7 @@ AVM 1.3 gate 1 does not provide:
 - implicit trace persistence in `LinkStore`;
 - a core `std::vector` trace collector;
 - profiler timestamps;
+- exception objects or exception strings inside deterministic events;
 - JSON/Anum-specific trace events;
 - debugger UI or REPL commands.
 
