@@ -12,7 +12,7 @@
 
 Executor не должен требовать текстовые имена операторов, JSON nodes, C++ maps определений функций или maps имён параметров для понимания структуры программы.
 
-## Bootstrap vocabulary
+## Bootstrap-словарь
 
 `BootstrapVocabulary` материализует непрозрачные `LinkId` identities для:
 
