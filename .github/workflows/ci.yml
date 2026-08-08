@@ -161,15 +161,15 @@ jobs:
             exit 1
           fi
 
-      - name: Enforce inspection session tooling isolation
+      - name: Enforce inspection tooling isolation
         shell: bash
         run: |
           set -euo pipefail
-          if grep -n -E '(intern|create_point|register_native|register_handler)[[:space:]]*\(|PersistentLinkStore|InMemoryLinkStore|nlohmann|json\.hpp|[Aa]num|[Aa]bit' tools/inspection_session.h; then
-            echo "ERROR: inspection session must compose existing neutral APIs without defining storage/protocol semantics"
+          if grep -n -E '(intern|create_point|register_native|register_handler)[[:space:]]*\(|PersistentLinkStore|InMemoryLinkStore|nlohmann|json\.hpp|[Aa]num|[Aa]bit' tools/*.h; then
+            echo "ERROR: inspection tooling must compose existing neutral APIs without defining storage/protocol semantics"
             exit 1
           fi
-          if grep -n -E 'DebugExecutor|ShellExecutor|TraceExecutor' tools/inspection_session.h; then
+          if grep -n -E 'DebugExecutor|ShellExecutor|TraceExecutor' tools/*.h; then
             echo "ERROR: inspection tooling must reuse BootstrapRuntime/Executor rather than fork execution"
             exit 1
           fi
