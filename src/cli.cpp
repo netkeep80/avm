@@ -1,4 +1,5 @@
-#include "avm/legacy_json_compat.h"
+#include "avm/json_compat.h"
+#include "avm/json_value_codec.h"
 
 #include <fstream>
 #include <iostream>
@@ -6,33 +7,33 @@
 #include <string>
 #include <string_view>
 
-using namespace std;
-
 namespace
 {
 
-void get_json(json &value, const string &path)
+using Json = nlohmann::json;
+
+void get_json(Json &value, const std::string &path)
 {
-	ifstream input(path.c_str());
+	std::ifstream input(path);
 	if (!input.good())
-		throw runtime_error("Can't load json from the " + path + " file!");
+		throw std::runtime_error("Can't load json from the " + path + " file!");
 	input >> value;
 }
 
-void add_json(const json &value, const string &path)
+void add_json(const Json &value, const std::string &path)
 {
-	ofstream output(path.c_str());
+	std::ofstream output(path);
 	if (!output.good())
-		throw runtime_error("Can't open " + path + " file!");
+		throw std::runtime_error("Can't open " + path + " file!");
 	output << value;
 }
 
-bool is_compatibility_operator(string_view name)
+bool is_compatibility_operator(std::string_view name)
 {
 	return name == "Not" || name == "And" || name == "Or" || name == "If" || name == "Def" || name == "Call";
 }
 
-bool is_expression_candidate(const json &root)
+bool is_expression_candidate(const Json &root)
 {
 	if (root.is_object() && root.size() == 1)
 		return is_compatibility_operator(root.begin().key());
@@ -43,9 +44,16 @@ bool is_expression_candidate(const json &root)
 	return is_compatibility_operator(root[0].begin().key());
 }
 
+Json roundtrip_value(const Json &root)
+{
+	avm::InMemoryLinkStore store;
+	avm::JsonValueCodec codec(store);
+	return codec.decode(codec.encode(root));
+}
+
 void print_usage()
 {
-	cout << R"(https://github.com/netkeep80/avm
+	std::cout << R"(https://github.com/netkeep80/avm
      Associative Virtual Machine [Version 0.0.5]
 
 Usage:
@@ -63,39 +71,36 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	json root;
+	Json root;
 	try
 	{
 		get_json(root, argv[1]);
 
-		rel_t *root_entity = nullptr;
+		Json result;
 		if (is_expression_candidate(root))
 		{
-			clear_func_env();
-			root_entity = interpret(root);
+			avm::JsonCompatibilitySession session;
+			result = session.interpret(root);
 		}
 		else
 		{
-			root_entity = import_json(root);
+			result = roundtrip_value(root);
 		}
 
-		json result;
-		export_json(root_entity, result);
 		add_json(result, "res.json");
-		cout << "rel_t::created() = " << rel_t::created() << endl;
 		return 0;
 	}
-	catch (const json::exception &error)
+	catch (const Json::exception &error)
 	{
-		cerr << "json::exception: " << error.what() << ", id: " << error.id;
+		std::cerr << "json::exception: " << error.what() << ", id: " << error.id;
 	}
-	catch (const exception &error)
+	catch (const std::exception &error)
 	{
-		cerr << "std::exception: " << error.what();
+		std::cerr << "std::exception: " << error.what();
 	}
 	catch (...)
 	{
-		cerr << "unknown exception";
+		std::cerr << "unknown exception";
 	}
 
 	add_json(root, "rvm.dump.json");
