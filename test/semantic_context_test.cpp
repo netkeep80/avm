@@ -125,8 +125,8 @@ int main()
 	executor.register_native(same_parent_relation,
 	                         [same_child](const avm::ExecutionContext &context, avm::Executor &current_executor)
 	                         { return current_executor.execute_same_semantic_context(same_child, context); });
-	const avm::LinkId same_parent =
-	    avm::encode_relation_entity(store, avm::RelationEntity{same_parent_relation, dispatch_subject, dispatch_object});
+	const avm::LinkId same_parent = avm::encode_relation_entity(
+	    store, avm::RelationEntity{same_parent_relation, dispatch_subject, dispatch_object});
 
 	assert(executor.execute_in_context(same_parent, root) == root_subject);
 	assert(observer.events.size() == 4);
