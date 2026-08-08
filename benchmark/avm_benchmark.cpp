@@ -1,6 +1,7 @@
 #include "avm/bootstrap_runtime.h"
 #include "avm/persistent_link_store.h"
 #include "avm/relations_model.h"
+#include "avm/relations_query.h"
 
 #include <chrono>
 #include <cstddef>
@@ -65,6 +66,8 @@ int main()
 {
 	constexpr std::size_t sample_size = 20000;
 	constexpr std::size_t query_iterations = 100000;
+	constexpr std::size_t relation_query_sample_size = 64;
+	constexpr std::size_t relation_query_iterations = 5000;
 	constexpr std::size_t persistent_sample_size = 256;
 
 	std::cout << "name\toperations\telapsed_ns\tns_per_op\n";
@@ -126,6 +129,43 @@ int main()
 		sink ^= static_cast<std::size_t>(decoded.object);
 	};
 	print(measure("relations_model_decode", query_iterations, decode_entity));
+
+	const avm::LinkId query_relation = store.create_point();
+	const avm::LinkId query_subject = store.create_point();
+	const avm::LinkId query_object = store.create_point();
+	for (std::size_t i = 0; i < relation_query_sample_size; ++i)
+	{
+		const avm::LinkId varying_subject = points[1000 + i];
+		const avm::LinkId varying_object = points[2000 + i];
+		static_cast<void>(avm::encode_relation_entity(store, {query_relation, varying_subject, varying_object}));
+		static_cast<void>(avm::encode_relation_entity(store, {points[3000 + i], query_subject, varying_object}));
+		static_cast<void>(avm::encode_relation_entity(store, {points[4000 + i], varying_subject, query_object}));
+		static_cast<void>(avm::encode_relation_entity(store, {points[5000 + i], query_subject, query_object}));
+	}
+
+	const auto relation_driven_query = [&](std::size_t)
+	{
+		sink ^= avm::query_relation_entities(store, {.relation = query_relation}).size();
+	};
+	print(measure("relations_query_relation", relation_query_iterations, relation_driven_query));
+
+	const auto subject_driven_query = [&](std::size_t)
+	{
+		sink ^= avm::query_relation_entities(store, {.subject = query_subject}).size();
+	};
+	print(measure("relations_query_subject", relation_query_iterations, subject_driven_query));
+
+	const auto object_driven_query = [&](std::size_t)
+	{
+		sink ^= avm::query_relation_entities(store, {.object = query_object}).size();
+	};
+	print(measure("relations_query_object", relation_query_iterations, object_driven_query));
+
+	const auto subject_object_query = [&](std::size_t)
+	{
+		sink ^= avm::query_relation_entities(store, {.subject = query_subject, .object = query_object}).size();
+	};
+	print(measure("relations_query_subject_object", relation_query_iterations, subject_object_query));
 
 	avm::BootstrapRuntime runtime(store);
 	avm::ProgramBuilder builder = runtime.builder();
