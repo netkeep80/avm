@@ -47,7 +47,8 @@ public:
 		const std::size_t removable = frames_.size() - 1;
 		const std::size_t removed = levels < removable ? levels : removable;
 		const std::size_t retained = frames_.size() - removed;
-		return SemanticContextView(std::vector<SemanticContextFrame>(frames_.begin(), frames_.begin() + retained));
+		return SemanticContextView(
+		    std::vector<SemanticContextFrame>(frames_.begin(), frames_.begin() + retained));
 	}
 
 	SemanticContextView child(SemanticContextFrame frame) const
@@ -84,7 +85,8 @@ public:
 	bool operator==(const SemanticContextView &) const = default;
 
 private:
-	explicit SemanticContextView(std::vector<SemanticContextFrame> frames) : frames_(std::move(frames))
+	explicit SemanticContextView(std::vector<SemanticContextFrame> frames)
+	    : frames_(std::move(frames))
 	{
 		if (frames_.empty())
 			throw std::invalid_argument("semantic context lineage must contain a root frame");
