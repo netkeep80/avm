@@ -6,6 +6,11 @@
       3
     ],
     "$rel": "foreachobj",
-    "$sub": "$obj"
+    "$sub": {
+      "$obj": {
+        "$ref": "$obj"
+      },
+      "$rel": "="
+    }
   }
 }
