@@ -330,6 +330,13 @@
       "notes": "Separates pure named lookup from add_entity/materializing behavior."
     },
     {
+      "id": "CASE-WHERE-FILTER",
+      "source": "modules/console/test/where_test.json",
+      "covers": ["VALUE-COLLECTION-001"],
+      "status": "selected",
+      "notes": "Existing legacy doctest freezes the observable where/filter result and provides semantic evidence for collection behavior."
+    },
+    {
       "id": "CASE-BOOLEAN-BRANCH",
       "source": "modules/console/include/base.rm.h",
       "covers": ["CTRL-IF-001", "VALUE-COMPARE-001"],
