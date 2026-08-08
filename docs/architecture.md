@@ -10,7 +10,7 @@ A1  LinkStore        canonical identity, queries and explicit writes
 A2  Relations Model  (relation, subject, object) <-> nested dyads
 A3  Execution        context + relation dispatch + program evaluation
 A4  Projection       JSON, Anum and other external representations
-A5  Backend          in-memory, LinksPlatform, PMM or another store
+A5  Backend          in-memory, persistent adapters or another store
 ```
 
 A higher layer must not silently redefine a lower layer.
@@ -25,7 +25,7 @@ LinkId -> (begin: LinkId, end: LinkId)
 
 `LinkId` is an opaque identity. Semantic code must not derive meaning from a C++ pointer value or from the physical layout of a backend.
 
-An independent identity is bootstrapped as a self-link `(x, x)`. This keeps the reference in-memory implementation link-only instead of introducing a second physical "atom" record type.
+An independent identity is bootstrapped as a self-link `(x, x)`. This keeps the reference in-memory implementation link-only instead of introducing a second physical atom record type.
 
 ## A1. LinkStore
 
@@ -56,7 +56,7 @@ inside one logical store.
 
 ## A2. Relations Model compatibility
 
-`jsonRVM` represents an executable entity as the triplet:
+An executable entity is represented as the triplet:
 
 ```text
 (relation, subject, object)
@@ -80,11 +80,11 @@ The Relations Model codec is responsible for this mapping. `LinkStore` itself do
 
 ## A3. Execution
 
-The target executor accepts a root/entity `LinkId`, not a JSON AST. It decodes a Relations Model entity, constructs an explicit execution context and dispatches by relation identity.
+The executor accepts a root/entity `LinkId`, not a JSON AST. It decodes a Relations Model entity, constructs an explicit execution context and dispatches by relation identity.
 
-Native C++ handlers are allowed as a bootstrap vocabulary, but their keys are relation `LinkId`s in the associative store. User-defined program bodies must eventually have an associative representation rather than living only in `std::map` or `nlohmann::json` objects.
+Native C++ handlers are allowed as a bootstrap vocabulary, but their keys are relation `LinkId`s in the associative store. Program structures, bindings and call frames belong to the associative representation; the native registry must not become a second program database.
 
-The current `interpret(const json&)`, string operator dispatch, `func_env` and `param_stack` are compatibility mechanisms. They are not the target AVM 1.0 execution model and must be removed after their observable behavior is covered by the associative path.
+The historical pointer-based `rel_t` storage/runtime and JSON-centric `eval()`/`interpret()` semantic path have been removed after migration of their consumers. They are available only through Git history and are not compatibility APIs of AVM 1.0.
 
 ## A4. Projection
 
@@ -99,7 +99,7 @@ external representation
 
 The executor must not depend on `nlohmann::json` as its internal instruction type.
 
-For Anum, AVM follows the separation already used by the Anum/MTS work:
+For Anum, AVM follows the separation used by the Anum/MTS work:
 
 ```text
 raw(A) != den(A)
@@ -114,7 +114,7 @@ The Anum parser and context projection belong outside the storage layer.
 
 Storage backends implement the same `LinkStore` semantics. They do not define VM relations, JSON rules or Anum semantics.
 
-The first backend is `InMemoryLinkStore`. Persistent adapters are added only after the core identity/query contract is covered by conformance tests.
+`InMemoryLinkStore` is the reference backend. Persistent adapters are backend follow-ups and must pass the same observable conformance contract; they are not prerequisites for VM semantics.
 
 ## Core invariants
 
@@ -125,20 +125,21 @@ The first backend is `InMemoryLinkStore`. Persistent adapters are added only aft
 5. Relations Model triplets use exactly `(relation, (subject, object))`.
 6. JSON is a projection, not the VM instruction storage.
 7. Execution consumes link identities.
-8. User-defined code and call state migrate into the associative model.
+8. Program structures and call state belong to the associative model.
 9. Backend implementation is independent from VM semantics.
 10. Legacy paths are deleted after migration; Git is the history store.
 
-## Migration sequence
-
-The implementation sequence is tracked by epic #31 and issues #21-#27:
+## Foundation sequence
 
 ```text
 architecture contract
 -> LinkStore
 -> Relations Model codec
--> execution context/kernel
+-> execution kernel
 -> program-as-links
--> Anum boundary
--> persistence + end-to-end integration
+-> external protocol boundary
+-> persistence / vertical slice / performance hardening
+-> AVM 1.0 release readiness
 ```
+
+The dependency-ordered status is maintained in `plan.md` and the AVM 1.0 GitHub roadmap issues.
