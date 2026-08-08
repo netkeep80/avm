@@ -1,8 +1,8 @@
-# Scripted inspection command contract
+# Контракт scripted-команд инспекции
 
-The AVM 1.4 command layer is a parser and renderer around the typed `InspectionSession`. It is not an execution language and does not introduce string-named AVM opcodes.
+Command layer AVM 1.4 — parser и renderer вокруг типизированной `InspectionSession`. Это не язык исполнения и не источник string-named opcode AVM.
 
-## Layering
+## Слои
 
 ```text
 text line
@@ -10,17 +10,19 @@ text line
   -> typed InspectionCommand variant
   -> execute_inspection_command
   -> typed InspectionSession operation
-  -> existing LinkStore / Relations / BootstrapRuntime / trace contracts
+  -> существующие LinkStore / Relations / BootstrapRuntime / trace contracts
   -> typed InspectionResult variant
   -> render_inspection_result
   -> presentation text
 ```
 
-The only string dispatch occurs in the parser. Once parsing succeeds, execution dispatch is by C++ command type. Runtime relation dispatch remains the existing LinkId-based `Executor` path. Command/result visitors are intentionally compile-time exhaustive: adding a new variant alternative without handling it is a build error rather than a fallback action.
+Единственный string dispatch находится в parser. После успешного parsing execution dispatch идёт по C++ type команды. Runtime relation dispatch остаётся существующим `LinkId`-based path `Executor`.
 
-## Grammar
+Visitors command/result намеренно compile-time exhaustive: новая variant alternative без обработчика является build error, а не fallback action.
 
-The initial scripted grammar is deliberately small and decimal-LinkId oriented:
+## Грамматика
+
+Начальный scripted syntax намеренно мал и ориентирован на decimal `LinkId`:
 
 ```text
 link <id>
@@ -36,60 +38,62 @@ trace <root>
 trace-reset
 ```
 
-Tokens are separated by ASCII whitespace. LinkIds use unsigned decimal syntax. `-` is reserved only for an absent Relations query constraint.
+Tokens разделяются ASCII whitespace. `LinkId` записываются unsigned decimal. `-` зарезервирован только для отсутствующего constraint `RelationQuery`.
 
-`query - - -` is rejected before session execution because the underlying Relations query contract requires at least one constraint and AVM intentionally exposes no guessed full-store enumeration.
+`query - - -` отклоняется до session execution, потому что Relations query требует хотя бы одно ограничение, а AVM не предоставляет guessed full-store enumeration.
 
-## Error boundary
+## Граница ошибок
 
-Parser errors are tooling errors (`InspectionCommandError`). Examples include:
+Parser errors являются tooling errors (`InspectionCommandError`):
 
-- empty command;
-- unknown command;
-- wrong argument count;
-- malformed/negative/overflowing LinkId;
+- пустая команда;
+- неизвестная команда;
+- неверное число arguments;
+- malformed/negative/overflowing `LinkId`;
 - unconstrained query.
 
-They occur before an `InspectionSession` operation is invoked and therefore cannot mutate the store or trace state.
+Они возникают до вызова `InspectionSession` и поэтому не могут изменить store или trace state.
 
-After a command is parsed, errors from the typed operation retain their existing meaning. For example, `trace <root>` may propagate an AVM runtime exception. The session keeps the bounded trace that was observed before failure, so tooling can render `render_current_trace(session)` separately from the host exception diagnostic.
+После parsing ошибки typed operation сохраняют исходный смысл. Например `trace <root>` может распространить runtime exception AVM. Session при этом сохраняет bounded trace до точки отказа, который tooling может отдельно отобразить через `render_current_trace(session)`.
 
-No exception string or C++ exception type is inserted into canonical `ExecutionEvent` data.
+Exception string/type не вставляются в canonical `ExecutionEvent`.
 
-## Typed results
+## Типизированные результаты
 
-Command execution returns typed result variants for link inspection, pair lookup, adjacency, relation query/decode, function/frame inspection, execute and trace operations. Adjacency direction is represented by an enum; string labels appear only in the renderer.
+Command execution возвращает typed result variants для link inspection, pair lookup, adjacency, Relations query/decode, function/frame inspection, execute и trace.
 
-Presentation strings such as `link`, `outgoing`, `enter`, `fail` and `dispatch` are renderer labels only. They are not persisted, interned, registered as relations or used by `Executor` to choose semantics.
+Направление adjacency задаётся enum; строковые labels появляются только в renderer.
 
-## Read-only and effect boundaries
+Presentation strings вроде `link`, `outgoing`, `enter`, `fail`, `dispatch` не persist-ятся, не intern-ятся, не регистрируются как relations и не используются `Executor` для выбора semantics.
 
-The commands
+## Read-only и effect boundaries
+
+Команды:
 
 ```text
 link / find / outgoing / incoming / relation / query / function / frame
 ```
 
-map to read-only session operations. Parsing and rendering are host-only work and must not alter `LinkStore`.
+отображаются в read-only session operations. Parsing/rendering — host-only работа и не меняет `LinkStore`.
 
-`execute` and `trace` deliberately invoke the existing runtime and therefore have exactly the same effect contract as direct `BootstrapRuntime::execute`. `trace-reset` changes only bounded host tooling state.
+`execute` и `trace` намеренно вызывают существующий runtime и имеют ровно тот же effect contract, что прямой `BootstrapRuntime::execute`. `trace-reset` изменяет только bounded host tooling state.
 
-## Deterministic rendering
+## Детерминированный rendering
 
-Rendering uses numeric LinkIds and deterministic ordering inherited from the underlying APIs. Trace rendering presents retained events in event order and always prints explicit completeness/truncation state.
+Rendering использует numeric `LinkId` и deterministic ordering underlying APIs. Trace показывает retained events в event order и всегда явно сообщает complete/truncated state.
 
-Raw numeric LinkIds remain scoped to one logical store. Rendered numbers are not a cross-store identity protocol.
+Raw numeric `LinkId` ограничены одним logical store. Отображённые числа не являются cross-store identity protocol.
 
 ## Non-goals
 
-This command layer does not provide:
+Command layer не предоставляет:
 
-- quoted/string data arguments or a general expression grammar;
-- JSON or Anum parsing;
-- symbolic LinkId names;
+- quoted/string data arguments или general expression grammar;
+- JSON/Anum parsing;
+- symbolic `LinkId` names;
 - breakpoint/step/continue;
 - handler registration/replacement;
 - implicit `intern`/`create_point` commands;
 - global store enumeration;
 - trace persistence;
-- a second executor or evaluator.
+- второй executor/evaluator.
