@@ -9,7 +9,6 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $PinnedCommit = "843b3326141e090ccd1a106ba0a4a21ce72805b7"
-$ExpectedVersionLine = "jsonRVM version 3.0.0"
 
 function Get-NormalizedJson {
     param([Parameter(Mandatory = $true)][string]$JsonText)
@@ -48,12 +47,13 @@ function Invoke-LegacyCase {
         throw "$CaseId: legacy jsonRVM завершился с кодом $($process.ExitCode): $stderrText"
     }
 
-    $stdoutLines = @(Get-Content $stdoutPath)
-    if ($stdoutLines.Count -lt 2 -or $stdoutLines[0].Trim() -ne $ExpectedVersionLine) {
-        throw "$CaseId: неожиданный заголовок stdout legacy jsonRVM"
+    # Обычный rmvm invocation печатает только JSON результата. Provenance версии
+    # проверяется workflow-ом через точный checkout commit, а не по stdout banner.
+    $jsonText = Get-Content $stdoutPath -Raw
+    if ([string]::IsNullOrWhiteSpace($jsonText)) {
+        throw "$CaseId: legacy jsonRVM не выдал JSON результата"
     }
 
-    $jsonText = ($stdoutLines | Select-Object -Skip 1) -join "`n"
     $actual = Get-NormalizedJson $jsonText
     $expected = Get-NormalizedJson $ExpectedJson
     if ($actual -ne $expected) {
