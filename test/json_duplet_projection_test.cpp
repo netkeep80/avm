@@ -221,24 +221,41 @@ int main()
 	extra_document["extra"] = true;
 	assert(projection_rejected(extra_document, true));
 
-	const std::string duplicate_avm =
-	    "{\"$avm\":\"duplet-json/1\",\"$avm\":\"duplet-json/1\",\"$root\":" + raw_term + "}";
+	std::string duplicate_avm = "{\"$avm\":\"duplet-json/1\",\"$avm\":\"duplet-json/1\",\"$root\":";
+	duplicate_avm += raw_term;
+	duplicate_avm += "}";
 	assert(text_projection_rejected(duplicate_avm, true));
 
-	const std::string duplicate_root = "{\"$avm\":\"duplet-json/1\",\"$root\":" + raw_term +
-	                                   ",\"$root\":" + raw_term + "}";
+	std::string duplicate_root = "{\"$avm\":\"duplet-json/1\",\"$root\":";
+	duplicate_root += raw_term;
+	duplicate_root += ",\"$root\":";
+	duplicate_root += raw_term;
+	duplicate_root += "}";
 	assert(text_projection_rejected(duplicate_root, true));
 
-	const std::string duplicate_begin = "{\"<<\":" + anchor_text(relation) + ",\"<<\":" +
-	                                    anchor_text(subject) + ",\">>\":" + anchor_text(object) + "}";
+	std::string duplicate_begin = "{\"<<\":";
+	duplicate_begin += anchor_text(relation);
+	duplicate_begin += ",\"<<\":";
+	duplicate_begin += anchor_text(subject);
+	duplicate_begin += ",\">>\":";
+	duplicate_begin += anchor_text(object);
+	duplicate_begin += "}";
 	assert(text_projection_rejected(duplicate_begin));
 
-	const std::string duplicate_end = "{\"<<\":" + anchor_text(relation) + ",\">>\":" +
-	                                  anchor_text(subject) + ",\">>\":" + anchor_text(object) + "}";
+	std::string duplicate_end = "{\"<<\":";
+	duplicate_end += anchor_text(relation);
+	duplicate_end += ",\">>\":";
+	duplicate_end += anchor_text(subject);
+	duplicate_end += ",\">>\":";
+	duplicate_end += anchor_text(object);
+	duplicate_end += "}";
 	assert(text_projection_rejected(duplicate_end));
 
-	const std::string duplicate_link = "{\"$link\":" + std::to_string(subject) + ",\"$link\":" +
-	                                   std::to_string(object) + "}";
+	std::string duplicate_link = "{\"$link\":";
+	duplicate_link += std::to_string(subject);
+	duplicate_link += ",\"$link\":";
+	duplicate_link += std::to_string(object);
+	duplicate_link += "}";
 	assert(text_projection_rejected(duplicate_link));
 
 	const std::string sibling_anchor_pair = duplet_text(anchor_text(subject), anchor_text(object));
