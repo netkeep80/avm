@@ -2,7 +2,6 @@
 #include "avm/program_model.h"
 #include "avm/semantic_execution.h"
 
-#include <array>
 #include <cassert>
 #include <stdexcept>
 #include <type_traits>
@@ -92,7 +91,7 @@ int main()
 	    avm::encode_relation_entity(store, avm::RelationEntity{return_only_relation, dispatch_subject, value_3});
 	const avm::LinkId combine_value_3 =
 	    avm::encode_relation_entity(store, avm::RelationEntity{combine_relation, dispatch_subject, value_3});
-	const std::array<avm::LinkId, 3> children{set_value_2, return_value_3, combine_value_3};
+	const std::vector<avm::LinkId> children{set_value_2, return_value_3, combine_value_3};
 	const avm::LinkId child_list = avm::encode_link_list(store, nil, children);
 	const avm::LinkId sequence_entity =
 	    avm::encode_relation_entity(store, avm::RelationEntity{sequence_relation, dispatch_subject, child_list});
