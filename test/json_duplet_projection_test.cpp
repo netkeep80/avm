@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
+#include <utility>
 
 namespace
 {
@@ -71,10 +72,16 @@ int main()
 	const Json term = relation_term(relation, subject, object);
 	const avm::ProjectionDescription description = avm::json_duplet::project_duplet_term(term);
 	assert(description.nodes.size() == 2);
-	assert(description.nodes[0] ==
-	       avm::ProjectionNode{avm::ProjectionRef::anchor(subject), avm::ProjectionRef::anchor(object)});
-	assert(description.nodes[1] ==
-	       avm::ProjectionNode{avm::ProjectionRef::anchor(relation), avm::ProjectionRef::node(0)});
+	const avm::ProjectionNode expected_arguments{
+	    avm::ProjectionRef::anchor(subject),
+	    avm::ProjectionRef::anchor(object),
+	};
+	const avm::ProjectionNode expected_entity{
+	    avm::ProjectionRef::anchor(relation),
+	    avm::ProjectionRef::node(0),
+	};
+	assert(description.nodes[0] == expected_arguments);
+	assert(description.nodes[1] == expected_entity);
 	assert(description.root == avm::ProjectionRef::node(1));
 
 	const std::size_t before_find = store.size();
@@ -85,7 +92,8 @@ int main()
 	assert(realized.nodes.size() == 2);
 	assert(realized.root == realized.nodes[1]);
 	const avm::RelationEntity decoded = avm::decode_relation_entity(store, realized.root);
-	assert(decoded == avm::RelationEntity{relation, subject, object});
+	const avm::RelationEntity expected_relation{relation, subject, object};
+	assert(decoded == expected_relation);
 
 	const std::size_t before_repeat = store.size();
 	const avm::ProjectionResult repeated = avm::realize_projection(store, description);
@@ -190,8 +198,9 @@ int main()
 		const auto persistent_found = avm::find_projection(reopened, persistent_description);
 		assert(persistent_found.has_value());
 		assert(persistent_found->root == persistent_root);
-		assert(avm::decode_relation_entity(reopened, persistent_root) ==
-		       avm::RelationEntity{persistent_relation, persistent_subject, persistent_object});
+		const avm::RelationEntity persistent_decoded = avm::decode_relation_entity(reopened, persistent_root);
+		const avm::RelationEntity persistent_expected{persistent_relation, persistent_subject, persistent_object};
+		assert(persistent_decoded == persistent_expected);
 	}
 	std::filesystem::remove(persistent_path);
 
