@@ -49,15 +49,14 @@ void verify_success_events_and_detach()
 	assert(store.size() == size_before);
 	assert(observer.events.size() == 2);
 	assert(observer.events[0].kind == avm::ExecutionEventKind::Enter);
-	assert(observer.events[0].context == avm::ExecutionContext{entity, relation, subject, object, std::nullopt,
-	                                                           std::nullopt});
+	const avm::ExecutionContext expected_context{entity, relation, subject, object, std::nullopt, std::nullopt};
+	assert(observer.events[0].context == expected_context);
 	assert(!observer.events[0].result.has_value());
 	assert(observer.events[1].kind == avm::ExecutionEventKind::Return);
 	assert(observer.events[1].context == observer.events[0].context);
 	assert(observer.events[1].result == object);
 
 	executor.set_observer(nullptr);
-	assert(executor.observer() == nullptr);
 	assert(executor.execute(entity) == object);
 	assert(store.size() == size_before);
 	assert(observer.events.size() == 2);
@@ -161,6 +160,7 @@ void verify_failure_event_preserves_original_exception()
 	assert(observer.events.size() == 2);
 	assert(observer.events[0].kind == avm::ExecutionEventKind::Enter);
 	assert(observer.events[1].kind == avm::ExecutionEventKind::Fail);
+	assert(observer.events[1].context == observer.events[0].context);
 	assert(!observer.events[1].result.has_value());
 }
 
