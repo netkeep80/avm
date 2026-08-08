@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "netkeep80/jsonRVM",
+    "commit": "843b3326141e090ccd1a106ba0a4a21ce72805b7",
+    "assertions_from": "modules/console/test/main.cpp"
+  },
+  "cases": [
+    {
+      "id": "CASE-RELATIVE-ADDRESSING",
+      "fixture": "modules/console/test/relative_addressing.json",
+      "test_name": "relative addressing in rmodel",
+      "equivalence": "observable-json-value",
+      "assertions": [
+        {"path": "/$$$$ent/id", "equals": "$$$$ent/id"},
+        {"path": "/$$$$sub/id", "equals": "$$$$ent/$sub"},
+        {"path": "/$$$$obj/id", "equals": "$$$$ent/$obj"},
+        {"path": "/$$$$rel/id", "equals": "$$$$rel/id"},
+        {"path": "/$$$ent/id", "equals": "$$$ent/id"},
+        {"path": "/$$$sub/id", "equals": "$$$ent/$sub"},
+        {"path": "/$$$obj/id", "equals": "$$$ent/$obj"},
+        {"path": "/$$$rel/id", "equals": "$$$rel/id"},
+        {"path": "/$$ent/id", "equals": "$$ent/id"},
+        {"path": "/$$sub/id", "equals": "$$ent/$sub"},
+        {"path": "/$$obj/id", "equals": "$$ent/$obj"},
+        {"path": "/$$rel/id", "equals": "$$rel/id"},
+        {"path": "/$ent/id", "equals": "$ent/id"},
+        {"path": "/$sub/id", "equals": "$ent/$sub"},
+        {"path": "/$obj/id", "equals": "$ent/$obj"},
+        {"path": "/$rel/id", "equals": "$rel/id"}
+      ],
+      "avm_target": "context/reference semantics; compare denoted role identities rather than copying JSON container mechanics"
+    },
+    {
+      "id": "CASE-ABSOLUTE-ADDRESSING",
+      "fixture": "modules/console/test/absolute_addressing.json",
+      "test_name": "absolute addressing in rmodel",
+      "equivalence": "observable-json-value",
+      "assertions": [
+        {"path": "/ent1/id", "equals": "ent1"},
+        {"path": "/ent2/id", "equals": "ent2"},
+        {"path": "/ent3/val/id", "equals": "ent3"}
+      ],
+      "avm_target": "split pure named resolution from external database lookup and add-entity materialization"
+    },
+    {
+      "id": "CASE-WHERE-FILTER",
+      "fixture": "modules/console/test/where_test.json",
+      "test_name": "testing base entity 'where'",
+      "equivalence": "observable-json-value",
+      "assertions": [
+        {"path": "/0", "equals": "4"}
+      ],
+      "avm_target": "ordered collection/filter semantics after canonical list/value denotation"
+    },
+    {
+      "id": "CASE-RUNTIME-VERSION",
+      "fixture": "modules/console/test/version.json",
+      "test_name": "testing call version.json",
+      "equivalence": "legacy-provenance-only",
+      "assertions": [
+        {"path": "/rmvm_version", "equals": "3.0.0"}
+      ],
+      "avm_target": "not a semantic parity requirement; records the pinned legacy runtime version"
+    }
+  ]
+}

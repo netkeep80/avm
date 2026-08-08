@@ -1,0 +1,30 @@
+name: jsonRVM compatibility inventory
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'compat/jsonrvm-semantics.json'
+      - 'compat/jsonrvm-golden.json'
+      - 'docs/jsonrvm-compatibility.md'
+      - 'tools/validate_jsonrvm_compatibility.py'
+      - '.github/workflows/jsonrvm-compatibility.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'compat/jsonrvm-semantics.json'
+      - 'compat/jsonrvm-golden.json'
+      - 'docs/jsonrvm-compatibility.md'
+      - 'tools/validate_jsonrvm_compatibility.py'
+      - '.github/workflows/jsonrvm-compatibility.yml'
+
+jobs:
+  validate:
+    name: Validate semantic inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Validate manifest and frozen assertions
+        run: python3 tools/validate_jsonrvm_compatibility.py
