@@ -131,7 +131,7 @@ if(AVM_BUILD_CLI)
             NAME "json_roundtrip_${TEST_FILE}"
             COMMAND ${CMAKE_COMMAND}
                 -DAVM_EXECUTABLE=$<TARGET_FILE:avm>
-                -DTEST_FILE=${TEST_DIR}/${TEST_FILE>
+                -DTEST_FILE=${TEST_DIR}/${TEST_FILE}
                 -DTEST_DIR=${TEST_DIR}
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/run_test.cmake")
     endforeach()
