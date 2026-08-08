@@ -47,5 +47,19 @@ int main()
 	    store.size() != size_after)
 		return 5;
 
+	const avm::LinkId formal = store.create_point();
+	const avm::LinkId is_self_link = builder.create_function_handle();
+	const avm::LinkId parameter = builder.parameter(formal);
+	builder.define_function(is_self_link, {formal},
+	                        builder.identity_equal(builder.link_begin(parameter), builder.link_end(parameter)));
+	if (runtime.executor().has_native(is_self_link))
+		return 6;
+
+	const avm::LinkId point = store.create_point();
+	if (runtime.execute(builder.call(is_self_link, {builder.literal(point)})) != runtime.vocabulary().true_value)
+		return 7;
+	if (runtime.execute(builder.call(is_self_link, {builder.literal(pair)})) != runtime.vocabulary().false_value)
+		return 8;
+
 	return 0;
 }
