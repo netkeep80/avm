@@ -29,6 +29,7 @@ set(AVM_CORE_PUBLIC_HEADERS
     include/avm/avm.h
     include/avm/bootstrap_runtime.h
     include/avm/execution_observer.h
+    include/avm/execution_outcome.h
     include/avm/execution_trace.h
     include/avm/executor.h
     include/avm/link_store.h
@@ -39,6 +40,7 @@ set(AVM_CORE_PUBLIC_HEADERS
     include/avm/relations_model.h
     include/avm/relations_query.h
     include/avm/semantic_context.h
+    include/avm/semantic_execution.h
     include/avm/triune_primitives.h
     include/avm/version.h)
 
@@ -175,6 +177,10 @@ if(AVM_BUILD_CORE_TESTS)
     avm_add_core_test(avm_relations_query_test test/relations_query_test.cpp relations_query_tests)
     avm_add_core_test(avm_executor_test test/executor_test.cpp executor_tests)
     avm_add_core_test(avm_semantic_context_test test/semantic_context_test.cpp semantic_context_tests)
+    avm_add_core_test(
+        avm_semantic_execution_outcome_test
+        test/semantic_execution_outcome_test.cpp
+        semantic_execution_outcome_tests)
     avm_add_core_test(avm_triune_primitives_test test/triune_primitives_test.cpp triune_primitives_tests)
     avm_add_core_test(avm_execution_observer_test test/execution_observer_test.cpp execution_observer_tests)
     avm_add_core_test(avm_execution_trace_test test/execution_trace_test.cpp execution_trace_tests)
@@ -232,6 +238,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_relations_query_test
         avm_executor_test
         avm_semantic_context_test
+        avm_semantic_execution_outcome_test
         avm_triune_primitives_test
         avm_execution_observer_test
         avm_execution_trace_test

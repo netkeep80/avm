@@ -2,6 +2,7 @@
 
 #include "avm/bootstrap_runtime.h"
 #include "avm/execution_observer.h"
+#include "avm/execution_outcome.h"
 #include "avm/execution_trace.h"
 #include "avm/executor.h"
 #include "avm/link_store.h"
@@ -12,5 +13,6 @@
 #include "avm/relations_model.h"
 #include "avm/relations_query.h"
 #include "avm/semantic_context.h"
+#include "avm/semantic_execution.h"
 #include "avm/triune_primitives.h"
 #include "avm/version.h"

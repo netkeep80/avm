@@ -2,6 +2,7 @@
 
 #include "avm/executor.h"
 #include "avm/program_model.h"
+#include "avm/semantic_execution.h"
 
 #include <initializer_list>
 #include <optional>
@@ -344,18 +345,14 @@ private:
 			                          return context.object;
 		                          });
 
-		executor_.register_native(vocabulary_.sequence_relation,
-		                          [this](const ExecutionContext &context, Executor &executor)
-		                          {
-			                          require_expression_subject(context, vocabulary_.unit);
-			                          const std::vector<LinkId> expressions =
-			                              decode_link_list(store_, vocabulary_.nil, context.object);
-
-			                          LinkId result = vocabulary_.nil;
-			                          for (const LinkId expression : expressions)
-				                          result = executor.execute(expression, context.entity, context.frame);
-			                          return result;
-		                          });
+		executor_.register_native(
+		    vocabulary_.sequence_relation,
+		    [this](const ExecutionContext &context, Executor &executor)
+		    {
+			    require_expression_subject(context, vocabulary_.unit);
+			    const std::vector<LinkId> expressions = decode_link_list(store_, vocabulary_.nil, context.object);
+			    return execute_same_context_sequence(executor, expressions, vocabulary_.nil, context);
+		    });
 
 		executor_.register_native(vocabulary_.begin_relation,
 		                          [this](const ExecutionContext &context, Executor &executor)

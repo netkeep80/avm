@@ -45,10 +45,19 @@ enum class ExecutionFailurePhase
 
 struct ExecutionEvent
 {
+	ExecutionEvent(ExecutionEventKind kind, ExecutionContext context, std::optional<LinkId> result,
+	               std::optional<ExecutionFailurePhase> failure_phase = std::nullopt,
+	               SemanticContextView semantic_result = {})
+	    : kind(kind), context(std::move(context)), result(result), failure_phase(failure_phase),
+	      semantic_result(std::move(semantic_result))
+	{
+	}
+
 	ExecutionEventKind kind;
 	ExecutionContext context;
 	std::optional<LinkId> result;
-	std::optional<ExecutionFailurePhase> failure_phase = std::nullopt;
+	std::optional<ExecutionFailurePhase> failure_phase;
+	SemanticContextView semantic_result;
 
 	bool operator==(const ExecutionEvent &) const = default;
 };
