@@ -1,28 +1,7 @@
 #include <avm/avm.h>
 
-#include <array>
 #include <cstddef>
 #include <stdexcept>
-
-namespace
-{
-
-class FixedObserver final : public avm::ExecutionObserver
-{
-public:
-	void observe(const avm::ExecutionEvent &event) override
-	{
-		if (count < events.size())
-			events[count++] = event;
-	}
-
-	void clear() { count = 0; }
-
-	std::array<avm::ExecutionEvent, 4> events{};
-	std::size_t count = 0;
-};
-
-} // namespace
 
 int main()
 {
@@ -36,15 +15,15 @@ int main()
 	avm::ProgramBuilder builder = runtime.builder();
 
 	const avm::LinkId expression = builder.logical_not(builder.literal(runtime.vocabulary().false_value));
-	FixedObserver observer;
-	runtime.executor().set_observer(&observer);
+	avm::BoundedExecutionTrace trace(4);
+	runtime.executor().set_observer(&trace);
 	const avm::LinkId result = runtime.execute(expression);
 	if (result != runtime.vocabulary().true_value)
 		return 1;
-	if (observer.count != 4 || observer.events[0].kind != avm::ExecutionEventKind::Enter ||
-	    observer.events[0].context.entity != expression || observer.events[3].kind != avm::ExecutionEventKind::Return ||
-	    observer.events[3].context.entity != expression || observer.events[3].result != result ||
-	    observer.events[3].failure_phase.has_value())
+	if (trace.max_events() != 4 || trace.size() != 4 || !trace.complete() || trace.truncated() ||
+	    trace.events()[0].kind != avm::ExecutionEventKind::Enter || trace.events()[0].context.entity != expression ||
+	    trace.events()[3].kind != avm::ExecutionEventKind::Return || trace.events()[3].context.entity != expression ||
+	    trace.events()[3].result != result || trace.events()[3].failure_phase.has_value())
 		return 2;
 	runtime.executor().set_observer(nullptr);
 
@@ -59,8 +38,8 @@ int main()
 	    matches.front().entity != avm::RelationEntity{relation, subject, object})
 		return 3;
 
-	observer.clear();
-	runtime.executor().set_observer(&observer);
+	trace.reset();
+	runtime.executor().set_observer(&trace);
 	bool dispatch_failed = false;
 	try
 	{
@@ -70,15 +49,23 @@ int main()
 	{
 		dispatch_failed = true;
 	}
-	if (!dispatch_failed || observer.count != 2 || observer.events[1].kind != avm::ExecutionEventKind::Fail ||
-	    observer.events[1].failure_phase != avm::ExecutionFailurePhase::Dispatch)
+	if (!dispatch_failed || trace.size() != 2 || !trace.complete() ||
+	    trace.events()[1].kind != avm::ExecutionEventKind::Fail ||
+	    trace.events()[1].failure_phase != avm::ExecutionFailurePhase::Dispatch)
 		return 4;
+	runtime.executor().set_observer(nullptr);
+
+	avm::BoundedExecutionTrace zero_trace(0);
+	runtime.executor().set_observer(&zero_trace);
+	static_cast<void>(runtime.execute(expression));
+	if (!zero_trace.empty() || !zero_trace.truncated() || zero_trace.complete())
+		return 5;
 	runtime.executor().set_observer(nullptr);
 
 	const avm::LinkId begin = store.create_point();
 	const avm::LinkId end = store.create_point();
 	if (store.find(begin, end).has_value())
-		return 5;
+		return 6;
 
 	const avm::LinkId begin_literal = builder.literal(begin);
 	const avm::LinkId end_literal = builder.literal(end);
@@ -88,12 +75,12 @@ int main()
 
 	const avm::LinkId pair = runtime.execute(materialize);
 	if (store.size() != size_before + 1 || store.find(begin, end) != pair)
-		return 6;
+		return 7;
 
 	const std::size_t size_after = store.size();
 	if (runtime.execute(materialize) != pair || runtime.execute(begin_expression) != begin ||
 	    store.size() != size_after)
-		return 7;
+		return 8;
 
 	const avm::LinkId formal = store.create_point();
 	const avm::LinkId is_self_link = builder.create_function_handle();
@@ -101,13 +88,13 @@ int main()
 	builder.define_function(is_self_link, {formal},
 	                        builder.identity_equal(builder.link_begin(parameter), builder.link_end(parameter)));
 	if (runtime.executor().has_native(is_self_link))
-		return 8;
+		return 9;
 
 	const avm::LinkId point = store.create_point();
 	if (runtime.execute(builder.call(is_self_link, {builder.literal(point)})) != runtime.vocabulary().true_value)
-		return 9;
-	if (runtime.execute(builder.call(is_self_link, {builder.literal(pair)})) != runtime.vocabulary().false_value)
 		return 10;
+	if (runtime.execute(builder.call(is_self_link, {builder.literal(pair)})) != runtime.vocabulary().false_value)
+		return 11;
 
 	return 0;
 }
