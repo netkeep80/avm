@@ -1,0 +1,361 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "netkeep80/jsonRVM",
+    "commit": "843b3326141e090ccd1a106ba0a4a21ce72805b7",
+    "runtime_version": "3.0.0"
+  },
+  "categories": [
+    "canonical-semantic",
+    "projection-syntax",
+    "effect-adapter",
+    "implementation-artifact",
+    "defer"
+  ],
+  "entries": [
+    {
+      "id": "RM-TRIUNE-001",
+      "name": "triune entity roles",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/common/include/vm.rm.h", "doc/Dictionary.md", "doc/relations-model-ru.md"],
+      "behavior": "Execution is defined around entity, relation/controller, subject/view and object/model roles.",
+      "current_avm": "partial",
+      "decision": "preserve semantic roles over canonical RelationEntity links instead of reducing all execution to subject=unit expressions",
+      "target_issue": 124
+    },
+    {
+      "id": "CTX-CURRENT-001",
+      "name": "current execution context roles",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/common/include/vm.rm.h", "doc/Dictionary.md"],
+      "behavior": "vm_ctx exposes current ent, rel, sub and obj identities/values.",
+      "current_avm": "partial",
+      "decision": "provide frontend-neutral canonical context access relations",
+      "target_issue": 125
+    },
+    {
+      "id": "CTX-PARENT-001",
+      "name": "parent execution context traversal",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/common/include/vm.rm.h", "modules/console/test/relative_addressing.json", "doc/Dictionary.md"],
+      "behavior": "Nested contexts expose parent levels through $, $$, $$$ and $$$$ forms; the implementation hard-codes four textual depths.",
+      "current_avm": "partial",
+      "decision": "preserve unbounded compositional parent traversal; drop hard-coded textual depth as implementation artifact",
+      "target_issue": 125
+    },
+    {
+      "id": "REF-PRONOUN-001",
+      "name": "context pronoun syntax",
+      "category": "projection-syntax",
+      "source_paths": ["modules/common/include/vm.rm.h", "modules/console/test/relative_addressing.json"],
+      "behavior": "$ent/$rel/$sub/$obj and repeated-$ prefixes select context roles before further path traversal.",
+      "current_avm": "missing",
+      "decision": "compile textual pronouns to canonical reference expressions; no runtime string dispatch",
+      "target_issue": 126
+    },
+    {
+      "id": "REF-ABSOLUTE-001",
+      "name": "named/absolute entity addressing",
+      "category": "projection-syntax",
+      "source_paths": ["modules/common/include/vm.rm.h", "modules/console/test/absolute_addressing.json"],
+      "behavior": "A reference can begin from a named entity in the VM model and traverse nested members.",
+      "current_avm": "missing",
+      "decision": "compile names and structural traversal into canonical reference algebra; name resolution policy stays outside Executor",
+      "target_issue": 126
+    },
+    {
+      "id": "REF-LAZY-DB-001",
+      "name": "lazy named entity retrieval",
+      "category": "effect-adapter",
+      "source_paths": ["modules/common/include/vm.rm.h", "modules/common/include/database_api.h"],
+      "behavior": "Missing named entities may be fetched through database_api during reference resolution.",
+      "current_avm": "missing",
+      "decision": "do not hide external lookup inside pure resolve; expose it through capability/effect policy",
+      "target_issue": 129
+    },
+    {
+      "id": "REF-LVALUE-001",
+      "name": "lvalue path creation",
+      "category": "projection-syntax",
+      "source_paths": ["modules/common/include/vm.rm.h"],
+      "behavior": "Write-oriented reference traversal may create missing JSON object/array members through operator[].",
+      "current_avm": "missing",
+      "decision": "split observational resolve/find from explicit write/realize semantics",
+      "target_issue": 126
+    },
+    {
+      "id": "EXEC-ARRAY-SEQ-001",
+      "name": "array/lambda-vector sequential execution",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/common/include/vm.rm.h", "doc/Dictionary.md"],
+      "behavior": "JSON arrays used as executable structures are evaluated in order in the current/nested context.",
+      "current_avm": "partial",
+      "decision": "preserve ordered sequence semantics using canonical link lists; JSON array is only frontend syntax",
+      "target_issue": 127
+    },
+    {
+      "id": "EXEC-OBJECT-PAR-001",
+      "name": "object/lambda-structure parallel projection",
+      "category": "defer",
+      "source_paths": ["modules/common/include/vm.rm.h", "doc/Dictionary.md", "analysis.md"],
+      "behavior": "Independent JSON object members are intended/executed with parallel execution policies in parts of the old interpreter.",
+      "current_avm": "missing",
+      "decision": "first define deterministic projection and effect ordering; only later enable parallel scheduling for proven-pure operations",
+      "target_issue": 127
+    },
+    {
+      "id": "EXEC-FOREACH-OBJ-001",
+      "name": "foreach object",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "foreachobj executes the subject program for every object-array item using child contexts and ordered results.",
+      "current_avm": "missing",
+      "decision": "model as canonical map/foreach over ordered link lists with deterministic fail-fast behavior",
+      "target_issue": 127
+    },
+    {
+      "id": "EXEC-FOREACH-SUB-001",
+      "name": "foreach subject",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "foreachsub executes the object program for every subject-array item using child contexts.",
+      "current_avm": "missing",
+      "decision": "preserve only after triune subject/object contract is fixed; express through canonical iteration semantics",
+      "target_issue": 127
+    },
+    {
+      "id": "CTRL-IF-001",
+      "name": "conditional execution",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "if/then/else relations select and execute one branch based on relation/object Boolean state.",
+      "current_avm": "implemented-partial-parity",
+      "decision": "retain AVM link-native if as baseline and add differential cases after value/context contracts stabilize",
+      "target_issue": 131
+    },
+    {
+      "id": "CTRL-WHILE-001",
+      "name": "while execution",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "while repeatedly executes a relation-controlled body while the condition remains true.",
+      "current_avm": "missing",
+      "decision": "defer implementation until sequence/context/effect ordering is explicit, but retain as semantic compatibility target",
+      "target_issue": 127
+    },
+    {
+      "id": "CTRL-SWITCH-001",
+      "name": "typed switch",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "switch/bool, switch/number and switch/string select a branch from a JSON object and execute it in the parent context.",
+      "current_avm": "missing",
+      "decision": "preserve selection semantics, replace JSON object/string keys by canonical value/key relations after value denotation exists",
+      "target_issue": 128
+    },
+    {
+      "id": "ERROR-THROW-CATCH-001",
+      "name": "language-level throw/catch",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h", "modules/common/include/vm.rm.h"],
+      "behavior": "throw emits a JSON value; catch executes object in parent context, captures JSON exception into relation state, then executes subject handler.",
+      "current_avm": "partial-runtime-errors-only",
+      "decision": "separate deterministic semantic failure classes from host exceptions; decide explicit program-level error values after value contract",
+      "target_issue": 131
+    },
+    {
+      "id": "VALUE-COPY-001",
+      "name": "copy/view",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "= copies object into subject; view executes object model in an outer context to project a view.",
+      "current_avm": "partial",
+      "decision": "identity/copy is pure value semantics; view depends on the triune projection contract and must not use mutable host references",
+      "target_issue": 124
+    },
+    {
+      "id": "VALUE-ARITH-001",
+      "name": "numeric arithmetic",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "base vocabulary registers +, -, *, :, pow, sqrt and sum over JSON numeric values.",
+      "current_avm": "missing",
+      "decision": "introduce canonical numeric denotation first, then port a minimal pure arithmetic subset",
+      "target_issue": 128
+    },
+    {
+      "id": "VALUE-COMPARE-001",
+      "name": "equality/comparison/boolean operators",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "==, !=, <, >, && and XOR operate on JSON values with type-dependent rules.",
+      "current_avm": "partial",
+      "decision": "keep Boolean baseline; specify structural/value equality and ordering per canonical denotation instead of inheriting nlohmann::json behavior",
+      "target_issue": 128
+    },
+    {
+      "id": "VALUE-COLLECTION-001",
+      "name": "collection operations",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "size, where, union and sequence/integer operate over JSON arrays/objects.",
+      "current_avm": "partial",
+      "decision": "map only semantics that remain meaningful over canonical ordered lists/structural links; JSON object behavior is not automatically normative",
+      "target_issue": 128
+    },
+    {
+      "id": "VALUE-GETSET-001",
+      "name": "get/set/erase JSON container mutation",
+      "category": "implementation-artifact",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "get/set/erase directly read or mutate JSON arrays/objects and can create members on null containers.",
+      "current_avm": "missing",
+      "decision": "do not port container mutation literally; replace needed behavior by reference resolve plus explicit immutable projection/materialization semantics",
+      "target_issue": 126
+    },
+    {
+      "id": "VALUE-STRING-001",
+      "name": "string conversion and operations",
+      "category": "canonical-semantic",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "string/=, string/+=, find, split and join operate on JSON strings and arrays.",
+      "current_avm": "missing",
+      "decision": "defer concrete operators until canonical byte/text denotation is selected; serialization format must not define semantic identity implicitly",
+      "target_issue": 128
+    },
+    {
+      "id": "VALUE-TYPE-PRED-001",
+      "name": "JSON type predicates and constructors",
+      "category": "implementation-artifact",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "is_array/is_object/is_string/is_number/... and json/array/object/null expose nlohmann::json's runtime type universe.",
+      "current_avm": "not-applicable",
+      "decision": "do not reproduce JSON type tags in core; add only structural/value shape predicates justified by canonical denotation",
+      "target_issue": 128
+    },
+    {
+      "id": "DISPLAY-PRINT-001",
+      "name": "print",
+      "category": "effect-adapter",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "print writes JSON rendering directly to stdout.",
+      "current_avm": "tooling-only",
+      "decision": "treat host output as an explicit effect or frontend rendering concern, never as pure VM semantics",
+      "target_issue": 129
+    },
+    {
+      "id": "DISPLAY-MARKUP-001",
+      "name": "tag/xml/html generation",
+      "category": "projection-syntax",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "tag/xml/html combine JSON object attributes, nested execution and string rendering.",
+      "current_avm": "missing",
+      "decision": "defer until canonical text and projection semantics exist; keep markup syntax outside core",
+      "target_issue": 128
+    },
+    {
+      "id": "EFFECT-TIME-001",
+      "name": "sleep and steady clock",
+      "category": "effect-adapter",
+      "source_paths": ["modules/console/include/base.rm.h"],
+      "behavior": "sleep/ms blocks the host thread; steady_clock relations expose wall/process monotonic time values.",
+      "current_avm": "missing",
+      "decision": "require explicit clock/sleep capability and deterministic fake clock in tests",
+      "target_issue": 129
+    },
+    {
+      "id": "EFFECT-FS-001",
+      "name": "filesystem vocabulary",
+      "category": "effect-adapter",
+      "source_paths": ["modules/vocabulary/fs/src/fs.rm.cpp"],
+      "behavior": "filesystem operations are registered as external vocabulary relations over host files/paths.",
+      "current_avm": "missing",
+      "decision": "port only through explicit filesystem capability after canonical request/result values exist",
+      "target_issue": 129
+    },
+    {
+      "id": "EFFECT-HTTP-001",
+      "name": "HTTP vocabulary",
+      "category": "effect-adapter",
+      "source_paths": ["modules/vocabulary/http/include/http.rm.h", "tests/http.rm.test.json"],
+      "behavior": "HTTP client/server integration exposes network effects through vocabulary modules.",
+      "current_avm": "missing",
+      "decision": "defer actual networking; define deterministic capability contract and fake provider first",
+      "target_issue": 129
+    },
+    {
+      "id": "EFFECT-DLL-001",
+      "name": "dynamic vocabulary loading",
+      "category": "effect-adapter",
+      "source_paths": ["modules/console/include/dll.rm.h", "modules/common/include/vm.rm.h"],
+      "behavior": "native dictionaries are loaded dynamically and register binary views through import_relations_model_to.",
+      "current_avm": "missing",
+      "decision": "preserve extensibility through canonical relation identities plus explicit native capability/plugin registration; dynamic symbol names are not semantic identities",
+      "target_issue": 129
+    },
+    {
+      "id": "IMPL-JSON-MUTEX-001",
+      "name": "JSON container mutexes",
+      "category": "implementation-artifact",
+      "source_paths": ["modules/common/include/vm.rm.h"],
+      "behavior": "object/array/null reference mutation uses dedicated std::mutex instances for the mutable JSON representation.",
+      "current_avm": "not-applicable",
+      "decision": "do not port; concurrency belongs to LinkStore/backend/scheduler contracts",
+      "target_issue": 127
+    },
+    {
+      "id": "IMPL-JSON-AST-001",
+      "name": "JSON as program/value/context universe",
+      "category": "implementation-artifact",
+      "source_paths": ["modules/common/include/vm.rm.h", "modules/console/include/base.rm.h"],
+      "behavior": "nlohmann::json simultaneously stores VM model, executable structures, values and mutable execution state.",
+      "current_avm": "removed-by-foundation",
+      "decision": "keep JSON exclusively as compatibility frontend/projection; canonical runtime remains LinkId-only",
+      "target_issue": 130
+    }
+  ],
+  "corpus_candidates": [
+    {
+      "id": "CASE-RELATIVE-ADDRESSING",
+      "source": "modules/console/test/relative_addressing.json",
+      "covers": ["CTX-CURRENT-001", "CTX-PARENT-001", "REF-PRONOUN-001"],
+      "status": "selected",
+      "notes": "Exercises $ent/$sub/$obj/$rel and parent depths through $$$$; should be normalized into smaller golden cases before AVM implementation."
+    },
+    {
+      "id": "CASE-ABSOLUTE-ADDRESSING",
+      "source": "modules/console/test/absolute_addressing.json",
+      "covers": ["REF-ABSOLUTE-001", "REF-LAZY-DB-001", "REF-LVALUE-001"],
+      "status": "selected",
+      "notes": "Separates pure named lookup from add_entity/materializing behavior."
+    },
+    {
+      "id": "CASE-BOOLEAN-BRANCH",
+      "source": "modules/console/include/base.rm.h",
+      "covers": ["CTRL-IF-001", "VALUE-COMPARE-001"],
+      "status": "derive-fixture",
+      "notes": "AVM already has Boolean/if behavior; build a frozen jsonRVM fixture to establish differential semantics rather than source-shape equality."
+    },
+    {
+      "id": "CASE-FOREACH-CONTEXT",
+      "source": "modules/console/include/base.rm.h",
+      "covers": ["EXEC-FOREACH-OBJ-001", "CTX-CURRENT-001", "CTX-PARENT-001"],
+      "status": "derive-fixture",
+      "notes": "Use a small deterministic array and context-dependent body; avoid effects."
+    },
+    {
+      "id": "CASE-ARITHMETIC",
+      "source": "modules/console/include/base.rm.h",
+      "covers": ["VALUE-ARITH-001"],
+      "status": "derive-fixture",
+      "notes": "Freeze simple integer cases after AVM canonical integer denotation is decided."
+    },
+    {
+      "id": "CASE-MISSING-REFERENCE",
+      "source": "modules/common/include/vm.rm.h",
+      "covers": ["REF-PRONOUN-001", "REF-ABSOLUTE-001"],
+      "status": "derive-fixture",
+      "notes": "Capture deterministic semantic failure class; do not require raw JSON exception text parity."
+    }
+  ]
+}
