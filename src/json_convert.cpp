@@ -11,6 +11,9 @@ namespace
 
 using Json = nlohmann::ordered_json;
 
+constexpr const char *converter_usage =
+    "\nusage: avm-json-convert --from=jsonrvm-triplet --to=avm-duplet [input|-] [-o output|-] [--check]";
+
 struct Options
 {
 	std::string from;
@@ -22,9 +25,7 @@ struct Options
 
 [[noreturn]] void usage_error(const std::string &message)
 {
-	throw std::invalid_argument(
-	    message + "\nusage: avm-json-convert --from=jsonrvm-triplet --to=avm-duplet [input|-] "
-	              "[-o output|-] [--check]");
+	throw std::invalid_argument(message + converter_usage);
 }
 
 std::string option_value(const std::string &argument, const std::string &name)
