@@ -1,0 +1,55 @@
+name: jsonRVM legacy oracle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'compat/jsonrvm-legacy-fixtures/**'
+      - 'compat/jsonrvm-golden.json'
+      - 'tools/run_jsonrvm_legacy_oracle.ps1'
+      - '.github/workflows/jsonrvm-legacy-oracle.yml'
+  workflow_dispatch:
+
+jobs:
+  legacy-oracle:
+    name: Проверить deterministic legacy semantics
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - name: Получить AVM
+        uses: actions/checkout@v4
+
+      - name: Получить pinned jsonRVM
+        uses: actions/checkout@v4
+        with:
+          repository: netkeep80/jsonRVM
+          ref: 843b3326141e090ccd1a106ba0a4a21ce72805b7
+          path: legacy-jsonrvm
+
+      - name: Проверить provenance jsonRVM
+        shell: pwsh
+        run: |
+          $expected = '843b3326141e090ccd1a106ba0a4a21ce72805b7'
+          $actual = (git -C legacy-jsonrvm rev-parse HEAD).Trim()
+          if ($actual -ne $expected) {
+            throw "Ожидался jsonRVM@$expected, checkout дал $actual"
+          }
+
+      - name: Настроить минимальную сборку legacy rmvm
+        run: >-
+          cmake -S legacy-jsonrvm -B legacy-build
+          -DENABLE_VOCABULARY=OFF
+          -DENABLE_RVM_TEST=OFF
+
+      - name: Собрать legacy rmvm
+        run: cmake --build legacy-build --config Release --target rmvm --parallel
+
+      - name: Выполнить differential oracle cases
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path legacy-build -Recurse -Filter rmvm.exe |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $exe) {
+            throw 'После сборки не найден rmvm.exe'
+          }
+          ./tools/run_jsonrvm_legacy_oracle.ps1 -Executable $exe
