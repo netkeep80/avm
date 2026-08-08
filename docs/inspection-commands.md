@@ -84,7 +84,7 @@ Rendering использует numeric `LinkId` и deterministic ordering underl
 
 Raw numeric `LinkId` ограничены одним logical store. Отображённые числа не являются cross-store identity protocol.
 
-## Non-goals
+## Явные ограничения
 
 Command layer не предоставляет:
 
