@@ -63,7 +63,7 @@ AVM намеренно представляет execution state функций �
 
 Замена link-native call frames на ephemeral C++ stack только ради слова «pure» создала бы второй execution-state model и потому запрещена.
 
-## Persistence
+## Хранение и persistence
 
 Function definitions уже link-native и сохраняются вместе со store. После reopen caller использует явные function handles вместе с bootstrap vocabulary, необходимым для восстановления runtime.
 
