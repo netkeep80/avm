@@ -283,7 +283,7 @@ register_direct_triune_primitives(runtime.executor(), vocabulary);
 
 Нового `TriuneExecutor` или второго runtime нет.
 
-### Relation `subject_value`
+### Relation `subject_value`: субъект как результат
 
 Минимальное доказательство meaningful subject:
 
@@ -313,7 +313,7 @@ Link(subject, object)
 
 Он никогда не может наблюдать настоящий miss: pair создана самим encoding entity.
 
-### Link-native `PairTarget`
+### Link-native представление `PairTarget`
 
 Для honest `find != realize` target вынесена в отдельную denotation.
 
@@ -341,7 +341,7 @@ decode_pair_target(store, vocabulary, descriptor);
 
 Descriptor остаётся полностью link-native: JSON, string role names и side tables не используются.
 
-### Relation `pair_find`
+### Relation `pair_find`: наблюдение
 
 ```text
 (pair_find_relation, receiver, pair_target)
@@ -356,7 +356,7 @@ store.find(begin, end)
 
 При miss возникает deterministic semantic failure. `store.size()` не изменяется ни на miss, ни на hit.
 
-### Relation `pair_realize`
+### Relation `pair_realize`: материализация
 
 ```text
 (pair_realize_relation, receiver, pair_target)
