@@ -27,8 +27,6 @@ public:
 
 	void set_observer(ExecutionObserver *observer) noexcept { observer_ = observer; }
 
-	ExecutionObserver *observer() const noexcept { return observer_; }
-
 	void register_native(LinkId relation, NativeRelationHandler handler)
 	{
 		if (!store_.contains(relation))
