@@ -59,7 +59,7 @@ Conformance sequence:
 
 `reset_trace()` меняет только host tooling state и никогда persistent store.
 
-## Non-goals
+## Явные ограничения
 
 Persistent inspection не добавляет:
 
