@@ -260,9 +260,9 @@ Properties:
 - installed public package uses the collector on Linux/Windows/macOS;
 - strict warnings, ASan+UBSan and portable matrix are green.
 
-### Gate 17 — persistent reopen and backend-neutral trace equivalence (current)
+### Gate 17 — persistent reopen and backend-neutral trace equivalence ✅
 
-Child: #102.
+Implemented through #102/#103.
 
 Two identity claims are intentionally distinct:
 
@@ -274,33 +274,60 @@ independent InMemory/Persistent stores
   -> equivalence modulo bijective renaming of opaque LinkIds
 ```
 
-Requirements:
+Properties:
 
-- converge link-native function binding/frame state before baseline capture;
+- link-native function binding/frame state is converged before baseline capture;
 - persistent close/reopen preserves exact success/failure traces and store size;
 - repeated reopen remains exact and idempotent;
 - backend-neutral comparison preserves equality/aliasing relationships across every LinkId-bearing field;
-- normalization uses deterministic first-occurrence ordinals only as test/conformance tooling;
+- deterministic first-occurrence normalization exists only as test/conformance tooling;
 - raw LinkId numbers are never treated as globally comparable across independent stores;
 - failure phases and event kinds remain exact under normalized comparison;
 - truncated traces are rejected from completeness/equivalence claims;
 - no new LinkStore API/index, persistence format, event field or semantic registry.
 
-### Gate 18 — debugger/REPL consumer
+### Gate 18 — trace-enabled CLI consumer (current)
 
-After Gate 17 is stable, build an actual tooling consumer on the public observer/collector boundary without forking `Executor` or introducing a second program representation.
+Child: #104.
 
-The first consumer should prove that trace inspection, failure presentation and basic execution tooling can be implemented entirely outside semantic state. Breakpoint/control semantics remain a separate design question and are not implied merely by observability.
+Use the already existing JSON compatibility frontend and public AVM 1.3 observation API to provide a real tooling consumer without forking execution:
+
+```text
+JSON input
+  -> existing JsonProgramImporter
+  -> LinkId root
+  -> attach BoundedExecutionTrace to the existing BootstrapRuntime/Executor
+  -> execute(root)
+  -> result LinkId
+  -> existing JSON result projection
+  -> tooling-only trace presentation
+```
+
+Requirements:
+
+- legacy `avm program.json` behavior remains unchanged;
+- explicit `--trace` mode prints ordered LinkId-based events;
+- explicit bounded trace limit reports truncation rather than silently dropping events;
+- function execution exposes frame-bearing events;
+- failures render retained `Fail(phase)` events and preserve failure exit status/host diagnostics;
+- non-expression JSON remains valid in normal value-roundtrip mode but is rejected in trace mode rather than receiving fabricated execution events;
+- textual event/phase labels are presentation only, not opcodes or canonical trace identity;
+- CLI uses the existing `JsonProgramImporter`, `BootstrapRuntime::execute` and JSON result projection rather than copied evaluator logic;
+- stale hard-coded CLI version banner is replaced by the AVM 1.3 public version contract;
+- CTest validates trace CLI behavior in the strict CLI lane and portable Linux/Windows/macOS builds.
+
+Completion of this gate closes AVM 1.3 observability: observer, failure taxonomy, bounded collector, persistence/backend conformance and an actual tooling consumer all share the single canonical execution path.
 
 ## Later AVM 1.x directions
 
 After the observability boundary:
 
-1. additional thin protocol/front-end adapters;
-2. packaging/integration tooling;
-3. visualization/GUI;
-4. production physical backends and persistence experiments;
-5. standard-library growth by link-native composition, with new native primitives only for irreducible observation/effect boundaries.
+1. interactive debugger/REPL control semantics, if needed, as a separate design problem;
+2. additional thin protocol/front-end adapters;
+3. packaging/integration tooling;
+4. visualization/GUI;
+5. production physical backends and persistence experiments;
+6. standard-library growth by link-native composition, with new native primitives only for irreducible observation/effect boundaries.
 
 Every extension must reuse the existing `LinkStore -> Relations Model -> Executor` architecture.
 
