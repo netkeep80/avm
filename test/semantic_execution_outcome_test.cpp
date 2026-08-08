@@ -86,10 +86,10 @@ int main()
 		                         return avm::execute_same_context_sequence(current_executor, children, nil, context);
 	                         });
 
-	const avm::LinkId set_value_2 = avm::encode_relation_entity(
-	    store, avm::RelationEntity{set_state_relation, dispatch_subject, value_2});
-	const avm::LinkId return_value_3 = avm::encode_relation_entity(
-	    store, avm::RelationEntity{return_only_relation, dispatch_subject, value_3});
+	const avm::LinkId set_value_2 =
+	    avm::encode_relation_entity(store, avm::RelationEntity{set_state_relation, dispatch_subject, value_2});
+	const avm::LinkId return_value_3 =
+	    avm::encode_relation_entity(store, avm::RelationEntity{return_only_relation, dispatch_subject, value_3});
 	const avm::LinkId combine_value_3 =
 	    avm::encode_relation_entity(store, avm::RelationEntity{combine_relation, dispatch_subject, value_3});
 	const std::array<avm::LinkId, 3> children{set_value_2, return_value_3, combine_value_3};
@@ -137,8 +137,8 @@ int main()
 	assert(events[7].semantic_result == sequence_outcome.semantic);
 
 	trace.reset();
-	const avm::LinkId invalid_result_entity = avm::encode_relation_entity(
-	    store, avm::RelationEntity{invalid_result_relation, dispatch_subject, value_3});
+	const avm::LinkId invalid_result_entity =
+	    avm::encode_relation_entity(store, avm::RelationEntity{invalid_result_relation, dispatch_subject, value_3});
 	const std::size_t store_before_failure = store.size();
 	bool rejected = false;
 	try
