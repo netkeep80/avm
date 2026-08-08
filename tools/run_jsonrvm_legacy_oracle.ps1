@@ -44,20 +44,20 @@ function Invoke-LegacyCase {
 
     if ($process.ExitCode -ne 0) {
         $stderrText = Get-Content $stderrPath -Raw -ErrorAction SilentlyContinue
-        throw "$CaseId: legacy jsonRVM завершился с кодом $($process.ExitCode): $stderrText"
+        throw "${CaseId}: legacy jsonRVM завершился с кодом $($process.ExitCode): $stderrText"
     }
 
     # Обычный rmvm invocation печатает только JSON результата. Provenance версии
     # проверяется workflow-ом через точный checkout commit, а не по stdout banner.
     $jsonText = Get-Content $stdoutPath -Raw
     if ([string]::IsNullOrWhiteSpace($jsonText)) {
-        throw "$CaseId: legacy jsonRVM не выдал JSON результата"
+        throw "${CaseId}: legacy jsonRVM не выдал JSON результата"
     }
 
     $actual = Get-NormalizedJson $jsonText
     $expected = Get-NormalizedJson $ExpectedJson
     if ($actual -ne $expected) {
-        throw "$CaseId: ожидалось $expected, получено $actual"
+        throw "${CaseId}: ожидалось $expected, получено $actual"
     }
 
     Write-Host "$CaseId OK: $actual"
@@ -78,7 +78,7 @@ function Invoke-MissingReferenceCase {
     Copy-Item $fixture (Join-Path $work ($entryPoint + ".json"))
 
     if (Test-Path (Join-Path $work ($ReferenceMarker + ".json"))) {
-        throw "$caseId: marker-файл неожиданно существует"
+        throw "${caseId}: marker-файл неожиданно существует"
     }
 
     $stdoutPath = Join-Path $work "stdout.txt"
@@ -94,18 +94,18 @@ function Invoke-MissingReferenceCase {
     }
 
     if ($process.ExitCode -eq 0) {
-        throw "$caseId: missing reference неожиданно завершился успешно"
+        throw "${caseId}: missing reference неожиданно завершился успешно"
     }
 
     $stderrText = Get-Content $stderrPath -Raw
     if ([string]::IsNullOrWhiteSpace($stderrText)) {
-        throw "$caseId: legacy jsonRVM не выдал диагностический JSON"
+        throw "${caseId}: legacy jsonRVM не выдал диагностический JSON"
     }
 
     # stderr должен оставаться валидным JSON diagnostic старого runtime.
     $null = $stderrText | ConvertFrom-Json
     if ($stderrText -notmatch [regex]::Escape($ReferenceMarker)) {
-        throw "$caseId: diagnostic не содержит identity отсутствующей ссылки '$ReferenceMarker'"
+        throw "${caseId}: diagnostic не содержит identity отсутствующей ссылки '$ReferenceMarker'"
     }
 
     Write-Host "$caseId OK: exit=$($process.ExitCode), diagnostic содержит $ReferenceMarker"
