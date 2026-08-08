@@ -1,7 +1,5 @@
 #include <avm/avm.h>
 
-#include <cassert>
-
 int main()
 {
 	static_assert(avm::version_major == 0);
@@ -15,6 +13,5 @@ int main()
 	const avm::LinkId expression = builder.logical_not(builder.literal(runtime.vocabulary().false_value));
 	const avm::LinkId result = runtime.execute(expression);
 
-	assert(result == runtime.vocabulary().true_value);
-	return 0;
+	return result == runtime.vocabulary().true_value ? 0 : 1;
 }
