@@ -52,7 +52,7 @@ JSON program/value support — adapter layer, а не semantic core VM. Допо
 
 Adapter API получает отдельное compatibility commitment только после явного продвижения в installed public package.
 
-## Release checklist
+## Проверочный список релиза
 
 Release `vX.Y.Z` допустим только если:
 
