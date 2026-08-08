@@ -48,7 +48,7 @@
 - execution context явный;
 - bootstrap native handlers не являются второй базой программ.
 
-### Gate 5 — program-as-links ✅
+### Gate 5 — программа как links ✅
 
 - programs, bindings и frames представлены links;
 - есть link-native vertical slice;
@@ -63,7 +63,7 @@
 
 Каноническая семантика Anum/МТС поддерживается в `netkeep80/anum_docs`; AVM содержит только structural L3→L4 boundary.
 
-### Gate 7 — integration hardening ✅
+### Gate 7 — укрепление интеграции ✅
 
 - persistent reopen/identity conformance;
 - end-to-end link-native vertical slice;
@@ -214,7 +214,7 @@ BoundedExecutionTrace(max_events)
 
 Он хранит точный префикс `ExecutionEvent`, явно сообщает truncation и не становится VM state.
 
-### Gate 17 — persistent/backend-neutral trace conformance ✅
+### Gate 17 — conformance trace для persistent и backend-neutral случаев ✅
 
 Реализовано через #102/#103.
 
@@ -226,7 +226,7 @@ BoundedExecutionTrace(max_events)
   -> эквивалентность с точностью до биективного переименования LinkId
 ```
 
-### Gate 18 — trace-enabled CLI consumer ✅
+### Gate 18 — CLI как consumer trace ✅
 
 Реализовано через #104/#105.
 
@@ -244,7 +244,7 @@ avm --trace-limit 64 program.json
 
 Цель AVM 1.4 — дать разработчику возможность исследовать асеть и исполнение без появления debugger-specific semantics.
 
-### Gate 19 — typed inspection session ✅
+### Gate 19 — типизированная inspection session ✅
 
 `InspectionSession` объединяет только существующие публичные contracts:
 
@@ -255,7 +255,7 @@ avm --trace-limit 64 program.json
 
 Inspection layer не владеет отдельным executor или storage semantics.
 
-### Gate 20 — persistent inspection session conformance ✅
+### Gate 20 — conformance persistent inspection session ✅
 
 Проверено, что после reopen:
 
@@ -263,13 +263,13 @@ Inspection layer не владеет отдельным executor или storage 
 - query/inspection результаты сохраняются;
 - execution и trace используют тот же runtime path.
 
-### Gate 21 — typed scripted inspection commands ✅
+### Gate 21 — типизированные scripted-команды инспекции ✅
 
 Текстовый syntax parsing заканчивается типизированной командой. Исполнение команд происходит через `InspectionSession` и canonical API.
 
 String commands являются tooling presentation, а не VM opcodes.
 
-### Gate 22 — hardening persistent mutation/release path ✅
+### Gate 22 — укрепление persistent mutation и release path ✅
 
 - `PersistentLinkStore` переходит в faulted state при exception внутри guarded `insert_link + persist` mutation region;
 - после failed mutation частичное in-memory состояние невозможно принять за committed store state;
@@ -324,7 +324,7 @@ Manifest привязан к конкретному commit `netkeep80/jsonRVM`.
 
 Массовый перенос `base.rm.h` до завершения классификации запрещён.
 
-### Gate 24 — triune execution contract #124
+### Gate 24 — контракт триединого исполнения #124
 
 Нужно определить каноническую link-native семантику:
 
@@ -345,7 +345,7 @@ execute(entity = (relation, subject, object), context)
 
 Pure execution не должен скрыто мутировать existing links.
 
-### Gate 25 — link-native execution contexts #125
+### Gate 25 — link-native контексты исполнения #125
 
 Нужно представить наблюдаемую семантику:
 
@@ -361,7 +361,7 @@ parent context
 
 Context не должен существовать только как C++ map/JSON object.
 
-### Gate 26 — reference/addressing algebra #126
+### Gate 26 — алгебра references и addressing #126
 
 Frontend syntax:
 
@@ -385,7 +385,7 @@ write/realize — отдельная явная операция
 
 Runtime не должен интерпретировать JSON Pointer strings.
 
-### Gate 27 — sequence/lambda/projection semantics #127
+### Gate 27 — семантика sequence/lambda/projection #127
 
 Нужно определить:
 
@@ -412,7 +412,7 @@ Automatic parallelism откладывается до появления formal 
 
 После контракта переносится минимальный pure vocabulary: arithmetic, comparisons, selected collection/string operations.
 
-### Gate 29 — explicit capability/effect boundary #129
+### Gate 29 — явная capability/effect boundary #129
 
 FS/HTTP/time/native/database lookup не должны скрываться внутри pure relation handlers.
 
@@ -426,13 +426,13 @@ canonical request
 
 и fake providers для CI.
 
-### Gate 30 — convergence JSON/Anum #130
+### Gate 30 — сближение JSON и Anum #130
 
 JSON и Anum должны сходиться к одному canonical denotation/find/realize contract.
 
 Frontend-specific syntax не определяет runtime identity или execution semantics.
 
-### Gate 31 — end-to-end differential migration #131
+### Gate 31 — сквозная differential migration #131
 
 Минимум одна нетривиальная программа старого `jsonRVM` должна:
 
