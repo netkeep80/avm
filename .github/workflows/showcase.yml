@@ -87,11 +87,11 @@ jobs:
             import -display "$DISPLAY" -window root "$output_dir/avm-showcase-initial.png"
             test -s "$output_dir/avm-showcase-initial.png"
 
-            # ImGui first-use window starts near (60,60); these clicks target the
-            # PairTarget pair_find and pair_realize buttons in the left panel.
-            xdotool mousemove --window "$window" 150 315 click 1
+            # Coordinates are relative to the GLFW window and are calibrated
+            # against the deterministic first-use ImGui layout captured above.
+            xdotool mousemove --window "$window" 150 285 click 1
             sleep 0.3
-            xdotool mousemove --window "$window" 150 342 click 1
+            xdotool mousemove --window "$window" 150 309 click 1
             sleep 1
 
             import -display "$DISPLAY" -window root "$output_dir/avm-showcase-triune.png"
