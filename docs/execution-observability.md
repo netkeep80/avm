@@ -165,11 +165,48 @@ This normalization preserves equality/aliasing relationships while discarding ba
 
 A truncated trace is not eligible for an equivalence claim: it represents only a retained prefix, so normalization/comparison must reject it or otherwise explicitly decline completeness.
 
+## Trace-enabled CLI consumer
+
+The repository CLI is the first user-facing consumer of the AVM 1.3 observability boundary. Its normal compatibility mode remains unchanged:
+
+```text
+avm program.json
+```
+
+Trace mode is explicit:
+
+```text
+avm --trace program.json
+avm --trace-limit 64 program.json
+```
+
+The execution path is still the existing JSON compatibility projection and canonical runtime:
+
+```text
+JSON input
+  -> JsonProgramImporter
+  -> LinkId program
+  -> attach BoundedExecutionTrace to JsonCompatibilitySession::runtime().executor()
+  -> BootstrapRuntime::execute(LinkId)
+  -> result LinkId
+  -> existing JSON result projection
+```
+
+There is no `TraceExecutor`, copied evaluator or trace-specific opcode dispatch. JSON is a frontend format only; the trace collector sees the same `ExecutionEvent` values that any core observer sees.
+
+CLI trace rendering is presentation, not semantic identity. Each line displays the event kind and numeric LinkId fields (`entity`, `relation`, `subject`, `object`, optional `parent`, `frame`, `result`) plus the AVM failure phase. Human labels such as `enter`, `return`, `handler` or `dispatch` are textual renderings of the enums, not execution opcodes.
+
+The final summary reports retained event count and `complete`/`truncated` status. `--trace-limit` exists so resource bounds are explicit rather than silently dropping events.
+
+Trace mode intentionally uses `import_program` + `execute` + `project_result` instead of the convenience `interpret()` wrapper. This allows a failing execution to render its retained `Fail(phase)` events and still propagate the original failure to the CLI top-level diagnostic/exit-status policy. Normal compatibility mode continues to use `interpret()` and therefore keeps its historical behavior.
+
+A non-expression JSON value is valid in normal roundtrip mode but rejected explicitly in trace mode because there is no execution context to observe. AVM does not fabricate execution events for value serialization.
+
 ## Diagnostics policy
 
 The deterministic trace contract intentionally stops at AVM-owned failure phase. Human-readable exception text remains runtime diagnostic information, not stable event identity. C++ exception type names, `std::exception_ptr`, stack addresses and backend/protocol errors are not stored in `ExecutionEvent`.
 
-A later debugger/REPL layer may display the exception it catches alongside the deterministic trace, but it must not reinterpret that host diagnostic as canonical AVM semantics.
+The CLI may display the host exception it catches alongside the deterministic trace, but it does not reinterpret that host diagnostic as canonical AVM semantics.
 
 ## Non-goals
 
@@ -184,7 +221,7 @@ AVM 1.3 observability does not provide:
 - exception objects or exception strings inside deterministic events;
 - globally comparable numeric LinkIds across independent stores;
 - a production trace-normalization identity registry;
-- JSON/Anum-specific trace events;
-- debugger UI or REPL commands.
+- JSON/Anum-specific canonical trace events;
+- an interactive debugger UI or REPL command language.
 
 Those facilities may consume the observer boundary later, but they must not become a second execution path.
