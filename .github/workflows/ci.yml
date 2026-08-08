@@ -138,6 +138,10 @@ jobs:
             echo "ERROR: observer events must not expose mutable execution/storage control"
             exit 1
           fi
+          if grep -n -E 'exception_ptr|std::exception|std::string|type_info|typeid[[:space:]]*\(' include/avm/execution_observer.h; then
+            echo "ERROR: deterministic observer events must not embed host exception diagnostics"
+            exit 1
+          fi
 
       - name: Verify public version contract
         shell: bash
