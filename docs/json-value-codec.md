@@ -1,10 +1,10 @@
-# JSON value codec
+# Кодек JSON-значений
 
-`JsonValueCodec` is the data roundtrip path used when JSON is treated as data rather than as an AVM program.
+`JsonValueCodec` — путь roundtrip для случая, когда JSON рассматривается как **данные**, а не как программа AVM.
 
-It replaces the historical pointer-based `rel_t` JSON representation. The codec stores every value in the same canonical `LinkStore` identity universe used by the rest of AVM.
+Он заменяет историческое pointer-based JSON-представление через `rel_t` и хранит каждое значение в том же каноническом пространстве `LinkStore`, которое использует остальная AVM.
 
-## Boundary
+## Граница
 
 ```text
 nlohmann::json
@@ -13,7 +13,7 @@ nlohmann::json
 JsonValueCodec::encode
     |
     v
-LinkId in LinkStore
+LinkId в LinkStore
     |
     v
 JsonValueCodec::decode
@@ -22,14 +22,14 @@ JsonValueCodec::decode
 nlohmann::json
 ```
 
-This codec is not an executor. Program semantics remain in `JsonProgramImporter` + `BootstrapRuntime` / `Executor`.
+Этот codec не является executor. Program semantics находятся в `JsonProgramImporter` и `BootstrapRuntime` / `Executor`.
 
 ## Vocabulary
 
-`JsonValueVocabulary` introduces explicit identities for:
+`JsonValueVocabulary` вводит явные identities для:
 
-- `unit` and list `nil`;
-- null / true / false constants;
+- `unit` и list `nil`;
+- null / true / false;
 - array;
 - byte;
 - string;
@@ -39,41 +39,45 @@ This codec is not an executor. Program semantics remain in `JsonProgramImporter`
 - object;
 - object entry.
 
-The vocabulary may be created for a new store or supplied explicitly when restoring a previously materialized value graph.
+Vocabulary можно создать для нового store или явно передать при восстановлении уже materialized value graph.
 
-## Representation
+## Представление
 
-Typed values use a Relations Model entity whose subject is the JSON codec `unit` identity:
+Typed values используют сущность Модели Отношений с subject, равным `unit` JSON codec:
 
 ```text
 (type_relation, unit, payload)
 ```
 
-Arrays and objects store their ordered members through canonical link lists. Object entries are Relations Model entities:
+Arrays и objects хранят ordered members через canonical link lists. Object entries представлены сущностями:
 
 ```text
 (entry_relation, key_string, value)
 ```
 
-Strings are sequences of byte entities. A byte contains exactly eight Boolean bit identities. Numeric payloads contain exactly 64 Boolean bit identities. Signed integers and floating-point values use `std::bit_cast` so the codec does not rely on pointer aliasing or undefined behavior.
+Strings — последовательности byte entities. Byte содержит ровно восемь Boolean bit identities. Numeric payload содержит ровно 64 Boolean bit identities. Signed integers и floating-point values используют `std::bit_cast`, поэтому codec не зависит от pointer aliasing или undefined behavior.
 
-Empty arrays and empty objects have typed wrappers around the empty-list payload and therefore remain distinguishable from JSON `null`.
+Empty arrays и empty objects имеют typed wrappers вокруг empty-list payload и остаются отличимыми от JSON `null`.
 
-## Canonical reuse
+## Каноническое переиспользование
 
-Encoding the same value twice with the same vocabulary and store reuses canonical links. The codec does not introduce an independent pointer/object identity layer.
+Повторное encoding одного значения с тем же vocabulary и store переиспользует canonical links. Codec не вводит независимый слой pointer/object identity.
 
-## Tests
+## Покрытие тестами
 
-`json_value_codec_tests` cover:
+`json_value_codec_tests` проверяет:
 
-- null and booleans;
-- unsigned/signed/float values;
-- empty and non-empty strings, including UTF-8 text;
-- empty/nested arrays;
-- empty/nested objects and mixed values;
-- canonical reuse on repeated encode;
-- restoring a codec from an existing vocabulary;
-- rejection of unrelated LinkIds.
+- null и Boolean values;
+- unsigned/signed/float;
+- пустые и непустые строки, включая UTF-8;
+- пустые и вложенные arrays;
+- пустые и вложенные objects и mixed values;
+- canonical reuse при repeated encode;
+- восстановление codec по существующему vocabulary;
+- отклонение unrelated `LinkId`.
 
-CLI JSON roundtrip fixtures additionally exercise the codec through the built executable on Linux, Windows and macOS.
+CLI JSON roundtrip fixtures дополнительно проверяют codec через собранный executable на Linux, Windows и macOS.
+
+## Роль в AVM 1.5
+
+`JsonValueCodec` доказывает, что structured JSON data может быть представлена links, но JSON type universe не становится автоматически канонической value semantics Модели Отношений. AVM 1.5 #128 должен определить, какие числовые, текстовые и collection denotations являются семантическими контрактами независимо от JSON frontend.
