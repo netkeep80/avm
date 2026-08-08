@@ -29,11 +29,23 @@ int main()
 
 	const avm::LinkId begin = store.create_point();
 	const avm::LinkId end = store.create_point();
-	const avm::LinkId pair = store.intern(begin, end);
-	const avm::LinkId begin_expression = builder.link_begin(builder.literal(pair));
-	const std::size_t size_before = store.size();
-	if (runtime.execute(begin_expression) != begin || store.size() != size_before)
+	if (store.find(begin, end).has_value())
 		return 3;
+
+	const avm::LinkId begin_literal = builder.literal(begin);
+	const avm::LinkId end_literal = builder.literal(end);
+	const avm::LinkId materialize = builder.pair_intern(begin_literal, end_literal);
+	const avm::LinkId begin_expression = builder.link_begin(materialize);
+	const std::size_t size_before = store.size();
+
+	const avm::LinkId pair = runtime.execute(materialize);
+	if (store.size() != size_before + 1 || store.find(begin, end) != pair)
+		return 4;
+
+	const std::size_t size_after = store.size();
+	if (runtime.execute(materialize) != pair || runtime.execute(begin_expression) != begin ||
+	    store.size() != size_after)
+		return 5;
 
 	return 0;
 }

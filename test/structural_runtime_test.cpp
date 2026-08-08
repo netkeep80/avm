@@ -100,6 +100,75 @@ void verify_link_existence_is_observational()
 	assert(!store.find(begin, missing_end).has_value());
 }
 
+void verify_pair_intern_is_explicit_and_idempotent()
+{
+	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime runtime(store);
+	avm::ProgramBuilder builder = runtime.builder();
+
+	const avm::LinkId begin = store.create_point();
+	const avm::LinkId end = store.create_point();
+	assert(!store.find(begin, end).has_value());
+
+	const avm::LinkId begin_literal = builder.literal(begin);
+	const avm::LinkId end_literal = builder.literal(end);
+	const avm::LinkId exists = builder.link_exists(begin_literal, end_literal);
+	const avm::LinkId materialize = builder.pair_intern(begin_literal, end_literal);
+	const avm::LinkId projected_begin = builder.link_begin(materialize);
+	const avm::LinkId projected_end = builder.link_end(materialize);
+
+	assert_execution_does_not_mutate(runtime, store, exists, runtime.vocabulary().false_value);
+	assert(!store.find(begin, end).has_value());
+
+	const std::size_t before_materialize = store.size();
+	const avm::LinkId pair = runtime.execute(materialize);
+	assert(store.size() == before_materialize + 1);
+	assert(store.find(begin, end) == pair);
+
+	const std::size_t after_materialize = store.size();
+	assert(runtime.execute(materialize) == pair);
+	assert(store.size() == after_materialize);
+	assert_execution_does_not_mutate(runtime, store, exists, runtime.vocabulary().true_value);
+	assert_execution_does_not_mutate(runtime, store, projected_begin, begin);
+	assert_execution_does_not_mutate(runtime, store, projected_end, end);
+}
+
+void verify_pair_intern_returns_preexisting_canonical_identity()
+{
+	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime runtime(store);
+	avm::ProgramBuilder builder = runtime.builder();
+
+	const avm::LinkId begin = store.create_point();
+	const avm::LinkId end = store.create_point();
+	const avm::LinkId existing = store.intern(begin, end);
+	const avm::LinkId expression = builder.pair_intern(builder.literal(begin), builder.literal(end));
+
+	const std::size_t before = store.size();
+	assert(runtime.execute(expression) == existing);
+	assert(store.size() == before);
+}
+
+void verify_pair_intern_of_nonpoint_self_pair_is_new_identity()
+{
+	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime runtime(store);
+	avm::ProgramBuilder builder = runtime.builder();
+
+	const avm::LinkId left = store.create_point();
+	const avm::LinkId right = store.create_point();
+	const avm::LinkId nonpoint = store.intern(left, right);
+	const avm::Link nonpoint_as_self{nonpoint, nonpoint};
+	assert(store.get(nonpoint) != nonpoint_as_self);
+
+	const avm::LinkId expression = builder.pair_intern(builder.literal(nonpoint), builder.literal(nonpoint));
+	const avm::LinkId self_pair = runtime.execute(expression);
+	const avm::Link expected{nonpoint, nonpoint};
+	assert(self_pair != nonpoint);
+	assert(store.get(self_pair) == expected);
+	assert(store.find(nonpoint, nonpoint) == self_pair);
+}
+
 void verify_nil_nil_exists_without_missing_sentinel_ambiguity()
 {
 	avm::InMemoryLinkStore store;
@@ -149,6 +218,9 @@ int main()
 	verify_nested_structural_composition();
 	verify_identity_comparison();
 	verify_link_existence_is_observational();
+	verify_pair_intern_is_explicit_and_idempotent();
+	verify_pair_intern_returns_preexisting_canonical_identity();
+	verify_pair_intern_of_nonpoint_self_pair_is_new_identity();
 	verify_nil_nil_exists_without_missing_sentinel_ambiguity();
 	verify_arity_validation();
 	return 0;
