@@ -67,11 +67,16 @@ class BootstrapRuntime
 {
 public:
 	explicit BootstrapRuntime(LinkStore &store, std::size_t max_call_depth = 1000)
-	    : store_(store), vocabulary_(BootstrapVocabulary::create(store)), executor_(store),
-	      max_call_depth_(max_call_depth)
+	    : BootstrapRuntime(store, BootstrapVocabulary::create(store), max_call_depth)
+	{
+	}
+
+	BootstrapRuntime(LinkStore &store, BootstrapVocabulary vocabulary, std::size_t max_call_depth = 1000)
+	    : store_(store), vocabulary_(std::move(vocabulary)), executor_(store), max_call_depth_(max_call_depth)
 	{
 		if (max_call_depth_ == 0)
 			throw std::invalid_argument("maximum call depth must be greater than zero");
+		validate_vocabulary();
 		materialize_truth_tables();
 		register_handlers();
 	}
@@ -87,6 +92,36 @@ public:
 	LinkId execute(LinkId root) { return executor_.execute(root); }
 
 private:
+	void validate_vocabulary() const
+	{
+		const std::vector<LinkId> ids{
+		    vocabulary_.unit,
+		    vocabulary_.nil,
+		    vocabulary_.true_value,
+		    vocabulary_.false_value,
+		    vocabulary_.quote_relation,
+		    vocabulary_.parameter_relation,
+		    vocabulary_.sequence_relation,
+		    vocabulary_.not_relation,
+		    vocabulary_.and_relation,
+		    vocabulary_.or_relation,
+		    vocabulary_.if_relation,
+		    vocabulary_.function_relation,
+		    vocabulary_.call_relation,
+		    vocabulary_.binding_relation,
+		    vocabulary_.frame_relation,
+		};
+
+		std::set<LinkId> unique;
+		for (const LinkId id : ids)
+		{
+			if (!store_.contains(id))
+				throw std::invalid_argument("bootstrap vocabulary contains an unknown LinkId");
+			if (!unique.insert(id).second)
+				throw std::invalid_argument("bootstrap vocabulary identities must be distinct");
+		}
+	}
+
 	static void require_expression_subject(const ExecutionContext &context, LinkId unit)
 	{
 		if (context.subject != unit)
