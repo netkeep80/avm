@@ -1,0 +1,33 @@
+name: One-shot Anum bridge cleanup
+
+on:
+  push:
+    branches: [agent/anum-structural-denotation-bridge]
+    paths:
+      - '.github/workflows/anum-bridge-cleanup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/anum-structural-denotation-bridge
+          fetch-depth: 0
+
+      - name: Remove superseded bridge and this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm adapters/anum_projection_bridge.h
+          git rm test/anum_projection_bridge_test.cpp
+          git rm .github/workflows/anum-bridge-cleanup.yml
+          git commit -m "cleanup: remove superseded protocol-only Anum bridge"
+          git push origin HEAD:agent/anum-structural-denotation-bridge
