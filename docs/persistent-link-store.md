@@ -1,10 +1,10 @@
-# Persistent reference LinkStore
+# Эталонный persistent LinkStore
 
-`PersistentLinkStore` is the first persistence conformance backend for the AVM 1.0 `LinkStore` contract. Its purpose is to prove stable link identity and deterministic reopen semantics. It is deliberately a simple snapshot backend, not a production storage engine.
+`PersistentLinkStore` — reference backend для проверки persistence-семантики контракта `LinkStore`. Его цель — доказать стабильную identity связей и детерминированное поведение после reopen. Это намеренно простой snapshot backend, а не production storage engine.
 
-## Contract
+## Контракт
 
-The backend implements exactly the same semantic interface as `InMemoryLinkStore`:
+Backend реализует тот же semantic interface, что и `InMemoryLinkStore`:
 
 ```text
 create_point
@@ -17,23 +17,25 @@ contains(id)
 size()
 ```
 
-The Executor, Relations Model codec and projection layer depend only on `LinkStore`; they do not know whether the store is in-memory or persistent.
+`Executor`, Relations Model codec и projection layer зависят только от `LinkStore` и не знают, находится store в памяти или сохраняется на диск.
 
-## Identity and reopen
+## Идентичность и reopen
 
-Link IDs start at `1` and are persisted explicitly. Records are ordered by LinkId and v1 requires a contiguous namespace. After reopen:
+`LinkId` начинаются с `1` и сохраняются явно. Records упорядочены по `LinkId`; format v1 требует непрерывного namespace.
 
-- every persisted LinkId denotes the same `(begin,end)` pair;
-- exact pair identity is rebuilt from records;
-- outgoing and incoming indexes are rebuilt deterministically;
-- `intern(a,b)` reuses the same canonical LinkId;
-- `find` and all other read operations do not rewrite the snapshot.
+После reopen:
 
-A point remains an ordinary self-link `(id,id)`.
+- каждый сохранённый `LinkId` обозначает ту же пару `(begin,end)`;
+- exact pair identity восстанавливается из records;
+- `outgoing` и `incoming` indexes перестраиваются детерминированно;
+- `intern(a,b)` возвращает тот же canonical `LinkId`;
+- `find` и другие read operations не переписывают snapshot.
 
-## Snapshot format v1
+Point остаётся обычной self-link `(id,id)`.
 
-All integers are unsigned little-endian values. The file layout is:
+## Формат snapshot v1
+
+Все integers — unsigned little-endian:
 
 ```text
 8 bytes   magic = "AVMLNK1\0"
@@ -46,49 +48,69 @@ repeat record_count times:
     u64   end LinkId
 ```
 
-The loader rejects:
+Loader отклоняет:
 
-- wrong or truncated magic;
-- unsupported version or non-zero reserved field;
+- неверный или truncated magic;
+- неподдерживаемую version или non-zero `reserved`;
 - truncated integers/records;
-- non-contiguous or duplicate LinkIds;
-- duplicate canonical `(begin,end)` pairs;
-- endpoints that do not exist in the completed snapshot;
-- impossible partial self-references;
-- trailing bytes after the declared records.
+- non-contiguous или duplicate `LinkId`;
+- duplicate canonical `(begin,end)`;
+- endpoints, которых нет в завершённом snapshot;
+- невозможные partial self-references;
+- trailing bytes после объявленных records.
 
-This strictness prevents a corrupt file from being silently accepted as a different aset.
+Эта строгость не позволяет молча принять повреждённый файл как другую асеть.
 
-## Mutation durability
+## Долговечность мутаций и faulted state
 
-For v1 every successful new point or new canonical pair rewrites the complete snapshot. Reusing an existing pair performs no write.
+В v1 каждая новая point или canonical pair полностью переписывает snapshot. Повторное использование существующей пары записи не выполняет.
 
-A new mutation can fail while updating in-memory indexes or while opening/writing/flushing the snapshot. Once a LinkId has been allocated, AVM treats `insert_link + persist` as one guarded mutation commit. If any part of that region throws, the live `PersistentLinkStore` object enters an explicit **faulted state** rather than continuing to expose a potentially partial or uncommitted in-memory view.
-
-After faulting:
-
-- `faulted()` returns `true` without touching the backend;
-- `path()` remains available for diagnostics;
-- all `LinkStore` reads and mutations reject access instead of exposing possibly uncommitted in-memory state;
-- the original exception is still propagated by the mutation that failed;
-- the object is not silently retried or repaired.
-
-An existing-pair `intern(a,b)` is read-like: it returns the already canonical LinkId without rewriting the snapshot, so an unavailable output path does not by itself fault a healthy object until a genuinely new mutation requires persistence.
-
-The correct recovery boundary is to discard the faulted object and explicitly reopen/repair the backing store according to the caller's policy. If a failed direct snapshot write damaged the file, reopen may reject it through the ordinary corruption checks.
-
-This fault-state rule is ordinary **in-process exception safety**, not a crash-consistency guarantee. V1 still has no WAL, fsync protocol, atomic snapshot swap, locking or concurrent-writer support. A process crash or power loss during the direct snapshot rewrite may leave the file incomplete; those durability concerns belong to a production backend such as a later PMM adapter.
-
-## Why this backend exists
-
-AVM needs a concrete proof that persistence does not leak into VM semantics. The reference backend therefore optimizes for auditability:
+Новая mutation может завершиться исключением как во время обновления in-memory indexes, так и при open/write/flush snapshot. После выдачи нового `LinkId` AVM рассматривает весь участок:
 
 ```text
-same LinkStore contract
+insert_link + persist
+```
+
+как единую guarded mutation region.
+
+Если любой шаг бросает exception, живой объект `PersistentLinkStore` переходит в явное **faulted state** и больше не позволяет воспринимать потенциально частичное или uncommitted in-memory состояние как корректный store.
+
+После fault:
+
+- `faulted()` возвращает `true`, не обращаясь к backend;
+- `path()` остаётся доступен для diagnostics;
+- все `LinkStore` reads и mutations отклоняются;
+- исходное exception операции продолжает распространяться;
+- объект не пытается скрыто retry или repair состояние.
+
+`intern(a,b)` для уже существующей пары является read-like: он возвращает canonical `LinkId` без snapshot write. Недоступный output path сам по себе не fault-ит здоровый store, пока не потребуется новая mutation.
+
+Корректная recovery boundary — отбросить faulted object и явно reopen/repair backing store согласно policy caller. Если failed direct snapshot write повредил файл, reopen может отклонить его обычными corruption checks.
+
+### Exception safety не равна crash consistency
+
+Faulted-state contract описывает **in-process exception safety**. Он не является обещанием crash-atomic durability.
+
+Format v1 по-прежнему не имеет:
+
+- WAL;
+- fsync protocol;
+- atomic snapshot swap;
+- locking;
+- concurrent-writer protocol.
+
+Process crash или power loss во время прямой перезаписи может оставить файл неполным. Эти свойства должны быть отдельным контрактом production backend, например будущей PMM integration, и не должны менять semantics `Executor`.
+
+## Зачем нужен этот backend
+
+AVM требуется конкретное доказательство, что persistence не проникает в семантику VM:
+
+```text
+один LinkStore contract
         |
         +-- InMemoryLinkStore
         |
-        +-- PersistentLinkStore -- close/reopen --> same LinkIds and links
+        +-- PersistentLinkStore -- close/reopen --> те же LinkId и links
 ```
 
-A future PMM or LinksPlatform adapter should pass the same backend-neutral conformance suite rather than changing Executor behavior.
+Будущий PMM, LinksPlatform или иной adapter должен проходить тот же backend-neutral conformance suite, а не изменять поведение Executor.
