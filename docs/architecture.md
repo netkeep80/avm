@@ -128,7 +128,7 @@ realize(A) является явной materializing operation
 
 Anum parser, grammar, quotation/context semantics находятся вне storage layer. Канонический источник этих правил — `netkeep80/anum_docs`.
 
-## A5. Backend
+## A5. Физический backend
 
 Физические backends реализуют один и тот же `LinkStore` contract. Они не определяют VM relations, JSON rules, Anum semantics или правила исполнения.
 
