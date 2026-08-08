@@ -143,6 +143,15 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce execution trace tooling isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -n -E 'Executor|LinkStore|BootstrapRuntime|PersistentLinkStore|InMemoryLinkStore|nlohmann|json\.hpp|[Aa]num|[Aa]bit|fstream|filesystem' include/avm/execution_trace.h; then
+            echo "ERROR: execution trace collector must remain observer-only tooling state"
+            exit 1
+          fi
+
       - name: Verify public version contract
         shell: bash
         run: |
@@ -177,6 +186,7 @@ jobs:
             test/relations_query_test.cpp \
             test/executor_test.cpp \
             test/execution_observer_test.cpp \
+            test/execution_trace_test.cpp \
             test/program_model_test.cpp \
             test/boolean_runtime_test.cpp \
             test/structural_runtime_test.cpp \
