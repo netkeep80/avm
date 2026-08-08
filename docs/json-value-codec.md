@@ -24,7 +24,7 @@ nlohmann::json
 
 Этот codec не является executor. Program semantics находятся в `JsonProgramImporter` и `BootstrapRuntime` / `Executor`.
 
-## Vocabulary
+## Словарь значений
 
 `JsonValueVocabulary` вводит явные identities для:
 
