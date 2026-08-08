@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "netkeep80/jsonRVM",
+    "commit": "843b3326141e090ccd1a106ba0a4a21ce72805b7",
+    "runtime_version": "3.0.0"
+  },
+  "mutation_kinds": [
+    "none",
+    "context-local",
+    "runtime-state",
+    "model-write",
+    "external-effect",
+    "implementation-only",
+    "deferred"
+  ],
+  "fixture_statuses": [
+    "frozen",
+    "derive-fixture",
+    "effect-deferred",
+    "not-semantic"
+  ],
+  "entries": {
+    "RM-TRIUNE-001": {
+      "mutation": "context-local",
+      "context_dependencies": ["current.entity", "current.relation", "current.subject", "current.object"],
+      "failure_contract": "Malformed or unavailable entity roles must fail deterministically before relation semantics are applied; host reference aliasing is not part of the AVM contract.",
+      "fixture_status": "derive-fixture"
+    },
+    "CTX-CURRENT-001": {
+      "mutation": "none",
+      "context_dependencies": ["current.entity", "current.relation", "current.subject", "current.object"],
+      "failure_contract": "Access to a required current-context role must either yield its exact identity/value or fail as an invalid context; it must not synthesize a missing role.",
+      "fixture_status": "frozen"
+    },
+    "CTX-PARENT-001": {
+      "mutation": "none",
+      "context_dependencies": ["current.parent"],
+      "failure_contract": "Traversal beyond the available parent chain must fail deterministically rather than wrap, clamp or materialize a context.",
+      "fixture_status": "frozen"
+    },
+    "REF-PRONOUN-001": {
+      "mutation": "none",
+      "context_dependencies": ["current.entity", "current.relation", "current.subject", "current.object", "current.parent"],
+      "failure_contract": "An unresolved context pronoun/path is a lookup failure; resolution itself must not write to LinkStore.",
+      "fixture_status": "frozen"
+    },
+    "REF-ABSOLUTE-001": {
+      "mutation": "none",
+      "context_dependencies": ["name-resolution-context"],
+      "failure_contract": "A missing name or path is an observational miss unless an explicit external lookup/write operation is requested separately.",
+      "fixture_status": "frozen"
+    },
+    "REF-LAZY-DB-001": {
+      "mutation": "external-effect",
+      "context_dependencies": ["name-resolution-context", "external-entity-provider"],
+      "failure_contract": "Provider absence/failure must be reported through the explicit capability boundary and cannot be converted into hidden pure-resolution materialization.",
+      "fixture_status": "effect-deferred"
+    },
+    "REF-LVALUE-001": {
+      "mutation": "model-write",
+      "context_dependencies": ["write-target", "reference-path"],
+      "failure_contract": "Invalid traversal or write target must fail before unintended partial realization; read resolution never inherits create-on-write behavior.",
+      "fixture_status": "derive-fixture"
+    },
+    "EXEC-ARRAY-SEQ-001": {
+      "mutation": "runtime-state",
+      "context_dependencies": ["current-context"],
+      "failure_contract": "Children execute in defined order; the canonical core sequence is fail-fast unless a frontend compatibility policy explicitly specifies otherwise.",
+      "fixture_status": "derive-fixture"
+    },
+    "EXEC-OBJECT-PAR-001": {
+      "mutation": "deferred",
+      "context_dependencies": ["purity-classification", "effect-ordering"],
+      "failure_contract": "No compatibility claim is made until deterministic ordering and conflict/failure semantics for parallel execution are defined.",
+      "fixture_status": "derive-fixture"
+    },
+    "EXEC-FOREACH-OBJ-001": {
+      "mutation": "runtime-state",
+      "context_dependencies": ["current-context", "child.object", "iteration-order"],
+      "failure_contract": "Child contexts must be created in deterministic collection order and failures must follow the future #127 iteration policy without skipping or duplicating items silently.",
+      "fixture_status": "derive-fixture"
+    },
+    "EXEC-FOREACH-SUB-001": {
+      "mutation": "runtime-state",
+      "context_dependencies": ["current-context", "child.subject", "iteration-order"],
+      "failure_contract": "Child subject contexts must preserve deterministic order and explicit failure propagation; semantics depend on the triune contract of #124.",
+      "fixture_status": "derive-fixture"
+    },
+    "CTRL-IF-001": {
+      "mutation": "runtime-state",
+      "context_dependencies": ["current-context", "boolean-value-denotation"],
+      "failure_contract": "Exactly one selected branch executes; invalid condition/value fails deterministically and the unselected branch is never evaluated.",
+      "fixture_status": "derive-fixture"
+    },
+    "CTRL-WHILE-001": {
+      "mutation": "runtime-state",
+      "context_dependencies": ["current-context", "boolean-value-denotation", "iteration-order"],
+      "failure_contract": "Condition/body failures propagate deterministically; termination/guard policy must be explicit and no hidden host loop state may define semantic identity.",
+      "fixture_status": "derive-fixture"
+    },
+    "CTRL-SWITCH-001": {
+      "mutation": "runtime-state",
+      "context_dependencies": ["current-context", "canonical-key-denotation"],
+      "failure_contract": "Branch selection must be deterministic for the canonical key; missing/default behavior must be explicit rather than inherited from JSON object lookup quirks.",
+      "fixture_status": "derive-fixture"
+    },
+    "ERROR-THROW-CATCH-001": {
+      "mutation": "runtime-state",
+      "context_dependencies": ["current-context", "parent-context", "error-value-denotation"],
+      "failure_contract": "Program-level error values and AVM runtime failures must remain distinguishable from host exceptions; catch scope/context must be deterministic.",
+      "fixture_status": "derive-fixture"
+    },
+    "VALUE-COPY-001": {
+      "mutation": "context-local",
+      "context_dependencies": ["current.subject", "current.object", "parent-context-for-view"],
+      "failure_contract": "Copy/view must either produce the defined value/projection or fail without mutating arbitrary host references; exact manifestation semantics are owned by #124.",
+      "fixture_status": "derive-fixture"
+    },
+    "VALUE-ARITH-001": {
+      "mutation": "none",
+      "context_dependencies": ["numeric-denotation"],
+      "failure_contract": "Invalid numeric operands, overflow/domain behavior and result type must be specified by canonical numeric semantics rather than inherited accidentally from nlohmann::json/C++ conversions.",
+      "fixture_status": "derive-fixture"
+    },
+    "VALUE-COMPARE-001": {
+      "mutation": "none",
+      "context_dependencies": ["value-denotation"],
+      "failure_contract": "Equality/order across unsupported or incomparable denotations must have an explicit deterministic result/error policy; JSON type ordering is not normative.",
+      "fixture_status": "derive-fixture"
+    },
+    "VALUE-COLLECTION-001": {
+      "mutation": "none",
+      "context_dependencies": ["collection-denotation", "current-context-for-predicate-execution"],
+      "failure_contract": "Malformed/non-collection operands fail deterministically; observational collection operations do not materialize missing structure.",
+      "fixture_status": "frozen"
+    },
+    "VALUE-GETSET-001": {
+      "mutation": "implementation-only",
+      "context_dependencies": ["json-container"],
+      "failure_contract": "Literal JSON container mutation is not an AVM semantic target; required behavior is decomposed into explicit reference resolution and realization contracts.",
+      "fixture_status": "not-semantic"
+    },
+    "VALUE-STRING-001": {
+      "mutation": "none",
+      "context_dependencies": ["text-byte-denotation"],
+      "failure_contract": "Encoding, invalid operands and operation result semantics must be defined by the canonical text model; JSON string implementation details are not normative.",
+      "fixture_status": "derive-fixture"
+    },
+    "VALUE-TYPE-PRED-001": {
+      "mutation": "implementation-only",
+      "context_dependencies": ["json-runtime-type-tags"],
+      "failure_contract": "The nlohmann::json type universe is intentionally not reproduced; only independently justified AVM structural/value predicates may replace selected behavior.",
+      "fixture_status": "not-semantic"
+    },
+    "DISPLAY-PRINT-001": {
+      "mutation": "external-effect",
+      "context_dependencies": ["output-capability", "rendering-policy"],
+      "failure_contract": "Output failures belong to the explicit host capability/diagnostic boundary and must not masquerade as pure VM value semantics.",
+      "fixture_status": "effect-deferred"
+    },
+    "DISPLAY-MARKUP-001": {
+      "mutation": "none",
+      "context_dependencies": ["text-denotation", "projection-context"],
+      "failure_contract": "Markup generation is frontend/projection behavior; malformed structures must fail according to the future text/projection contract, not mutable JSON traversal.",
+      "fixture_status": "derive-fixture"
+    },
+    "EFFECT-TIME-001": {
+      "mutation": "external-effect",
+      "context_dependencies": ["clock-or-sleep-capability"],
+      "failure_contract": "Clock/sleep availability and failures are capability outcomes; deterministic tests use a fake provider and never depend on wall-clock timing.",
+      "fixture_status": "effect-deferred"
+    },
+    "EFFECT-FS-001": {
+      "mutation": "external-effect",
+      "context_dependencies": ["filesystem-capability", "request-value-denotation"],
+      "failure_contract": "Filesystem errors are explicit capability results/failures; pure execution and reference lookup cannot touch host files implicitly.",
+      "fixture_status": "effect-deferred"
+    },
+    "EFFECT-HTTP-001": {
+      "mutation": "external-effect",
+      "context_dependencies": ["network-capability", "request-value-denotation"],
+      "failure_contract": "Network success/failure is an explicit capability outcome; conformance uses deterministic fake providers before real networking is introduced.",
+      "fixture_status": "effect-deferred"
+    },
+    "EFFECT-DLL-001": {
+      "mutation": "external-effect",
+      "context_dependencies": ["native-plugin-capability", "relation-identity-policy"],
+      "failure_contract": "Plugin load/symbol failures are host capability failures; dynamic symbol names cannot become canonical relation identity implicitly.",
+      "fixture_status": "effect-deferred"
+    },
+    "IMPL-JSON-MUTEX-001": {
+      "mutation": "implementation-only",
+      "context_dependencies": ["mutable-json-container"],
+      "failure_contract": "JSON mutex placement is not semantic and is dropped; future concurrency rules belong to backend/scheduler contracts.",
+      "fixture_status": "not-semantic"
+    },
+    "IMPL-JSON-AST-001": {
+      "mutation": "implementation-only",
+      "context_dependencies": ["nlohmann-json-runtime"],
+      "failure_contract": "JSON-as-code/data/context is intentionally removed; reintroducing it would create a second semantic universe and is an architectural failure, not a compatibility feature.",
+      "fixture_status": "not-semantic"
+    }
+  }
+}
