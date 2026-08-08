@@ -20,7 +20,7 @@ ExecutionStepContext != SemanticContextState
 controller relation identity != semantic relation-state ($rel)
 ```
 
-Это различие является обязательным compatibility contract, а не деталями реализации.
+Это обязательный compatibility contract, а не деталь реализации.
 
 ## Источники legacy semantics
 
@@ -41,7 +41,7 @@ doc/Dictionary.md
 compat/jsonrvm-oracle-golden.json
 ```
 
-Особенно важен frozen `CASE-PURE-RELATION-COMPOSITION`: первый `+` производит `2`, второй `+` читает предыдущий `$rel` и получает `5`. Следовательно `$rel` observable как текущее состояние отношения, а не как identity controller-а.
+Особенно важен frozen `CASE-PURE-RELATION-COMPOSITION`: первый `+` производит `2`, второй `+` читает предыдущий `$rel` и получает `5`. Следовательно `$rel` наблюдаем как текущее состояние отношения, а не как identity controller-а.
 
 ## Два слоя контекста
 
@@ -62,13 +62,7 @@ frame         — call-frame identity, если есть
 
 > какая структурная entity прямо сейчас передана конкретному handler-у?
 
-Этот context нужен:
-
-- `Executor`;
-- observer events;
-- execution trace;
-- diagnostics dispatch/result-validation;
-- существующему call runtime.
+Этот context нужен `Executor`, observer events, execution trace, diagnostics и существующему call runtime.
 
 Создание нового `ExecutionContext` **не означает** автоматически создание нового семантического контекста Модели Отношений.
 
@@ -128,9 +122,7 @@ execute(controller, child)
 $rel -> ExecutionContext.relation
 ```
 
-запрещён.
-
-Для controller identity при необходимости используется отдельное понятие execution-step relation/controller.
+запрещён. Для controller identity при необходимости используется отдельное понятие execution-step relation/controller.
 
 ## Immutable state вместо mutable aliases
 
@@ -164,15 +156,7 @@ SemanticOutcome
 
 `result` и `next_context_state.relation_state` не обязаны совпадать для всех relations.
 
-Это продолжает #124:
-
-```text
-controller identity
-returned result
-semantic relation-state
-```
-
-являются разными понятиями.
+Это продолжает #124: controller identity, returned result и semantic relation-state являются тремя разными понятиями.
 
 ## Relation-state transition является явной семантикой
 
@@ -237,13 +221,9 @@ root.parent = none
 parent(root_view) -> root_view
 ```
 
-Это сохраняет старую семантику и исключает:
+Это сохраняет старую семантику и исключает cyclic C++ ownership, recursive link materialization и специальные бесконечные structures в persistent backend.
 
-- cyclic C++ ownership;
-- recursive link materialization;
-- специальные бесконечные structures в persistent backend.
-
-## Ephemeral lineage
+## Эфемерная lineage
 
 Semantic lineage существует только столько, сколько требуется execution.
 
@@ -288,7 +268,7 @@ same semantic context
 
 Operation может вернуть value и/или определить явный state transition согласно своему relation contract.
 
-### String reference
+### Строковая ссылка
 
 Legacy:
 
@@ -304,7 +284,7 @@ same semantic context
 
 Reference resolution само по себе не создаёт child context.
 
-### Object `$ref`
+### Объектная форма `$ref`
 
 После resolution relation/program выполняется в том же `vm_ctx`.
 
@@ -316,7 +296,7 @@ same semantic context
 
 Frontend syntax `$ref` не является context boundary.
 
-### Lambda-vector / ordered sequence
+### Лямбда-вектор / упорядоченная последовательность
 
 Legacy array выполняет каждый child:
 
@@ -334,7 +314,7 @@ same semantic context + sequential state threading
 
 Следствие для AVM: `sequence_relation` не должна трактовать каждый вызов `Executor::execute(child)` как новый semantic context только потому, что появился новый dispatch-step.
 
-### Relation-form `$rel`
+### Форма отношения `$rel`
 
 Legacy relation-form создаёт новый `vm_ctx`.
 
@@ -358,7 +338,7 @@ Controller выполняется **внутри child context**.
 
 Точная lvalue/default-sub propagation переносится в #126/#128 как explicit reference/state-transition semantics, а не mutable alias.
 
-### Boolean `if/then/else`
+### Булево `if/then/else`
 
 Controller relation уже выполняется внутри relation-form child context `C`.
 
@@ -376,7 +356,7 @@ resume/execute in parent semantic context
 
 Не создаётся ещё один semantic child только ради branch dispatch.
 
-### `while`
+### Цикл `while`
 
 Body повторно выполняется в parent semantic context controller-а:
 
@@ -392,7 +372,7 @@ parent-context continuation + repeated state threading
 
 Termination/effect policy относится к #127.
 
-### Typed `switch`
+### Типизированный `switch`
 
 Выбранная branch также выполняется через parent context controller-а.
 
@@ -404,7 +384,7 @@ parent-context continuation
 
 JSON object key selection позже заменяется canonical value/key model #128.
 
-### `view`
+### Проекция `view`
 
 Legacy `jsonView` строит отдельный context из значений parent context и исполняет object/model внутри него.
 
@@ -430,7 +410,7 @@ projected sibling-like context derived from parent
 
 `foreachobj` frozen oracle уже подтверждает child object propagation. `foreachsub` остаётся отдельным case.
 
-### `where`
+### Фильтрация `where`
 
 Predicate выполняется в per-item context с тем же характерным routing к `current.parent`.
 
@@ -442,7 +422,7 @@ projected sibling-like context derived from parent
 
 Historical doctest `CASE-WHERE-FILTER` является frozen semantic evidence collection behavior.
 
-### `catch`
+### Обработка `catch`
 
 Try-body выполняется в новом context, производном от parent controller-а. При exception legacy записывает error-value в relation-state и handler также запускается в новом context того же parent уровня.
 
@@ -455,7 +435,7 @@ projected parent-derived context
 
 Host C++ exception representation не является частью semantic contract.
 
-### Lambda-structure parallel projection
+### Параллельная проекция lambda-structure
 
 Legacy object без `$rel/$ref` создаёт отдельные call contexts и использует parallel execution policy. Parent routing также не совпадает с простым child(current).
 
@@ -467,7 +447,7 @@ projected contexts / deferred scheduler semantics
 
 До #127 нельзя переносить automatic parallelism. ADR сохраняет только факт, что это отдельные projected contexts.
 
-### Rendering `tag/xml/html`
+### Рендеринг `tag/xml/html`
 
 Legacy rendering использует ещё более специфичное routing через `$.$.$` для вложенного content execution.
 
@@ -542,12 +522,7 @@ Evaluator selector-а:
 
 Ни один текущий acceptance case `$...` не требует сохранять dynamic context после завершения execution.
 
-Автоматическое создание context links на каждом boundary привело бы к:
-
-- observable росту store от pure execution;
-- необходимости canonicalize dynamic execution histories;
-- большим persistent traces, которые не являются программными данными;
-- смешению runtime stack и semantic model.
+Автоматическое создание context links на каждом boundary привело бы к observable росту store, необходимости canonicalize dynamic histories и смешению runtime stack с semantic model.
 
 Поэтому #125 использует правило:
 
@@ -575,7 +550,7 @@ observer semantic view == pronoun evaluator semantic view
 
 Trace serialization может показывать оба слоя явно, но не смешивать их.
 
-## Минимальный implementation boundary после ADR
+## Минимальная граница реализации после ADR
 
 Первый кодовый slice #125 должен реализовать только:
 
@@ -589,18 +564,7 @@ Trace serialization может показывать оба слоя явно, н
 8. интеграцию одного источника semantic view в `ExecutionContext`/observer;
 9. conformance tests, доказывающие отсутствие `LinkStore` mutation.
 
-Не входит в первый slice:
-
-- parser `$ent`/`$$...`;
-- named/path references;
-- lvalue write semantics;
-- foreach implementation;
-- while/switch migration;
-- context materialization;
-- scheduler/parallelism;
-- canonical numeric/text values.
-
-Эти части используют готовый context foundation в #126–#128.
+Не входят в первый slice parser `$ent`/`$$...`, named/path references, lvalue write semantics, foreach implementation, while/switch migration, context materialization, scheduler/parallelism и canonical numeric/text values.
 
 ## Conformance для первого slice
 
@@ -616,7 +580,7 @@ Trace serialization может показывать оба слоя явно, н
 8. observer получает тот же semantic view, что context-role lookup;
 9. context reads не меняют `store.size()`;
 10. никакого JSON/Anum/string pronoun parsing в core;
-11. existing BootstrapRuntime behavior остаётся численно/структурно эквивалентным;
+11. existing BootstrapRuntime behavior остаётся структурно эквивалентным;
 12. ASan/UBSan и portable matrix зелёные.
 
 Отдельный follow-up должен доказать sequential relation-state threading до подключения textual `$rel` compiler.
