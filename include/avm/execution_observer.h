@@ -16,7 +16,7 @@ struct ExecutionContext
 	LinkId object;
 	std::optional<LinkId> parent;
 	std::optional<LinkId> frame;
-	std::optional<SemanticContextView> semantic = std::nullopt;
+	SemanticContextView semantic;
 
 	bool operator==(const ExecutionContext &) const = default;
 };
