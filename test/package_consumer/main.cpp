@@ -21,8 +21,8 @@ int main()
 	const avm::LinkId object = store.create_point();
 	const avm::LinkId entity = avm::encode_relation_entity(store, {relation, subject, object});
 
-	const auto matches = avm::query_relation_entities(
-	    store, {.relation = relation, .subject = subject, .object = object});
+	const auto matches =
+	    avm::query_relation_entities(store, {.relation = relation, .subject = subject, .object = object});
 	if (matches.size() != 1 || matches.front().entity_id != entity ||
 	    matches.front().entity != avm::RelationEntity{relation, subject, object})
 		return 2;
