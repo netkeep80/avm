@@ -13,6 +13,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "compat" / "jsonrvm-semantics.json"
+DETAILS = ROOT / "compat" / "jsonrvm-semantics-details.json"
 GOLDEN = ROOT / "compat" / "jsonrvm-golden.json"
 
 ALLOWED_CATEGORIES = {
@@ -24,6 +25,21 @@ ALLOWED_CATEGORIES = {
 }
 ALLOWED_STATUSES = {"selected", "derive-fixture"}
 ALLOWED_EQUIVALENCE = {"observable-json-value", "legacy-provenance-only"}
+ALLOWED_MUTATIONS = {
+    "none",
+    "context-local",
+    "runtime-state",
+    "model-write",
+    "external-effect",
+    "implementation-only",
+    "deferred",
+}
+ALLOWED_FIXTURE_STATUSES = {
+    "frozen",
+    "derive-fixture",
+    "effect-deferred",
+    "not-semantic",
+}
 REQUIRED_ENTRY_FIELDS = {
     "id",
     "name",
@@ -33,6 +49,12 @@ REQUIRED_ENTRY_FIELDS = {
     "current_avm",
     "decision",
     "target_issue",
+}
+REQUIRED_DETAIL_FIELDS = {
+    "mutation",
+    "context_dependencies",
+    "failure_contract",
+    "fixture_status",
 }
 
 
@@ -69,7 +91,7 @@ def require_source(source: object, prefix: str, require_runtime: bool) -> str:
     return commit
 
 
-def validate_manifest(data: dict[str, object]) -> tuple[str, int, set[str]]:
+def validate_manifest(data: dict[str, object]) -> tuple[str, int, set[str], set[str]]:
     if data.get("schema_version") != 1:
         fail("compat/jsonrvm-semantics.json schema_version must be 1")
 
@@ -145,7 +167,63 @@ def validate_manifest(data: dict[str, object]) -> tuple[str, int, set[str]]:
         if unknown:
             fail(f"{prefix}.covers references unknown entries: {', '.join(unknown)}")
 
-    return commit, len(entries), selected_case_ids
+    return commit, len(entries), selected_case_ids, entry_ids
+
+
+def validate_details(data: dict[str, object], source_commit: str, entry_ids: set[str]) -> int:
+    if data.get("schema_version") != 1:
+        fail("compat/jsonrvm-semantics-details.json schema_version must be 1")
+
+    details_commit = require_source(data.get("source"), "details.source", require_runtime=True)
+    if details_commit != source_commit:
+        fail("semantic inventory and operational details must pin the same jsonRVM commit")
+
+    if set(data.get("mutation_kinds") or []) != ALLOWED_MUTATIONS:
+        fail("details.mutation_kinds must exactly match the version-1 vocabulary")
+    if set(data.get("fixture_statuses") or []) != ALLOWED_FIXTURE_STATUSES:
+        fail("details.fixture_statuses must exactly match the version-1 vocabulary")
+
+    details = data.get("entries")
+    if not isinstance(details, dict) or not details:
+        fail("details.entries must be a non-empty object keyed by semantic entry id")
+
+    detail_ids = set(details.keys())
+    if detail_ids != entry_ids:
+        missing = sorted(entry_ids - detail_ids)
+        extra = sorted(detail_ids - entry_ids)
+        parts: list[str] = []
+        if missing:
+            parts.append(f"missing: {', '.join(missing)}")
+        if extra:
+            parts.append(f"unknown: {', '.join(extra)}")
+        fail("operational details must cover semantic entries exactly (" + "; ".join(parts) + ")")
+
+    for entry_id in sorted(entry_ids):
+        detail = details[entry_id]
+        prefix = f"details.entries[{entry_id}]"
+        if not isinstance(detail, dict):
+            fail(f"{prefix} must be an object")
+        missing = REQUIRED_DETAIL_FIELDS - detail.keys()
+        if missing:
+            fail(f"{prefix} misses fields: {', '.join(sorted(missing))}")
+        extra = set(detail.keys()) - REQUIRED_DETAIL_FIELDS
+        if extra:
+            fail(f"{prefix} has unknown fields: {', '.join(sorted(extra))}")
+
+        if detail["mutation"] not in ALLOWED_MUTATIONS:
+            fail(f"{prefix}.mutation is unknown: {detail['mutation']!r}")
+        if detail["fixture_status"] not in ALLOWED_FIXTURE_STATUSES:
+            fail(f"{prefix}.fixture_status is unknown: {detail['fixture_status']!r}")
+
+        dependencies = detail["context_dependencies"]
+        if not isinstance(dependencies, list):
+            fail(f"{prefix}.context_dependencies must be an array")
+        for dep_index, dependency in enumerate(dependencies):
+            require_nonempty_string(dependency, f"{prefix}.context_dependencies[{dep_index}]")
+
+        require_nonempty_string(detail["failure_contract"], f"{prefix}.failure_contract")
+
+    return len(details)
 
 
 def validate_golden(data: dict[str, object], source_commit: str, selected_case_ids: set[str]) -> int:
@@ -206,15 +284,17 @@ def validate_golden(data: dict[str, object], source_commit: str, selected_case_i
 
 def main() -> int:
     manifest = load_json(MANIFEST)
-    source_commit, entry_count, selected_case_ids = validate_manifest(manifest)
+    source_commit, entry_count, selected_case_ids, entry_ids = validate_manifest(manifest)
+    detail_count = validate_details(load_json(DETAILS), source_commit, entry_ids)
     golden_count = validate_golden(load_json(GOLDEN), source_commit, selected_case_ids)
 
     corpus = manifest["corpus_candidates"]
     assert isinstance(corpus, list)
     print(
         "jsonRVM compatibility inventory OK: "
-        f"{entry_count} semantic entries, {len(corpus)} corpus candidates, "
-        f"{golden_count} frozen legacy cases, source {source_commit[:12]}"
+        f"{entry_count} semantic entries, {detail_count} operational detail records, "
+        f"{len(corpus)} corpus candidates, {golden_count} frozen legacy cases, "
+        f"source {source_commit[:12]}"
     )
     return 0
 
