@@ -304,7 +304,7 @@ private:
 	}
 
 	LinkStore &store_;
-	const BootstrapVocabulary &vocabulary_;
+	BootstrapVocabulary vocabulary_;
 };
 
 } // namespace avm
