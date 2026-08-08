@@ -1,37 +1,37 @@
-# Typed inspection session contract
+# Контракт типизированной сессии инспекции
 
-AVM 1.4 begins with a host-side inspection session that composes existing AVM 1.x APIs. It is tooling, not a new semantic layer.
+AVM 1.4 вводит host-side `InspectionSession`, которая композирует существующие API AVM 1.x. Это tooling, а не новый semantic layer.
 
-## Boundary
+## Граница
 
-The typed session has one path to canonical state and execution:
+Typed session имеет один путь к каноническому состоянию и исполнению:
 
 ```text
 InspectionSession
-  -> existing LinkStore read operations
-  -> existing Relations Model query/decode helpers
-  -> existing function/frame structural decoders
-  -> existing BootstrapRuntime::execute
-  -> existing ExecutionObserver / BoundedExecutionTrace
+  -> существующие read operations LinkStore
+  -> существующие Relations Model query/decode helpers
+  -> существующие structural decoders functions/frames
+  -> BootstrapRuntime::execute
+  -> ExecutionObserver / BoundedExecutionTrace
 ```
 
-There is no `DebugExecutor`, shell-specific relation registry, copied evaluator or shadow program database.
+Нет `DebugExecutor`, shell-specific relation registry, copied evaluator или shadow program database.
 
-The implementation lives under `tools/` and is intentionally not added to the installed `avm::core` header set in this gate. The stable public core contracts remain the dependencies that the tool consumes.
+Implementation находится в `tools/` и намеренно не входит в installed `avm::core` headers этого gate. Стабильными публичными контрактами остаются API, которые tooling потребляет.
 
-## Stable ownership
+## Владение и lifetime
 
-`InspectionSession` owns its `BootstrapRuntime` and bounded trace collector while the caller owns the `LinkStore`.
+`InspectionSession` владеет своим `BootstrapRuntime` и bounded trace collector, а caller владеет `LinkStore`.
 
-This follows the stable-address ownership contract established for `Executor`/`BootstrapRuntime`: native handlers may close over their runtime owner, so the runtime is neither copied nor moved. Consequently the inspection session is also neither copyable nor movable.
+Это следует stable-address contract `Executor`/`BootstrapRuntime`: native handlers могут замыкать runtime owner, поэтому runtime не копируется и не перемещается. Следовательно session тоже neither copyable nor movable.
 
-The session takes `BootstrapVocabulary` by value when constructed and passes that explicit identity set to the runtime. Constructing a session over a complete current vocabulary must not allocate replacement bootstrap identities or otherwise grow the store.
+Session принимает `BootstrapVocabulary` по значению и передаёт явный набор identities runtime. Создание session над полным текущим vocabulary не должно выделять replacement bootstrap identities или увеличивать store.
 
-The session does not attach its collector to an externally owned runtime. `Executor::set_observer` is a non-owning setter without an observer stack/getter; owning the runtime prevents tooling from silently clobbering another caller's observer.
+Session не подключает collector к внешнему runtime. `Executor::set_observer` — non-owning setter без observer stack/getter; владение runtime предотвращает скрытую замену observer другого caller.
 
 ## Read-only inspection
 
-The following operations are observational:
+Операции:
 
 ```text
 inspect_link(id)
@@ -44,46 +44,55 @@ function_definition(handle)
 call_frame(frame)
 ```
 
-They delegate to existing `LinkStore`, Relations Model and program-model helpers. They do not call `intern` or `create_point`, invent missing identities, or maintain a second entity index.
+являются observational и делегируют существующим `LinkStore`, Relations Model и program-model helpers.
 
-A missing exact pair remains absent. A malformed/missing entity may throw the same structural error exposed by the underlying helper, but inspection itself must not materialize repair data.
+Они не вызывают `intern`/`create_point`, не создают missing identities и не поддерживают второй entity index.
 
-## Execution and tracing
+Missing exact pair остаётся missing. Malformed/missing entity может бросить ту же structural error, что underlying helper, но inspection не materialize-ит repair data.
 
-`execute(root)` delegates directly to the owned `BootstrapRuntime`.
+## Исполнение и trace
 
-`trace_execute(root)` resets the session-owned `BoundedExecutionTrace`, attaches it to the same runtime executor for one execution, and detaches it on both success and exception paths. The original result or exception remains the runtime result; retained trace events use the AVM 1.3 event/failure contract unchanged.
+`execute(root)` напрямую делегирует owned `BootstrapRuntime`.
 
-Trace capacity is fixed when the session is constructed. Capacity exhaustion remains explicit through `trace_truncated()` and never becomes an implicit unbounded collector.
+`trace_execute(root)`:
 
-After a failed traced execution, the retained `Fail(phase)` events remain available for inspection. A subsequent ordinary `execute` is not observed because the collector has been detached.
+1. сбрасывает owned `BoundedExecutionTrace`;
+2. подключает его к тому же runtime executor;
+3. выполняет один execution;
+4. отключает collector и на success, и на exception path.
 
-## Effects
+Original result/exception остаётся результатом runtime. Retained events используют неизменённый AVM observability contract.
 
-The session itself does not reinterpret execution effects. A program executed through the session may perform the same canonical effects it performs through direct `BootstrapRuntime::execute` (for example frame/binding materialization or explicit `pair_intern`).
+Trace capacity фиксируется при construction. Exhaustion явно отражается через `trace_truncated()` и не превращается в implicit unbounded collector.
 
-Therefore the tooling distinction is:
+После failed traced execution события `Fail(phase)` остаются доступны. Последующий обычный `execute` не наблюдается, потому что collector отключён.
+
+## Эффекты
+
+Session не переопределяет execution effects. Программа, запущенная через session, выполняет те же canonical effects, что и при прямом `BootstrapRuntime::execute`: например materialization frames/bindings или explicit `pair_intern`.
+
+Различие:
 
 ```text
-inspection method   -> observational, no store growth
-execute/trace       -> exactly the existing program/runtime effect contract
+inspection method   -> observation, store не растёт
+execute/trace       -> существующий program/runtime effect contract
 ```
 
-## Follow-up layers
+## Последующие tooling layers
 
-A textual/scripted command parser is a separate gate. Command strings will map to these typed operations and remain presentation syntax rather than AVM relation identities.
+Text/script command parser является отдельным presentation layer. Command strings отображаются в typed operations и не становятся relation identities AVM.
 
-Persistent-session/reopen behavior is also a separate gate. It must reuse explicit persisted vocabulary/root identities and preserve the existing persistent trace/LinkId contracts.
+Persistent reopen также использует ту же `InspectionSession`, explicit persisted vocabulary/root identities и существующие LinkId/trace contracts.
 
 ## Non-goals
 
-This gate does not add:
+Session не добавляет:
 
-- breakpoint, step or continue control;
-- handler replacement or result substitution;
-- a symbolic LinkId registry;
-- JSON/Anum parsing inside the session;
+- breakpoint/step/continue control;
+- handler replacement/result substitution;
+- symbolic `LinkId` registry;
+- JSON/Anum parsing внутри session;
 - implicit store enumeration;
 - implicit trace persistence;
-- backend-specific semantic behavior;
-- new `LinkStore` methods or indexes.
+- backend-specific semantics;
+- новые `LinkStore` methods/indexes.
