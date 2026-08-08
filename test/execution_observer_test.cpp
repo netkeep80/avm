@@ -181,6 +181,33 @@ void verify_observer_failure_cannot_control_execution()
 	assert(observer.calls == 2);
 }
 
+void verify_observer_failure_cannot_replace_program_failure()
+{
+	avm::InMemoryLinkStore store;
+	const avm::LinkId relation = store.create_point();
+	const avm::LinkId subject = store.create_point();
+	const avm::LinkId object = store.create_point();
+	const avm::LinkId entity = avm::encode_relation_entity(store, {relation, subject, object});
+
+	ThrowingObserver observer;
+	avm::Executor executor(store, &observer);
+	executor.register_native(relation, [](const avm::ExecutionContext &, avm::Executor &) -> avm::LinkId
+	                         { throw std::logic_error("program failure"); });
+
+	bool rejected = false;
+	try
+	{
+		static_cast<void>(executor.execute(entity));
+	}
+	catch (const std::logic_error &error)
+	{
+		rejected = true;
+		assert(std::string(error.what()) == "program failure");
+	}
+	assert(rejected);
+	assert(observer.calls == 2);
+}
+
 void verify_pre_context_failure_emits_no_event()
 {
 	avm::InMemoryLinkStore store;
@@ -209,6 +236,7 @@ int main()
 	verify_function_call_trace_converges_with_link_native_frame();
 	verify_failure_event_preserves_original_exception();
 	verify_observer_failure_cannot_control_execution();
+	verify_observer_failure_cannot_replace_program_failure();
 	verify_pre_context_failure_emits_no_event();
 	return 0;
 }
