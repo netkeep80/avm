@@ -162,10 +162,14 @@ jobs:
         run: ctest --test-dir build-core --output-on-failure
 
   package-consumer:
-    name: Installed package consumer / Linux
+    name: Installed package consumer / ${{ matrix.os }}
     needs: quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 7
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -180,7 +184,7 @@ jobs:
           -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
 
       - name: Install public package
-        run: cmake --install build-install
+        run: cmake --install build-install --config Release
 
       - name: Configure external consumer
         run: >-
@@ -190,10 +194,10 @@ jobs:
           -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF
 
       - name: Build external consumer
-        run: cmake --build build-consumer --parallel
+        run: cmake --build build-consumer --config Release --parallel
 
       - name: Run external consumer
-        run: ./build-consumer/avm_package_consumer
+        run: ctest --test-dir build-consumer -C Release --output-on-failure
 
   json-compat:
     name: JSON projection + session / warnings-as-errors
