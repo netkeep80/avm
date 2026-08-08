@@ -53,6 +53,11 @@ def prose_lines(text: str) -> list[tuple[int, str]]:
     return result
 
 
+def is_technical_heading(heading: str) -> bool:
+    """Разрешить заголовок, который целиком является inline-code identifier."""
+    return len(heading) >= 2 and heading.startswith("`") and heading.endswith("`")
+
+
 def validate(path: pathlib.Path) -> None:
     relative = path.relative_to(ROOT).as_posix()
     if relative in EXCLUDED_RELATIVE_PATHS:
@@ -84,6 +89,8 @@ def validate(path: pathlib.Path) -> None:
         if not stripped.startswith("#"):
             continue
         heading = stripped.lstrip("#").strip()
+        if is_technical_heading(heading):
+            continue
         if LATIN.search(heading) and not CYRILLIC.search(heading):
             fail(
                 f"{relative}:{number}: полностью английский Markdown-заголовок: "
