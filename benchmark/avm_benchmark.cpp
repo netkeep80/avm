@@ -143,26 +143,22 @@ int main()
 		static_cast<void>(avm::encode_relation_entity(store, {points[5000 + i], query_subject, query_object}));
 	}
 
-	const auto relation_driven_query = [&](std::size_t)
-	{
+	const auto relation_driven_query = [&](std::size_t) {
 		sink ^= avm::query_relation_entities(store, {.relation = query_relation}).size();
 	};
 	print(measure("relations_query_relation", relation_query_iterations, relation_driven_query));
 
-	const auto subject_driven_query = [&](std::size_t)
-	{
+	const auto subject_driven_query = [&](std::size_t) {
 		sink ^= avm::query_relation_entities(store, {.subject = query_subject}).size();
 	};
 	print(measure("relations_query_subject", relation_query_iterations, subject_driven_query));
 
-	const auto object_driven_query = [&](std::size_t)
-	{
+	const auto object_driven_query = [&](std::size_t) {
 		sink ^= avm::query_relation_entities(store, {.object = query_object}).size();
 	};
 	print(measure("relations_query_object", relation_query_iterations, object_driven_query));
 
-	const auto subject_object_query = [&](std::size_t)
-	{
+	const auto subject_object_query = [&](std::size_t) {
 		sink ^= avm::query_relation_entities(store, {.subject = query_subject, .object = query_object}).size();
 	};
 	print(measure("relations_query_subject_object", relation_query_iterations, subject_object_query));
