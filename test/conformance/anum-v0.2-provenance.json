@@ -1,0 +1,9 @@
+{
+  "sourceRepository": "netkeep80/anum_docs",
+  "sourceCommit": "62901cfc",
+  "schemas": [
+    "anum-denotation-conformance/v0.2",
+    "anum-recursive-denotation-conformance/v0.2"
+  ],
+  "note": "Versioned conformance snapshot consumed only by AVM adapter tests; production AVM contains no Anum parser or grammar."
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "avm-anum-conformance-manifest/v0.2",
+  "status": "accepted-candidate",
+  "upstream": {
+    "repository": "netkeep80/anum_docs",
+    "commit": "62901cfc"
+  },
+  "fixtures": [
+    {
+      "path": "test/conformance/anum-denotation-conformance-v0.2.json",
+      "schema": "anum-denotation-conformance/v0.2"
+    },
+    {
+      "path": "test/conformance/anum-recursive-denotation-conformance-v0.2.json",
+      "schema": "anum-recursive-denotation-conformance/v0.2"
+    },
+    {
+      "path": "test/conformance/anum-v0.2-provenance.json",
+      "purpose": "snapshot provenance"
+    },
+    {
+      "path": "test/conformance/avm-anum-adapter-v0.2.json",
+      "schema": "avm-anum-adapter/v0.2"
+    }
+  ],
+  "productionAdapter": "adapters/anum_denotation_bridge.h",
+  "testLoader": "test/anum_denotation_bridge_test.cpp",
+  "legacyProtocolOnlyBridgeAllowed": false,
+  "rawParserInAvmAllowed": false
+}

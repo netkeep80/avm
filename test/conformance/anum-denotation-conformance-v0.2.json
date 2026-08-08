@@ -1,0 +1,30 @@
+{
+  "schema": "anum-denotation-conformance/v0.2",
+  "contract": "anum-denotation/v0.2",
+  "status": "accepted",
+  "cases": [
+    {
+      "name": "anchor-only",
+      "value": {"kind":"structural","anchors":["one"],"nodes":[],"root":{"anchor":"one"}},
+      "canonicalJson": "{\"anchors\":[\"one\"],\"kind\":\"structural\",\"nodes\":[],\"root\":{\"anchor\":\"one\"}}"
+    },
+    {
+      "name": "nested-link",
+      "value": {"kind":"structural","anchors":["left","right"],"nodes":[{"id":0,"start":{"anchor":"left"},"end":{"anchor":"right"}},{"id":1,"start":{"node":0},"end":{"anchor":"left"}}],"root":{"node":1}},
+      "canonicalJson": "{\"anchors\":[\"left\",\"right\"],\"kind\":\"structural\",\"nodes\":[{\"end\":{\"anchor\":\"right\"},\"id\":0,\"start\":{\"anchor\":\"left\"}},{\"end\":{\"anchor\":\"left\"},\"id\":1,\"start\":{\"node\":0}}],\"root\":{\"node\":1}}"
+    },
+    {
+      "name": "shared-substructure",
+      "value": {"kind":"structural","anchors":["a","b"],"nodes":[{"id":0,"start":{"anchor":"a"},"end":{"anchor":"b"}},{"id":1,"start":{"node":0},"end":{"node":0}}],"root":{"node":1}},
+      "canonicalJson": "{\"anchors\":[\"a\",\"b\"],\"kind\":\"structural\",\"nodes\":[{\"end\":{\"anchor\":\"b\"},\"id\":0,\"start\":{\"anchor\":\"a\"}},{\"end\":{\"node\":0},\"id\":1,\"start\":{\"node\":0}}],\"root\":{\"node\":1}}"
+    },
+    {"name":"unresolved-raw","value":{"kind":"raw","raw":"[[01"},"canonicalJson":"{\"kind\":\"raw\",\"raw\":\"[[01\"}"},
+    {"name":"quoted-raw","value":{"kind":"quoted-raw","raw":"[01]"},"canonicalJson":"{\"kind\":\"quoted-raw\",\"raw\":\"[01]\"}"}
+  ],
+  "invalid": [
+    {"name":"missing-anchor","reason":"every anchor reference must name a declared anchor"},
+    {"name":"forward-node-reference","reason":"node references may target only earlier nodes"},
+    {"name":"duplicate-node-id","reason":"node ids are contiguous and unique by construction"},
+    {"name":"mixed-ref-shape","reason":"a reference contains exactly one of anchor or node"}
+  ]
+}

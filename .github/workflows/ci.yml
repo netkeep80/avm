@@ -91,12 +91,25 @@ jobs:
             exit 1
           fi
 
-      - name: Enforce projection-only Anum adapter
+      - name: Enforce structural-only Anum adapter
         shell: bash
         run: |
           set -euo pipefail
-          if grep -R -n -E 'parse_raw_quaternary|validate_anum|project_anum|IncrementalQuaternaryDecoder' adapters; then
-            echo "ERROR: AVM Anum adapter must consume canonical L3 results, not duplicate the L3 parser/protocol"
+          if grep -R -n -E 'parse_raw_quaternary|validate_anum[[:space:]]*\(|project_anum|IncrementalQuaternaryDecoder|RecursiveAnumTree|decode_recursive|rootOpeningCollapse|ProjectionContext|\bAbit\b' adapters; then
+            echo "ERROR: AVM Anum adapter must consume canonical denotation only, never parse/project raw Anum"
+            exit 1
+          fi
+          if grep -R -n -E 'nlohmann|json\.hpp' adapters; then
+            echo "ERROR: production Anum adapter must remain JSON-free; JSON is test-only conformance loading"
+            exit 1
+          fi
+
+      - name: Reject removed protocol-only Anum bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E 'AnumL3Projection|AnumProjectionKind|AnumProtocolValue|anum_projection_bridge' adapters test CMakeLists.txt; then
+            echo "ERROR: removed protocol-only Anum bridge found; structural denotation is the sole L3-to-L4 path"
             exit 1
           fi
 
@@ -126,7 +139,7 @@ jobs:
           clang-format --version
           clang-format --dry-run --Werror \
             include/avm/*.h \
-            adapters/*.h \
+            adapters/anum_denotation_bridge.h \
             src/cli.cpp \
             test/assertions_enabled_test.cpp \
             test/link_store_test.cpp \
@@ -145,19 +158,19 @@ jobs:
             test/json_value_codec_test.cpp \
             test/json_projection_test.cpp \
             test/json_session_test.cpp \
-            test/anum_projection_bridge_test.cpp \
+            test/anum_denotation_bridge_test.cpp \
             test/package_consumer/main.cpp
 
   core:
     name: Core C++20 / warnings-as-errors
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure core and adapter build
+      - name: Configure core and Anum adapter build
         run: >-
           cmake -S . -B build-core
           -DCMAKE_BUILD_TYPE=Debug
@@ -167,10 +180,10 @@ jobs:
           -DAVM_BUILD_ANUM_ADAPTER_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
 
-      - name: Build core and adapter tests
+      - name: Build core and Anum adapter tests
         run: cmake --build build-core --target avm_core_tests avm_anum_adapter_tests --parallel
 
-      - name: Run core and adapter tests
+      - name: Run core and Anum adapter tests
         run: ctest --test-dir build-core --output-on-failure
 
   package-consumer:
@@ -263,10 +276,10 @@ jobs:
         run: ctest --test-dir build-cli --output-on-failure
 
   sanitizers:
-    name: Core + JSON + adapter ASan + UBSan
+    name: Core + JSON + Anum adapter ASan + UBSan
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 9
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

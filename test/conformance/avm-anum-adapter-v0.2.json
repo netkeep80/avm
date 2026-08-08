@@ -1,0 +1,36 @@
+{
+  "schema": "avm-anum-adapter/v0.2",
+  "status": "accepted-candidate",
+  "upstream": {
+    "repository": "netkeep80/anum_docs",
+    "commit": "62901cfc",
+    "inputContract": "anum-denotation/v0.2",
+    "recursiveConformance": "anum-recursive-denotation-conformance/v0.2"
+  },
+  "inputKinds": ["structural", "raw", "quoted-raw"],
+  "structuralMapping": {
+    "anchor": "caller resolver: opaque key -> LinkId",
+    "node": "same description-local topological id -> ProjectionNodeId",
+    "root": "same structural ref -> ProjectionDescription.root",
+    "sharing": "preserve repeated node refs exactly"
+  },
+  "nonStructuralMapping": {
+    "raw": null,
+    "quoted-raw": null
+  },
+  "effects": {
+    "bridgeReadsLinkStore": false,
+    "bridgeMutatesLinkStore": false,
+    "findProjectionMaterializes": false,
+    "realizeProjectionIsExplicit": true
+  },
+  "forbiddenResponsibilities": [
+    "raw Anum parsing",
+    "ProjectionContext selection",
+    "root boundary semantics",
+    "root-opening collapse",
+    "recursive Anum decoding",
+    "canonical Anum serialization"
+  ],
+  "legacyProtocolOnlyBridgeAllowed": false
+}

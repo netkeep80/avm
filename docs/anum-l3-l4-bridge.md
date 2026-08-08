@@ -1,101 +1,122 @@
-# Anum L3 -> AVM L4 bridge
+# Anum L3 → AVM L4 structural denotation bridge
 
-## Scope
+## Status
 
-This adapter is the integration boundary between the canonical Anum/MTS L3 protocol and AVM L4 storage/projection. It deliberately does **not** implement Anum syntax, validation, context selection or protocol projection.
+AVM consumes the canonical storage-neutral `AnumDenotation` v0.2 handoff produced by `netkeep80/anum_docs`.
 
-The canonical L3 pipeline lives in `netkeep80/anum_docs`:
+The production adapter is:
 
 ```text
-raw [ ] 1 0 carrier
-  -> parse_raw_quaternary
-  -> validate_anum(explicit context)
-  -> project_anum(explicit context)
-  -> typed L3 projection result
+adapters/anum_denotation_bridge.h
 ```
 
-AVM begins only after that typed result exists:
+The old protocol-value-only `AnumL3Projection` bridge is removed. There is one L3→L4 adapter path.
+
+## Responsibility split
+
+Upstream L3 owns:
 
 ```text
-typed L3 projection result
-  -> Anum projection bridge
-  -> optional ProjectionDescription
-  -> find_projection | realize_projection
-  -> LinkStore
+raw [ ] 1 0 parsing
+context validation
+root / quote / relative projection
+root-opening collapse
+recursive structural denotation
+canonical inverse serialization
 ```
 
-This keeps grammar/context semantics out of the VM and preserves the AVM rule that `find` is observational while `realize` is the explicit materializing operation.
+AVM owns none of those rules.
 
-## Canonical L3 result categories
-
-The current Anum protocol v0.1 distinguishes four projection kinds:
+AVM receives only a typed result:
 
 ```text
-protocol-value
-boundary-form
-quoted-raw
+structural
 raw
-```
-
-The bridge mirrors these categories only as a typed handoff contract. It does not derive them from `[`, `]`, `1` or `0` and does not inspect a raw carrier.
-
-## Defined L4 mapping
-
-Only the currently defined protocol values have an AVM L4 mapping:
-
-```text
-protocol-value 0 -> caller supplied zero LinkId anchor
-protocol-value 1 -> caller supplied one LinkId anchor
-```
-
-The caller resolves those identities in the target logical `LinkStore`. The adapter does not create point identities and does not guess that an AVM Boolean vocabulary identity is the same thing as an Anum protocol value.
-
-The result is an anchor-only `ProjectionDescription`. Therefore:
-
-- bridge construction does not mutate the store;
-- `find_projection` succeeds only when the selected anchor is already present;
-- `find_projection` never creates the anchor;
-- `realize_projection` validates that the anchor exists but creates no new projection nodes for this mapping.
-
-## Unresolved L3 results
-
-These current L3 result kinds have no general L4 denotation in the canonical v0.1 protocol:
-
-```text
-boundary-form
 quoted-raw
-raw
 ```
 
-The bridge returns no `ProjectionDescription` for them. It does not replace an unresolved denotation with a synthetic link.
-
-In particular, the canonical protocol currently treats `[[` and `]]` as boundary forms without a protocol value, preserves relative-context carriers as raw, and returns typed raw results when no general root denotation is assigned.
-
-## Experimental root projection
-
-The current canonical L3 implementation contains the experimental root-context candidates:
+For `structural`, the handoff contains:
 
 ```text
-[] -> protocol value 0
-][ -> protocol value 1
+sorted opaque anchor keys
+topologically ordered description-local nodes
+start/end refs to anchors or earlier nodes
+one root ref
 ```
 
-The AVM adapter does not encode those character patterns. It accepts only the already projected typed result. Consequently a future change in the L3 grammar or context rules does not require a second parser inside AVM.
+## Mapping to ProjectionDescription
 
-The bridge also makes no claim that the experimental protocol projection is a normative L1 identity or formula.
+The caller supplies an anchor resolver:
 
-## Validation
+```text
+opaque upstream anchor key -> LinkId
+```
 
-Malformed handoff data is rejected before it reaches `find_projection` or `realize_projection`:
+The bridge then performs a purely structural translation:
 
-- a `protocol-value` result without a value is invalid;
-- a non-protocol result carrying a protocol value is invalid;
-- zero/one anchors must be valid and distinct `LinkId` values.
+```text
+Anum anchor ref -> ProjectionRef::anchor(resolved LinkId)
+Anum node ref   -> ProjectionRef::node(same local id)
+Anum node       -> ProjectionNode(start,end)
+Anum root       -> ProjectionDescription.root
+```
 
-Whether an otherwise valid anchor actually exists in a particular store remains the responsibility of the existing AVM projection operations.
+Node order and repeated node references are preserved exactly. The adapter does not intern or deduplicate structure.
 
-## General anum deserialization is intentionally not implemented
+`raw` and `quoted-raw` return no `ProjectionDescription`.
 
-AVM issue #79 records the remaining theory dependency. A recursive transformation of arbitrary raw `[ ] 1 0` carriers into link structures cannot be implemented correctly until the canonical MTS/Anum specification defines that denotation, including any boundary/relative rules and inverse serialization requirements.
+## Effects
 
-Until then, preserving a typed unresolved result is part of correctness. Inventing a link structure would create an undocumented semantic path and violate the L3/L4 boundary.
+The bridge has no `LinkStore` parameter and therefore cannot read or mutate AVM memory.
+
+L4 effects remain explicit:
+
+```text
+bridge_anum_denotation(...)  # structural translation only
+find_projection(...)         # observational / non-materializing
+realize_projection(...)      # explicit materialization
+```
+
+If a resolver returns a syntactically valid LinkId that is not present in a particular store, the bridge still remains pure. `find_projection` returns no result without mutation, and `realize_projection` rejects the missing physical anchor before creating ordinary projection nodes.
+
+## Validation boundary
+
+AVM validates the transport contract, not Anum grammar:
+
+- anchor keys are sorted, unique and non-empty;
+- node IDs are contiguous and topological;
+- anchor refs name declared anchors;
+- node refs target only earlier nodes;
+- structural/non-structural payload shapes do not mix;
+- every structural anchor resolves to a non-invalid LinkId.
+
+AVM intentionally does **not** validate:
+
+```text
+whether a raw carrier is valid Anum
+whether brackets encode a specific nested link
+whether root-opening collapse was applied correctly
+which ProjectionContext should be used
+```
+
+Those are canonical L3 responsibilities.
+
+## Cross-language conformance
+
+Adapter tests vendor versioned snapshots from `netkeep80/anum_docs` v0.2 under:
+
+```text
+test/conformance/anum-denotation-conformance-v0.2.json
+test/conformance/anum-recursive-denotation-conformance-v0.2.json
+test/conformance/anum-v0.2-provenance.json
+```
+
+JSON parsing is test-only. `adapters/anum_denotation_bridge.h` remains JSON-free and parser-free.
+
+The tests consume generic anchor-only/nested/shared-substructure vectors and actual recursive L3 expected denotations, then exercise the existing AVM projection lifecycle.
+
+## Identity
+
+Upstream node IDs are description-local positions, not persistent identities. The bridge maps them 1:1 to `ProjectionNodeId` only for one projection description.
+
+Physical identity remains a `LinkStore` concern. Equal pairs may converge during explicit realization; L3 and the bridge do not pre-intern occurrence structure.
