@@ -209,6 +209,32 @@ void test_partially_missing_structural_vocabulary_rejected_without_mutation()
 	assert(store.size() == before);
 }
 
+void test_invalid_legacy_vocabulary_rejected_before_upgrade()
+{
+	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime runtime(store);
+	avm::BootstrapVocabulary invalid = runtime.vocabulary();
+	invalid.begin_relation = avm::invalid_link_id;
+	invalid.end_relation = avm::invalid_link_id;
+	invalid.same_relation = avm::invalid_link_id;
+	invalid.link_exists_relation = avm::invalid_link_id;
+	invalid.frame_relation = invalid.binding_relation;
+
+	const std::size_t before = store.size();
+	bool rejected = false;
+	try
+	{
+		avm::BootstrapRuntime restored(store, invalid);
+		static_cast<void>(restored);
+	}
+	catch (const std::invalid_argument &)
+	{
+		rejected = true;
+	}
+	assert(rejected);
+	assert(store.size() == before);
+}
+
 void test_invalid_restored_vocabulary_rejected()
 {
 	avm::InMemoryLinkStore store;
@@ -237,6 +263,7 @@ int main()
 	test_persistent_reopen_vertical_slice();
 	test_legacy_11_vocabulary_upgrades_once();
 	test_partially_missing_structural_vocabulary_rejected_without_mutation();
+	test_invalid_legacy_vocabulary_rejected_before_upgrade();
 	test_invalid_restored_vocabulary_rejected();
 	return 0;
 }
