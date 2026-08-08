@@ -166,6 +166,15 @@ if(AVM_BUILD_CORE_TESTS)
         add_test(NAME ${test_name} COMMAND ${target})
     endfunction()
 
+    function(avm_add_tool_test target source test_name)
+        add_executable(${target} "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
+        target_link_libraries(${target} PRIVATE avm_core)
+        target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+        avm_apply_quality(${target})
+        avm_enable_test_assertions(${target})
+        add_test(NAME ${test_name} COMMAND ${target})
+    endfunction()
+
     avm_add_core_test(avm_assertions_enabled_test test/assertions_enabled_test.cpp assertions_enabled_tests)
     avm_add_core_test(avm_link_store_test test/link_store_test.cpp link_store_tests)
     avm_add_core_test(avm_relations_model_test test/relations_model_test.cpp relations_model_tests)
@@ -191,13 +200,14 @@ if(AVM_BUILD_CORE_TESTS)
         test/protocol_adapter_boundary_test.cpp
         protocol_adapter_boundary_tests)
     avm_add_core_test(avm_persistent_link_store_test test/persistent_link_store_test.cpp persistent_link_store_tests)
-
-    add_executable(avm_inspection_session_test "${CMAKE_CURRENT_SOURCE_DIR}/test/inspection_session_test.cpp")
-    target_link_libraries(avm_inspection_session_test PRIVATE avm_core)
-    target_include_directories(avm_inspection_session_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
-    avm_apply_quality(avm_inspection_session_test)
-    avm_enable_test_assertions(avm_inspection_session_test)
-    add_test(NAME inspection_session_tests COMMAND avm_inspection_session_test)
+    avm_add_tool_test(
+        avm_inspection_session_test
+        test/inspection_session_test.cpp
+        inspection_session_tests)
+    avm_add_tool_test(
+        avm_inspection_commands_test
+        test/inspection_commands_test.cpp
+        inspection_commands_tests)
 
     add_executable(avm_vertical_slice_test "${CMAKE_CURRENT_SOURCE_DIR}/test/vertical_slice_test.cpp")
     avm_add_json_includes(avm_vertical_slice_test)
@@ -232,6 +242,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_protocol_adapter_boundary_test
         avm_persistent_link_store_test
         avm_inspection_session_test
+        avm_inspection_commands_test
         avm_vertical_slice_test
         avm_json_value_codec_test)
 endif()
