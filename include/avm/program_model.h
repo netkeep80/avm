@@ -34,6 +34,7 @@ struct BootstrapVocabulary
 	LinkId end_relation = invalid_link_id;
 	LinkId same_relation = invalid_link_id;
 	LinkId link_exists_relation = invalid_link_id;
+	LinkId intern_relation = invalid_link_id;
 
 	static BootstrapVocabulary create(LinkStore &store)
 	{
@@ -42,7 +43,7 @@ struct BootstrapVocabulary
 		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
 		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
 		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
-		    store.create_point(), store.create_point(), store.create_point(),
+		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
 		};
 	}
 };
@@ -230,6 +231,8 @@ public:
 	LinkId identity_equal(LinkId left, LinkId right) { return binary(vocabulary_.same_relation, left, right); }
 
 	LinkId link_exists(LinkId begin, LinkId end) { return binary(vocabulary_.link_exists_relation, begin, end); }
+
+	LinkId pair_intern(LinkId begin, LinkId end) { return binary(vocabulary_.intern_relation, begin, end); }
 
 	LinkId conditional(LinkId condition, LinkId then_branch, LinkId else_branch)
 	{
