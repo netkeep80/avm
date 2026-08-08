@@ -26,8 +26,7 @@ inline std::string array_path(const std::string &path, std::size_t index)
 	return path + "[" + std::to_string(index) + "]";
 }
 
-template <typename Json>
-Json triplet_to_duplet(const Json &value, const std::string &path)
+template <typename Json> Json triplet_to_duplet(const Json &value, const std::string &path)
 {
 	if (value.is_array())
 	{
@@ -43,15 +42,16 @@ Json triplet_to_duplet(const Json &value, const std::string &path)
 	const bool has_relation = value.contains("$rel");
 	const bool has_subject = value.contains("$sub");
 	const bool has_object = value.contains("$obj");
-	const unsigned relation_members = static_cast<unsigned>(has_relation) + static_cast<unsigned>(has_subject) +
-	                                  static_cast<unsigned>(has_object);
+	const unsigned relation_members =
+	    static_cast<unsigned>(has_relation) + static_cast<unsigned>(has_subject) + static_cast<unsigned>(has_object);
 
 	if (relation_members != 0)
 	{
 		if (relation_members != 3)
 			throw ConversionError(path + ": incomplete legacy relation form: expected $rel, $sub and $obj");
 		if (value.size() != 3)
-			throw ConversionError(path + ": mixed legacy relation form: foreign members are not losslessly convertible");
+			throw ConversionError(
+			    path + ": mixed legacy relation form: foreign members are not losslessly convertible");
 
 		Json arguments = Json::object();
 		arguments["<<"] = triplet_to_duplet(value.at("$sub"), object_path(path, "$sub"));
@@ -69,8 +69,7 @@ Json triplet_to_duplet(const Json &value, const std::string &path)
 	return result;
 }
 
-template <typename Json>
-Json duplet_to_triplet(const Json &value, const std::string &path)
+template <typename Json> Json duplet_to_triplet(const Json &value, const std::string &path)
 {
 	if (value.is_array())
 	{
@@ -117,14 +116,12 @@ Json duplet_to_triplet(const Json &value, const std::string &path)
 
 } // namespace detail
 
-template <typename Json>
-Json convert_explicit_triplets_to_duplets(const Json &value)
+template <typename Json> Json convert_explicit_triplets_to_duplets(const Json &value)
 {
 	return detail::triplet_to_duplet(value, "$");
 }
 
-template <typename Json>
-Json convert_relation_duplets_to_explicit_triplets(const Json &value)
+template <typename Json> Json convert_relation_duplets_to_explicit_triplets(const Json &value)
 {
 	return detail::duplet_to_triplet(value, "$");
 }
