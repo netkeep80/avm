@@ -1,0 +1,5 @@
+{
+  "$rel/result": {
+    "$ref": "__avm_missing_reference_oracle__"
+  }
+}

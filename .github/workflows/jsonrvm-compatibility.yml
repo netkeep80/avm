@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'compat/jsonrvm-semantics.json'
+      - 'compat/jsonrvm-semantics-details.json'
       - 'compat/jsonrvm-golden.json'
       - 'docs/jsonrvm-compatibility.md'
       - 'tools/validate_jsonrvm_compatibility.py'
@@ -13,6 +14,7 @@ on:
     branches: [main]
     paths:
       - 'compat/jsonrvm-semantics.json'
+      - 'compat/jsonrvm-semantics-details.json'
       - 'compat/jsonrvm-golden.json'
       - 'docs/jsonrvm-compatibility.md'
       - 'tools/validate_jsonrvm_compatibility.py'
@@ -26,5 +28,5 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Validate manifest and frozen assertions
+      - name: Validate manifest, operational metadata and frozen assertions
         run: python3 tools/validate_jsonrvm_compatibility.py

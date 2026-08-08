@@ -1,0 +1,45 @@
+name: jsonRVM oracle golden verify
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'compat/jsonrvm-oracle-golden.json'
+      - '.github/workflows/jsonrvm-oracle-golden-verify.yml'
+  workflow_dispatch:
+
+jobs:
+  oracle-golden:
+    name: Перепроверить live oracle golden
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Получить AVM
+        uses: actions/checkout@v4
+      - name: Получить pinned jsonRVM
+        uses: actions/checkout@v4
+        with:
+          repository: netkeep80/jsonRVM
+          ref: 843b3326141e090ccd1a106ba0a4a21ce72805b7
+          path: legacy-jsonrvm
+      - name: Проверить provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C legacy-jsonrvm rev-parse HEAD)" = "843b3326141e090ccd1a106ba0a4a21ce72805b7"
+      - name: Собрать минимальный legacy rmvm
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S legacy-jsonrvm -B legacy-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_VOCABULARY=OFF \
+            -DENABLE_RVM_TEST=OFF
+          cmake --build legacy-build --target rmvm --parallel 2
+      - name: Сопоставить runtime с frozen oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          exe=$(find legacy-build -type f -name rmvm -perm -111 -print -quit)
+          test -n "$exe"
+          python3 tools/run_jsonrvm_legacy_oracle.py --executable "$exe"

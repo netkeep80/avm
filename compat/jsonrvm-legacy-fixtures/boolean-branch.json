@@ -1,0 +1,10 @@
+{
+  "$rel/result": [
+    true,
+    {
+      "$obj": 42,
+      "$rel": "if_rel_then_obj_else_sub",
+      "$sub": 13
+    }
+  ]
+}
