@@ -1,10 +1,13 @@
 #include "avm/bootstrap_runtime.h"
+#include "avm/persistent_link_store.h"
 #include "avm/relations_model.h"
 
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -18,6 +21,16 @@ struct Measurement
 	std::string_view name;
 	std::size_t operations;
 	std::uint64_t elapsed_ns;
+};
+
+struct FileCleanup
+{
+	std::filesystem::path path;
+	~FileCleanup()
+	{
+		std::error_code error;
+		std::filesystem::remove(path, error);
+	}
 };
 
 template <class Function>
@@ -45,12 +58,20 @@ void print(const Measurement &measurement)
 	          << ns_per_op << '\n';
 }
 
+std::filesystem::path temporary_store_path()
+{
+	const auto nonce = Clock::now().time_since_epoch().count();
+	return std::filesystem::temp_directory_path() / ("avm-benchmark-" + std::to_string(nonce) + ".bin");
+}
+
 } // namespace
 
 int main()
 {
 	constexpr std::size_t sample_size = 20000;
 	constexpr std::size_t query_iterations = 100000;
+
+	std::cout << "name\toperations\telapsed_ns\tns_per_op\n";
 
 	avm::InMemoryLinkStore store;
 	std::vector<avm::LinkId> points;
@@ -112,6 +133,25 @@ int main()
 	const avm::LinkId expression = builder.logical_not(builder.literal(runtime.vocabulary().false_value));
 	print(measure("execute_minimal_relation", query_iterations,
 	              [&](std::size_t) { sink ^= static_cast<std::size_t>(runtime.execute(expression)); }));
+
+	const std::filesystem::path persistent_path = temporary_store_path();
+	FileCleanup cleanup{persistent_path};
+	{
+		avm::PersistentLinkStore persistent(persistent_path);
+		std::vector<avm::LinkId> persistent_points;
+		persistent_points.reserve(sample_size + 1);
+		for (std::size_t i = 0; i < sample_size + 1; ++i)
+			persistent_points.push_back(persistent.create_point());
+		for (std::size_t i = 0; i < sample_size; ++i)
+			static_cast<void>(persistent.intern(persistent_points[i], persistent_points[i + 1]));
+	}
+
+	print(measure("persistent_reopen_index_rebuild", 1,
+	              [&](std::size_t)
+	              {
+		              avm::PersistentLinkStore reopened(persistent_path);
+		              sink ^= reopened.size();
+	              }));
 
 	std::cout << "# sink\t" << sink << '\n';
 	return 0;
