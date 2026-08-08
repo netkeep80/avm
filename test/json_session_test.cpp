@@ -1,6 +1,12 @@
 #include "avm/json_compat.h"
 
 #include <cassert>
+#include <type_traits>
+
+static_assert(!std::is_copy_constructible_v<avm::JsonCompatibilitySession>);
+static_assert(!std::is_copy_assignable_v<avm::JsonCompatibilitySession>);
+static_assert(!std::is_move_constructible_v<avm::JsonCompatibilitySession>);
+static_assert(!std::is_move_assignable_v<avm::JsonCompatibilitySession>);
 
 namespace
 {
