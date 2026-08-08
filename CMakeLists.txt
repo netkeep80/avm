@@ -153,6 +153,10 @@ if(AVM_BUILD_CORE_TESTS)
     avm_add_core_test(avm_executor_test test/executor_test.cpp executor_tests)
     avm_add_core_test(avm_execution_observer_test test/execution_observer_test.cpp execution_observer_tests)
     avm_add_core_test(avm_execution_trace_test test/execution_trace_test.cpp execution_trace_tests)
+    avm_add_core_test(
+        avm_execution_trace_persistence_test
+        test/execution_trace_persistence_test.cpp
+        execution_trace_persistence_tests)
     avm_add_core_test(avm_program_model_test test/program_model_test.cpp program_model_tests)
     avm_add_core_test(avm_boolean_runtime_test test/boolean_runtime_test.cpp boolean_runtime_tests)
     avm_add_core_test(avm_structural_runtime_test test/structural_runtime_test.cpp structural_runtime_tests)
@@ -188,6 +192,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_executor_test
         avm_execution_observer_test
         avm_execution_trace_test
+        avm_execution_trace_persistence_test
         avm_program_model_test
         avm_boolean_runtime_test
         avm_structural_runtime_test

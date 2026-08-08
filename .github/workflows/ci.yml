@@ -187,6 +187,7 @@ jobs:
             test/executor_test.cpp \
             test/execution_observer_test.cpp \
             test/execution_trace_test.cpp \
+            test/execution_trace_persistence_test.cpp \
             test/program_model_test.cpp \
             test/boolean_runtime_test.cpp \
             test/structural_runtime_test.cpp \

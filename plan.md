@@ -234,13 +234,11 @@ Properties:
 - repeated failure against unchanged state produces identical events;
 - observation does not materialize links.
 
-### Gate 16 — bounded reusable execution trace collector (current)
+### Gate 16 — bounded reusable execution trace collector ✅
 
-Child: #100.
+Implemented through #100/#101.
 
-Provide a host-memory tooling collector over the stable observer contract without moving trace storage into semantic state.
-
-Initial contract:
+Public tooling contract:
 
 ```text
 BoundedExecutionTrace(max_events)
@@ -249,7 +247,7 @@ BoundedExecutionTrace(max_events)
   -> truncated when configured capacity is exceeded
 ```
 
-Requirements:
+Properties:
 
 - capacity/storage reservation is established before normal attachment/execution;
 - capacity exhaustion never fabricates events and is reported explicitly by `truncated()`;
@@ -259,15 +257,40 @@ Requirements:
 - collector owns no `Executor`, `LinkStore`, backend, parser/protocol or persistence target;
 - collector attachment does not change program results or LinkStore effects;
 - failure phases from Gate 15 pass through unchanged;
-- installed public package can use the collector on Linux/Windows/macOS;
-- strict warnings, ASan+UBSan and portable matrix stay green.
+- installed public package uses the collector on Linux/Windows/macOS;
+- strict warnings, ASan+UBSan and portable matrix are green.
 
-### Later AVM 1.3 gates
+### Gate 17 — persistent reopen and backend-neutral trace equivalence (current)
 
-After Gate 16 is stable:
+Child: #102.
 
-1. InMemory/Persistent reopen trace equivalence;
-2. debugger/REPL consumer built on observation rather than a traced executor fork.
+Two identity claims are intentionally distinct:
+
+```text
+same PersistentLinkStore after reopen
+  -> exact ExecutionEvent equality, including numeric LinkIds
+
+independent InMemory/Persistent stores
+  -> equivalence modulo bijective renaming of opaque LinkIds
+```
+
+Requirements:
+
+- converge link-native function binding/frame state before baseline capture;
+- persistent close/reopen preserves exact success/failure traces and store size;
+- repeated reopen remains exact and idempotent;
+- backend-neutral comparison preserves equality/aliasing relationships across every LinkId-bearing field;
+- normalization uses deterministic first-occurrence ordinals only as test/conformance tooling;
+- raw LinkId numbers are never treated as globally comparable across independent stores;
+- failure phases and event kinds remain exact under normalized comparison;
+- truncated traces are rejected from completeness/equivalence claims;
+- no new LinkStore API/index, persistence format, event field or semantic registry.
+
+### Gate 18 — debugger/REPL consumer
+
+After Gate 17 is stable, build an actual tooling consumer on the public observer/collector boundary without forking `Executor` or introducing a second program representation.
+
+The first consumer should prove that trace inspection, failure presentation and basic execution tooling can be implemented entirely outside semantic state. Breakpoint/control semantics remain a separate design question and are not implied merely by observability.
 
 ## Later AVM 1.x directions
 
