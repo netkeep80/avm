@@ -3,6 +3,7 @@
 #include "avm/executor.h"
 #include "avm/program_model.h"
 
+#include <initializer_list>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -76,6 +77,7 @@ public:
 	{
 		if (max_call_depth_ == 0)
 			throw std::invalid_argument("maximum call depth must be greater than zero");
+		upgrade_structural_vocabulary_if_needed();
 		validate_vocabulary();
 		materialize_truth_tables();
 		register_handlers();
@@ -92,9 +94,33 @@ public:
 	LinkId execute(LinkId root) { return executor_.execute(root); }
 
 private:
-	void validate_vocabulary() const
+	void validate_vocabulary_ids(std::initializer_list<LinkId> ids) const
 	{
-		const std::vector<LinkId> ids{
+		std::set<LinkId> unique;
+		for (const LinkId id : ids)
+		{
+			if (!store_.contains(id))
+				throw std::invalid_argument("bootstrap vocabulary contains an unknown LinkId");
+			if (!unique.insert(id).second)
+				throw std::invalid_argument("bootstrap vocabulary identities must be distinct");
+		}
+	}
+
+	void upgrade_structural_vocabulary_if_needed()
+	{
+		const bool begin_missing = vocabulary_.begin_relation == invalid_link_id;
+		const bool end_missing = vocabulary_.end_relation == invalid_link_id;
+		const bool same_missing = vocabulary_.same_relation == invalid_link_id;
+		const bool exists_missing = vocabulary_.link_exists_relation == invalid_link_id;
+		const unsigned missing = static_cast<unsigned>(begin_missing) + static_cast<unsigned>(end_missing) +
+		                         static_cast<unsigned>(same_missing) + static_cast<unsigned>(exists_missing);
+
+		if (missing == 0)
+			return;
+		if (missing != 4)
+			throw std::invalid_argument("bootstrap structural vocabulary must be fully present or fully absent");
+
+		validate_vocabulary_ids({
 		    vocabulary_.unit,
 		    vocabulary_.nil,
 		    vocabulary_.true_value,
@@ -110,16 +136,37 @@ private:
 		    vocabulary_.call_relation,
 		    vocabulary_.binding_relation,
 		    vocabulary_.frame_relation,
-		};
+		});
 
-		std::set<LinkId> unique;
-		for (const LinkId id : ids)
-		{
-			if (!store_.contains(id))
-				throw std::invalid_argument("bootstrap vocabulary contains an unknown LinkId");
-			if (!unique.insert(id).second)
-				throw std::invalid_argument("bootstrap vocabulary identities must be distinct");
-		}
+		vocabulary_.begin_relation = store_.create_point();
+		vocabulary_.end_relation = store_.create_point();
+		vocabulary_.same_relation = store_.create_point();
+		vocabulary_.link_exists_relation = store_.create_point();
+	}
+
+	void validate_vocabulary() const
+	{
+		validate_vocabulary_ids({
+		    vocabulary_.unit,
+		    vocabulary_.nil,
+		    vocabulary_.true_value,
+		    vocabulary_.false_value,
+		    vocabulary_.quote_relation,
+		    vocabulary_.parameter_relation,
+		    vocabulary_.sequence_relation,
+		    vocabulary_.not_relation,
+		    vocabulary_.and_relation,
+		    vocabulary_.or_relation,
+		    vocabulary_.if_relation,
+		    vocabulary_.function_relation,
+		    vocabulary_.call_relation,
+		    vocabulary_.binding_relation,
+		    vocabulary_.frame_relation,
+		    vocabulary_.begin_relation,
+		    vocabulary_.end_relation,
+		    vocabulary_.same_relation,
+		    vocabulary_.link_exists_relation,
+		});
 	}
 
 	static void require_expression_subject(const ExecutionContext &context, LinkId unit)
@@ -265,6 +312,44 @@ private:
 			                          for (const LinkId expression : expressions)
 				                          result = executor.execute(expression, context.entity, context.frame);
 			                          return result;
+		                          });
+
+		executor_.register_native(vocabulary_.begin_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 1);
+			                          const LinkId value =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          return store_.get(value).begin;
+		                          });
+
+		executor_.register_native(vocabulary_.end_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 1);
+			                          const LinkId value =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          return store_.get(value).end;
+		                          });
+
+		executor_.register_native(vocabulary_.same_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 2);
+			                          const LinkId left = executor.execute(arguments[0], context.entity, context.frame);
+			                          const LinkId right =
+			                              executor.execute(arguments[1], context.entity, context.frame);
+			                          return left == right ? vocabulary_.true_value : vocabulary_.false_value;
+		                          });
+
+		executor_.register_native(vocabulary_.link_exists_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 2);
+			                          const LinkId begin =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          const LinkId end = executor.execute(arguments[1], context.entity, context.frame);
+			                          return store_.find(begin, end) ? vocabulary_.true_value : vocabulary_.false_value;
 		                          });
 
 		executor_.register_native(

@@ -3,9 +3,9 @@
 int main()
 {
 	static_assert(avm::version_major == 1);
-	static_assert(avm::version_minor == 1);
+	static_assert(avm::version_minor == 2);
 	static_assert(avm::version_patch == 0);
-	static_assert(avm::version_string == "1.1.0");
+	static_assert(avm::version_string == "1.2.0");
 
 	avm::InMemoryLinkStore store;
 	avm::BootstrapRuntime runtime(store);
@@ -26,6 +26,14 @@ int main()
 	if (matches.size() != 1 || matches.front().entity_id != entity ||
 	    matches.front().entity != avm::RelationEntity{relation, subject, object})
 		return 2;
+
+	const avm::LinkId begin = store.create_point();
+	const avm::LinkId end = store.create_point();
+	const avm::LinkId pair = store.intern(begin, end);
+	const avm::LinkId begin_expression = builder.link_begin(builder.literal(pair));
+	const std::size_t size_before = store.size();
+	if (runtime.execute(begin_expression) != begin || store.size() != size_before)
+		return 3;
 
 	return 0;
 }

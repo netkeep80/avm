@@ -30,10 +30,15 @@ struct BootstrapVocabulary
 	LinkId call_relation;
 	LinkId binding_relation;
 	LinkId frame_relation;
+	LinkId begin_relation = invalid_link_id;
+	LinkId end_relation = invalid_link_id;
+	LinkId same_relation = invalid_link_id;
+	LinkId link_exists_relation = invalid_link_id;
 
 	static BootstrapVocabulary create(LinkStore &store)
 	{
 		return BootstrapVocabulary{
+		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
 		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
 		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
 		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
@@ -218,6 +223,14 @@ public:
 
 	LinkId logical_or(LinkId left, LinkId right) { return binary(vocabulary_.or_relation, left, right); }
 
+	LinkId link_begin(LinkId argument) { return unary(vocabulary_.begin_relation, argument, "begin argument"); }
+
+	LinkId link_end(LinkId argument) { return unary(vocabulary_.end_relation, argument, "end argument"); }
+
+	LinkId identity_equal(LinkId left, LinkId right) { return binary(vocabulary_.same_relation, left, right); }
+
+	LinkId link_exists(LinkId begin, LinkId end) { return binary(vocabulary_.link_exists_relation, begin, end); }
+
 	LinkId conditional(LinkId condition, LinkId then_branch, LinkId else_branch)
 	{
 		require(condition, "If condition");
@@ -266,6 +279,12 @@ private:
 		require(relation, "expression relation");
 		require(object, "expression object");
 		return encode_relation_entity(store_, RelationEntity{relation, vocabulary_.unit, object});
+	}
+
+	LinkId unary(LinkId relation, LinkId argument, const char *what)
+	{
+		require(argument, what);
+		return expression(relation, encode_link_list(store_, vocabulary_.nil, {argument}));
 	}
 
 	LinkId binary(LinkId relation, LinkId left, LinkId right)

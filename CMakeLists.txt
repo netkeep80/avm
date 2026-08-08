@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 message("Configuring: ${CMAKE_CURRENT_SOURCE_DIR}")
 
-set(CMAKE_PROJECT_VERSION 1.1.0)
+set(CMAKE_PROJECT_VERSION 1.2.0)
 
 project(avm
     VERSION ${CMAKE_PROJECT_VERSION}
@@ -151,6 +151,7 @@ if(AVM_BUILD_CORE_TESTS)
     avm_add_core_test(avm_executor_test test/executor_test.cpp executor_tests)
     avm_add_core_test(avm_program_model_test test/program_model_test.cpp program_model_tests)
     avm_add_core_test(avm_boolean_runtime_test test/boolean_runtime_test.cpp boolean_runtime_tests)
+    avm_add_core_test(avm_structural_runtime_test test/structural_runtime_test.cpp structural_runtime_tests)
     avm_add_core_test(avm_function_runtime_test test/function_runtime_test.cpp function_runtime_tests)
     avm_add_core_test(avm_frame_runtime_test test/frame_runtime_test.cpp frame_runtime_tests)
     avm_add_core_test(avm_deferred_definition_test test/deferred_definition_test.cpp deferred_definition_tests)
@@ -182,6 +183,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_executor_test
         avm_program_model_test
         avm_boolean_runtime_test
+        avm_structural_runtime_test
         avm_function_runtime_test
         avm_frame_runtime_test
         avm_deferred_definition_test

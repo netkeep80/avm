@@ -128,6 +128,113 @@ void test_persistent_reopen_vertical_slice()
 	}
 }
 
+void test_legacy_11_vocabulary_upgrades_once()
+{
+	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime current(store);
+	const avm::BootstrapVocabulary current_vocabulary = current.vocabulary();
+
+	avm::BootstrapVocabulary legacy{
+	    current_vocabulary.unit,
+	    current_vocabulary.nil,
+	    current_vocabulary.true_value,
+	    current_vocabulary.false_value,
+	    current_vocabulary.quote_relation,
+	    current_vocabulary.parameter_relation,
+	    current_vocabulary.sequence_relation,
+	    current_vocabulary.not_relation,
+	    current_vocabulary.and_relation,
+	    current_vocabulary.or_relation,
+	    current_vocabulary.if_relation,
+	    current_vocabulary.function_relation,
+	    current_vocabulary.call_relation,
+	    current_vocabulary.binding_relation,
+	    current_vocabulary.frame_relation,
+	};
+	assert(legacy.begin_relation == avm::invalid_link_id);
+	assert(legacy.end_relation == avm::invalid_link_id);
+	assert(legacy.same_relation == avm::invalid_link_id);
+	assert(legacy.link_exists_relation == avm::invalid_link_id);
+
+	const std::size_t before_upgrade = store.size();
+	avm::BootstrapRuntime upgraded(store, legacy);
+	assert(store.size() == before_upgrade + 4);
+
+	const avm::BootstrapVocabulary upgraded_vocabulary = upgraded.vocabulary();
+	assert(upgraded_vocabulary.unit == legacy.unit);
+	assert(upgraded_vocabulary.nil == legacy.nil);
+	assert(upgraded_vocabulary.true_value == legacy.true_value);
+	assert(upgraded_vocabulary.false_value == legacy.false_value);
+	assert(upgraded_vocabulary.quote_relation == legacy.quote_relation);
+	assert(upgraded_vocabulary.parameter_relation == legacy.parameter_relation);
+	assert(upgraded_vocabulary.sequence_relation == legacy.sequence_relation);
+	assert(upgraded_vocabulary.not_relation == legacy.not_relation);
+	assert(upgraded_vocabulary.and_relation == legacy.and_relation);
+	assert(upgraded_vocabulary.or_relation == legacy.or_relation);
+	assert(upgraded_vocabulary.if_relation == legacy.if_relation);
+	assert(upgraded_vocabulary.function_relation == legacy.function_relation);
+	assert(upgraded_vocabulary.call_relation == legacy.call_relation);
+	assert(upgraded_vocabulary.binding_relation == legacy.binding_relation);
+	assert(upgraded_vocabulary.frame_relation == legacy.frame_relation);
+	assert(store.contains(upgraded_vocabulary.begin_relation));
+	assert(store.contains(upgraded_vocabulary.end_relation));
+	assert(store.contains(upgraded_vocabulary.same_relation));
+	assert(store.contains(upgraded_vocabulary.link_exists_relation));
+
+	const std::size_t after_upgrade = store.size();
+	avm::BootstrapRuntime restored(store, upgraded_vocabulary);
+	static_cast<void>(restored);
+	assert(store.size() == after_upgrade);
+}
+
+void test_partially_missing_structural_vocabulary_rejected_without_mutation()
+{
+	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime runtime(store);
+	avm::BootstrapVocabulary partial = runtime.vocabulary();
+	partial.begin_relation = avm::invalid_link_id;
+
+	const std::size_t before = store.size();
+	bool rejected = false;
+	try
+	{
+		avm::BootstrapRuntime restored(store, partial);
+		static_cast<void>(restored);
+	}
+	catch (const std::invalid_argument &)
+	{
+		rejected = true;
+	}
+	assert(rejected);
+	assert(store.size() == before);
+}
+
+void test_invalid_legacy_vocabulary_rejected_before_upgrade()
+{
+	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime runtime(store);
+	avm::BootstrapVocabulary invalid = runtime.vocabulary();
+	invalid.begin_relation = avm::invalid_link_id;
+	invalid.end_relation = avm::invalid_link_id;
+	invalid.same_relation = avm::invalid_link_id;
+	invalid.link_exists_relation = avm::invalid_link_id;
+	invalid.frame_relation = invalid.binding_relation;
+
+	const std::size_t before = store.size();
+	bool rejected = false;
+	try
+	{
+		avm::BootstrapRuntime restored(store, invalid);
+		static_cast<void>(restored);
+	}
+	catch (const std::invalid_argument &)
+	{
+		rejected = true;
+	}
+	assert(rejected);
+	assert(store.size() == before);
+}
+
 void test_invalid_restored_vocabulary_rejected()
 {
 	avm::InMemoryLinkStore store;
@@ -154,6 +261,9 @@ int main()
 {
 	test_in_memory_vertical_slice();
 	test_persistent_reopen_vertical_slice();
+	test_legacy_11_vocabulary_upgrades_once();
+	test_partially_missing_structural_vocabulary_rejected_without_mutation();
+	test_invalid_legacy_vocabulary_rejected_before_upgrade();
 	test_invalid_restored_vocabulary_rejected();
 	return 0;
 }
