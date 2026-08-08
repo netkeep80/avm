@@ -1,86 +1,81 @@
-# External protocol adapter contract
+# Контракт адаптера внешнего протокола
 
-AVM 1.0 deliberately does **not** define an Anum parser interface. The stable boundary is composition of two neutral AVM contracts:
+AVM намеренно **не** определяет интерфейс Anum parser. Стабильная граница — композиция нейтральных контрактов AVM:
 
 ```text
-optional raw source -> RawCarrier
+опциональный raw source -> RawCarrier
 external parse / validate / quote / project(context)
-                    -> ProjectionDescription
-                    -> find_projection | realize_projection
-                    -> LinkStore denotation
+                         -> ProjectionDescription
+                         -> find_projection | realize_projection
+                         -> денотация в LinkStore
 ```
 
-The protocol implementation stays outside the VM. It may be Anum/MTS, another binary format, JSON, a prebuilt AST or a generated structure. AVM receives only opaque raw bytes when the caller chooses to retain them and a completed structural projection when the caller wants to query or realize denotation.
+Реализация протокола остаётся вне VM. Это может быть Anum/МТС, JSON, бинарный формат, заранее построенный AST или сгенерированная структура. AVM получает только непрозрачные raw bytes, если caller хочет их сохранить, и завершённую structural projection, когда требуется найти или материализовать денотацию.
 
-## Responsibilities of the external adapter
+## Ответственность внешнего adapter
 
-An adapter owns all protocol/model meaning needed before the AVM boundary:
+Adapter владеет всей protocol/model semantics до границы AVM:
 
-- source grammar and tokenization;
+- grammar и tokenization источника;
 - validation;
-- quoting/unquoting or description-level semantics;
+- quotation/unquotation и description-level semantics;
 - projection context `K`;
-- external symbol/identity resolution into existing `Anchor(LinkId)` values;
-- construction of a topologically valid `ProjectionDescription`.
+- resolution внешних symbols/identities в существующие `Anchor(LinkId)`;
+- построение топологически корректного `ProjectionDescription`.
 
-The context is explicit adapter input. `LinkStore` does not guess context and `ProjectionDescription` does not perform name lookup.
+Контекст передаётся adapter явно. `LinkStore` его не угадывает, а `ProjectionDescription` не занимается name lookup.
 
-## Responsibilities of AVM
+## Ответственность AVM
 
-AVM owns only the L4-facing mechanics:
+AVM владеет только L4-facing механикой:
 
-- optional opaque raw retention through `RawCarrier`;
-- a typed structural description made from `Anchor` and projection-local `Node` references;
+- опциональным хранением opaque raw через `RawCarrier`;
+- typed structural description из `Anchor` и projection-local `Node`;
 - read-only `find_projection(const LinkStore&, ...)`;
-- explicit `realize_projection(LinkStore&, ...)`;
-- canonical dyad identity supplied by `LinkStore::intern`.
+- явным `realize_projection(LinkStore&, ...)`;
+- canonical dyad identity через `LinkStore::intern`.
 
-Neither raw loading nor projection query creates denotation.
+Ни загрузка raw, ни поиск projection не создают денотацию.
 
-## No mandatory adapter base class
+## Почему нет обязательного base class adapter
 
-There is intentionally no `AnumParser`, `ProtocolAdapter` virtual base class or template concept in AVM core. Such an abstraction would prescribe the source/AST/context types of external protocols without improving the memory contract.
+В core намеренно отсутствует `AnumParser`, виртуальный `ProtocolAdapter` или обязательный template concept. Такая абстракция навязала бы внешним протоколам source/AST/context types, не улучшая memory contract.
 
-Replaceability is structural: any component that can produce a valid `ProjectionDescription` over resolved anchors can use AVM. Tests exercise this with two unrelated toy adapters:
+Replaceability является структурной: любой компонент, способный построить валидный `ProjectionDescription` над разрешёнными anchors, может работать с AVM.
 
-1. one consumes opaque binary bytes loaded from `RawCarrier`;
-2. another consumes an already parsed toy AST;
-3. both project the same relation entity over the same context;
-4. after one realization, the other finds exactly the same canonical LinkIds.
+Conformance tests доказывают это двумя независимыми toy adapters: один получает opaque binary bytes через `RawCarrier`, другой — уже разобранный toy AST; оба строят одну structural denotation и после materialization находят те же canonical `LinkId`.
 
-That is the interoperability property AVM actually requires.
+## Контекст явно влияет на денотацию
 
-## Context changes denotation explicitly
+Одинаковое structural rule при разных resolved anchors/context может дать разную денотацию. Это ожидаемое поведение. Store не выбирает контекст и не создаёт missing anchors скрыто.
 
-If two adapters use the same structural rule but different resolved anchors/context, they may produce a different denotation. This is expected and tested. The store does not choose between contexts and does not silently create missing anchors.
+## Соответствие `anum_docs`
 
-## Mapping to `anum_docs`
-
-The intended integration point follows the layer split documented in `netkeep80/anum_docs` and the invariants of its apamemory roadmap issue #72:
+Интеграционная точка следует разделению, принятому в `netkeep80/anum_docs`:
 
 ```text
 Anum L3
   raw syntax / parser / protocol / quote / context projection
        |
        v
-AVM neutral boundary
-  RawCarrier (optional) + ProjectionDescription
+нейтральная граница AVM
+  RawCarrier (опционально) + ProjectionDescription
        |
        v
 AVM L4
   find_projection / realize_projection / LinkStore
 ```
 
-The key invariants align directly:
+Ключевые инварианты:
 
-- `raw(A)` may exist without `den(A)`;
-- loading raw does not realize denotation;
-- `find(A)` is observational and non-mutating;
-- `realize(A)` is the explicit materialization operation;
-- context and protocol semantics stay outside memory.
+- `raw(A)` может существовать без `den(A)`;
+- загрузка raw не реализует denotation;
+- `find(A)` наблюдающий и non-mutating;
+- `realize(A)` — явная materialization operation;
+- context и protocol semantics остаются вне memory layer.
 
-This contract does not claim to define canonical MTS quotation, Anum grammar or the final external-symbol identity policy. Those remain the responsibility of the canonical L3 implementation.
+Этот контракт не претендует на определение canonical quotation МТС, грамматики Anum или окончательной политики external-symbol identity. Это ответственность канонической L3 implementation.
 
-## Consequence for AVM issue #3
+## Следствие для старого issue #3
 
-The old request to add Anum serialization/deserialization directly to AVM should not reintroduce a parser inside the VM. A future production integration should implement an adapter against the canonical `anum_docs` L3 API and feed this boundary. Once that adapter exists, issue #3 can be closed as superseded or narrowed to that concrete integration package.
+Старый запрос на сериализацию/десериализацию Anum непосредственно внутри AVM не должен возвращать parser в VM. Будущая production integration должна реализовать adapter к canonical API `anum_docs` L3 и передавать результат через эту границу. После появления такого adapter issue #3 следует закрыть как superseded либо сузить до конкретного integration package.

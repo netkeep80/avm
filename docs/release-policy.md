@@ -1,68 +1,82 @@
-# AVM 1.x release policy
+# Политика релизов AVM 1.x
 
-## Version source contract
+## Источник версии
 
-AVM follows Semantic Versioning for the documented public library surface.
+AVM использует Semantic Versioning для документированного публичного library surface.
 
-The release version is recorded in two places that CI requires to match exactly:
+Release version записывается в двух местах, которые CI требует держать синхронными:
 
 - `CMakeLists.txt` — `CMAKE_PROJECT_VERSION`;
-- `include/avm/version.h` — `version_major`, `version_minor`, `version_patch` and `version_string`.
+- `include/avm/version.h` — `version_major`, `version_minor`, `version_patch`, `version_string`.
 
-For a tagged build, the Git tag must be exactly `v<project-version>`. A tag/version mismatch is a release-blocking CI error.
+Для tagged build Git tag обязан быть точно `v<project-version>`. Несовпадение tag/version является release-blocking error.
 
-## Public compatibility surface
+## Публичная поверхность совместимости
 
-The supported C++ core entry point is:
+Поддерживаемая точка входа C++ core:
 
 ```cpp
 #include <avm/avm.h>
 ```
 
-The supported CMake target is:
+Поддерживаемый CMake target:
 
 ```cmake
 find_package(avm 1.0 CONFIG REQUIRED)
 target_link_libraries(app PRIVATE avm::core)
 ```
 
-Within the 1.x line, compatibility promises apply to the documented contracts exposed by that umbrella header and used by the installed-package consumer test:
+В линии 1.x compatibility promise относится к документированным контрактам, экспортируемым umbrella header и проверяемым installed-package consumer:
 
-- opaque `LinkId` and `Link` semantics;
-- `LinkStore` observable contract;
-- Relations Model encode/decode contract;
+- opaque `LinkId` и `Link` semantics;
+- observable contract `LinkStore`;
+- Relations Model encode/decode;
 - parser-independent projection boundary;
-- `BootstrapRuntime`/`Executor` LinkId execution path;
-- `ProgramBuilder` link-native construction contract;
-- reference in-memory and persistent backend observable semantics;
-- `avm::core` CMake package target.
+- execution path `BootstrapRuntime`/`Executor` по `LinkId`;
+- link-native construction через `ProgramBuilder`;
+- observable semantics reference in-memory/persistent backends;
+- `avm::core` CMake package target;
+- публичные observer/query contracts, если они экспортируются через поддерживаемый core API.
 
-A change that intentionally breaks those supported contracts requires the next major version.
+Преднамеренное несовместимое изменение этих контрактов требует следующей major version.
 
-## What is not an ABI promise
+## Что не является ABI promise
 
-AVM core is currently header-only. Version 1.x does not promise binary ABI stability for incidental implementation details, class layout, private members, helper functions that are not documented as public contracts, benchmark values, or repository-internal test/build structure.
+Core сейчас header-only. AVM 1.x не обещает binary ABI stability для incidental implementation details, class layout, private members, undocumented helpers, benchmark values или repository-internal test/build structure.
 
-Clients should compile against the installed headers for the version they consume. SemVer compatibility concerns source-level/documented behavior unless a future release explicitly establishes an ABI policy.
+Clients должны компилироваться против installed headers потребляемой версии. Пока отдельная ABI policy не объявлена, SemVer compatibility относится к source-level и документированному observable behavior.
 
-## JSON and protocol adapters
+## JSON и protocol adapters
 
-JSON program/value support is an adapter layer, not the VM semantic core. Additional protocol adapters, including Anum/MTS work, must project into the existing canonical LinkStore/Relations Model boundary and may not introduce a second executor or storage identity universe.
+JSON program/value support — adapter layer, а не semantic core VM. Дополнительные adapters, включая Anum/МТС, обязаны проецироваться в существующую canonical boundary `LinkStore`/Relations Model и не могут вводить второй executor или storage identity universe.
 
-Adapter APIs can receive their own compatibility commitments when they are promoted into the installed public package. They are not implicitly part of `avm::core` merely because headers exist in the repository.
+Adapter API получает отдельное compatibility commitment только после явного продвижения в installed public package.
 
 ## Release checklist
 
-A `vX.Y.Z` release is valid only when:
+Release `vX.Y.Z` допустим только если:
 
-1. CMake and public header versions both equal `X.Y.Z`;
-2. the tag is exactly `vX.Y.Z`;
-3. quality architecture guards are green;
-4. strict core, JSON/session and CLI lanes are green;
-5. ASan/UBSan is green;
-6. portable Linux/Windows/macOS tests are green;
-7. installed-package consumer validation is green;
-8. benchmark smoke completes and emits its validated artifact;
-9. release artifacts are produced only after their declared dependencies pass.
+1. CMake и public version header равны `X.Y.Z`;
+2. tag точно равен `vX.Y.Z`;
+3. quality/architecture guards зелёные;
+4. strict core, JSON/session и CLI lanes зелёные;
+5. ASan/UBSan зелёный;
+6. portable Linux/Windows/macOS matrix зелёная;
+7. installed-package consumer validation зелёная на поддерживаемых OS;
+8. benchmark smoke успешно завершён и выдаёт валидный artifact;
+9. дополнительные focused conformance gates, затронутые release, зелёные;
+10. release artifacts создаются только после всех объявленных dependencies.
 
-A failed gate is a release veto, not a warning.
+`Tagged Linux artifact` намеренно зависит от полной `portable` matrix, хотя сам публикуемый artifact Linux-only. Публикация не должна становиться доступной, пока Windows/macOS portable validation ещё выполняется или падает.
+
+Failed gate — release veto, а не warning.
+
+## Что пока не входит в release contract
+
+Отдельными задачами остаются:
+
+- GitHub Release publication;
+- cryptographic signing;
+- multi-platform binary bundles;
+- long-term ABI policy;
+- production backend durability certification.

@@ -218,7 +218,7 @@ ResultValidation
 
 Для persistent reopen требуется точное совпадение LinkId-based trace. Для независимых stores используется сравнение с точностью до биективного переименования непрозрачных IDs.
 
-## 10. AVM 1.4 — inspection tooling
+## 10. AVM 1.4 — инструменты инспекции
 
 `InspectionSession` и typed inspection commands используют существующие:
 

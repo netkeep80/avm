@@ -1,8 +1,8 @@
-# AVM 1.0 execution vertical slice
+# Сквозной execution-сценарий AVM 1.0
 
-This document describes the executable path exercised by `vertical_slice_tests`.
+Этот документ описывает исполнимый путь, проверяемый `vertical_slice_tests`.
 
-## One semantic path
+## Один семантический путь
 
 ```text
 JSON expression
@@ -11,7 +11,7 @@ JSON expression
 JsonProgramImporter
     |
     v
-LinkStore (InMemoryLinkStore or PersistentLinkStore)
+LinkStore (InMemoryLinkStore или PersistentLinkStore)
     |
     v
 root LinkId
@@ -23,56 +23,56 @@ BootstrapRuntime / Executor
 result LinkId
 ```
 
-JSON is used only by the importer. `Executor` receives a `LinkId`; it does not receive or retain a JSON AST.
+JSON используется только importer-ом. `Executor` получает `LinkId`; он не получает и не хранит JSON AST.
 
-The same materialized program entities are executable through the abstract `LinkStore` contract. The test covers NOT/AND/OR, lazy `If`, `Def`/`Call`, and a representative recursive call.
+Одни и те же materialized program entities исполняются через абстрактный `LinkStore` contract. Тест покрывает NOT/AND/OR, lazy `If`, `Def`/`Call` и representative recursive call.
 
-## Persistent reopen
+## Повторное открытие persistent store
 
-The persistent scenario has two distinct phases.
+Persistent scenario имеет две отдельные фазы.
 
-### Initial process/store lifetime
+### Первый lifetime процесса/store
 
-1. Open an empty `PersistentLinkStore`.
-2. Create `BootstrapRuntime`; this introduces a bootstrap vocabulary with explicit `LinkId` identities.
-3. Import JSON expressions into links.
-4. Execute the imported roots and verify their observable results.
-5. Retain only structural identities needed to reopen the runtime: `BootstrapVocabulary` and root `LinkId` values.
-6. Close the store.
+1. Открыть пустой `PersistentLinkStore`.
+2. Создать `BootstrapRuntime`; он вводит bootstrap vocabulary с явными `LinkId` identities.
+3. Импортировать JSON expressions в links.
+4. Выполнить imported roots и проверить observable results.
+5. Сохранить только structural identities, нужные после reopen: `BootstrapVocabulary` и root `LinkId`.
+6. Закрыть store.
 
-### Reopened store lifetime
+### Lifetime после reopen
 
-1. Reopen the same `PersistentLinkStore`.
-2. Construct `BootstrapRuntime(store, saved_vocabulary)`.
-3. Verify runtime restoration does not change `store.size()`; truth-table materialization must reuse canonical links already present.
-4. Execute the saved root `LinkId` values directly.
-5. Repeat a second reopen to catch accidental one-reopen-only behavior.
+1. Повторно открыть тот же `PersistentLinkStore`.
+2. Создать `BootstrapRuntime(store, saved_vocabulary)`.
+3. Проверить, что восстановление runtime не меняет `store.size()`; truth-table materialization обязана переиспользовать canonical links.
+4. Выполнить сохранённые root `LinkId` напрямую.
+5. Повторить ещё один reopen, чтобы исключить случайное one-reopen-only поведение.
 
-No JSON parse or import is performed in the reopen phase. The persisted executable graph is therefore the program state being executed, rather than an external AST being reconstructed on every start.
+На reopened phase JSON не parse-ится и не import-ится. Исполняется сохранённый link graph программы, а не внешний AST, перестраиваемый при каждом запуске.
 
-## Bootstrap identity is persistent state
+## Bootstrap identity является persistent state
 
-A bootstrap vocabulary is not recreated on reopen. Relation identities such as `and_relation`, `if_relation`, `function_relation`, and `call_relation` are part of the materialized program's semantic address space.
+Bootstrap vocabulary не пересоздаётся после reopen. Relation identities вроде `and_relation`, `if_relation`, `function_relation` и `call_relation` входят в semantic address space materialized program.
 
-`BootstrapRuntime` therefore has two construction modes:
+Поэтому `BootstrapRuntime` имеет два режима construction:
 
 ```cpp
-BootstrapRuntime(store);              // create a new vocabulary
-BootstrapRuntime(store, vocabulary);  // restore an existing vocabulary
+BootstrapRuntime(store);              // создать новый vocabulary
+BootstrapRuntime(store, vocabulary);  // восстановить существующий vocabulary
 ```
 
-The restore path validates that every vocabulary `LinkId` exists and that all bootstrap identities are distinct. Invalid restored metadata is rejected before execution.
+Restore path проверяет существование всех vocabulary `LinkId` и различность bootstrap identities. Invalid restored metadata отклоняется до execution.
 
-A future production persistence layer may store a named/rooted reference to bootstrap metadata. The reference backend intentionally does not invent that policy: issue #59 proves stable link identity, while this vertical slice proves that the runtime can be restored when the correct structural identities are supplied.
+Будущий production persistence layer может хранить named/rooted reference на bootstrap metadata. Reference backend намеренно не навязывает такую policy: persistence contract доказывает stable link identity, а этот vertical slice — возможность восстановить runtime при наличии правильных structural identities.
 
-## Backend-neutral invariant
+## Backend-neutral инвариант
 
-`BootstrapRuntime`, `Executor`, Relations Model helpers and `ProgramBuilder` depend on `LinkStore`, not on `PersistentLinkStore` internals. Persistence format, index rebuild and filesystem behavior remain behind the backend boundary.
+`BootstrapRuntime`, `Executor`, Relations Model helpers и `ProgramBuilder` зависят от `LinkStore`, а не от internals `PersistentLinkStore`. Persistence format, index rebuild и filesystem behavior находятся за backend boundary.
 
-The vertical slice is compiled into `avm_core_tests`, so it participates in:
+Vertical slice входит в `avm_core_tests` и поэтому проверяется через:
 
 - C++20 warnings-as-errors;
-- ASan + UBSan on Linux;
-- Release portable runs on Linux, Windows and macOS.
+- ASan + UBSan на Linux;
+- Release portable runs на Linux, Windows и macOS.
 
-This is a correctness/conformance test, not a durability or performance claim. Crash consistency, WAL/journaling and production backend tuning remain separate work.
+Это correctness/conformance test, а не заявление о durability или performance. Crash consistency, WAL/journaling и production backend tuning остаются отдельными задачами.

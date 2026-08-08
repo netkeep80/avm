@@ -1,80 +1,100 @@
-# JSON compatibility is a projection layer
+# JSON compatibility как слой проекции
 
-AVM 1.0 does not execute a JSON AST. JSON remains supported as an external compatibility syntax, but the only semantic path is:
+AVM не исполняет JSON AST. JSON поддерживается как внешний compatibility syntax, но семантический путь единственный:
 
 ```text
 JSON
   -> JsonProgramImporter
-  -> LinkStore program graph
+  -> program graph в LinkStore
   -> BootstrapRuntime / Executor
   -> result LinkId
   -> JSON result projection
 ```
 
-Once `import_program()` returns a root LinkId, execution no longer depends on the source JSON object. `json_projection_tests` explicitly replace the source JSON value before executing the imported graph.
+После того как `import_program()` вернул root `LinkId`, execution больше не зависит от исходного JSON object. Conformance tests уничтожают/заменяют исходное JSON value до запуска imported graph и тем самым проверяют эту границу.
 
-## Text names stop at the importer
+## Текстовые имена заканчиваются в importer
 
-Operator names (`Not`, `And`, `Or`, `If`, `Def`, `Call`), function names and formal parameter names are projection syntax. `JsonProgramImporter` resolves them to opaque LinkIds.
+Operator names (`Not`, `And`, `Or`, `If`, `Def`, `Call`), function names и formal parameter names являются projection syntax. `JsonProgramImporter` разрешает их в opaque `LinkId`.
 
-The runtime receives:
+Runtime получает:
 
-- relation LinkIds for dispatch;
-- function-handle LinkIds;
-- formal-parameter LinkIds;
-- link-native call frames and bindings;
-- expression payloads represented as canonical dyads.
+- relation `LinkId` для dispatch;
+- function-handle `LinkId`;
+- formal-parameter `LinkId`;
+- link-native call frames и bindings;
+- expression payloads как canonical dyads.
 
-There is no `resolve_operator`, JSON function-body map or parameter-name stack in production execution.
+В production execution нет `resolve_operator`, JSON function-body map или parameter-name stack.
 
-## Function symbols and deferred Def
+## Function symbols и deferred Def
 
-The importer may allocate a function handle before its definition is executed. This supports recursion and forward references in the projected graph.
+Importer может выделить function handle до исполнения definition. Это поддерживает recursion и forward references внутри projected graph.
 
-A JSON `Def` becomes the deferred definition expression defined by #46. Merely importing it does not create the callable function-definition row. Execution of that node performs materialization, preserving `Def`/`Call` order.
+JSON `Def` превращается в deferred definition expression из `deferred-definitions.md`. Import не создаёт callable function-definition row; materialization происходит только при execution node `Def`, что сохраняет порядок `Def`/`Call`.
 
-A subsequent syntactic redefinition receives a new handle so later projected calls can refer to the replacement definition without mutating an existing immutable definition row.
+Синтаксическое redefinition получает новый handle, чтобы последующие projected calls могли ссылаться на новое immutable definition без mutation старой строки.
 
-## JSON literals
+## JSON literals и значения
 
-Boolean and null values map directly to bootstrap vocabulary identities.
+Boolean/null в program projection отображаются в bootstrap vocabulary identities. Данные JSON кодируются отдельным `JsonValueCodec`.
 
-Other scalar JSON values currently use projection-owned opaque point identities. The importer maintains a type-aware JSON-value-to-LinkId table and the reverse LinkId-to-JSON table for result projection. This is intentionally a compatibility mechanism, not the final AVM primitive-data model.
+Важно: JSON является frontend/value codec, а не окончательной primitive-value model AVM. AVM 1.5 #128 определяет canonical value denotations независимо от quirks `nlohmann::json`.
 
-A later storage/data-model issue can replace these opaque values without changing execution semantics.
+## Совместимость последовательностей
 
-## Compatibility sequence
+Core `sequence_relation` является fail-fast: exception child expression прерывает исполнение.
 
-The link-native core `sequence_relation` is fail-fast: an exception in a child expression aborts execution. The historical JSON-facing API returned null for malformed/undefined child expressions and continued with later array elements.
+Если JSON-facing compatibility contract требует иного поведения, эта policy должна находиться на adapter boundary и использовать уже projected child expressions через тот же `Executor`, а не ослаблять core semantics.
 
-To preserve that outward behavior without weakening the core, `JsonCompatibilitySession` owns a separate compatibility sequence relation. Its handler executes each already-projected child through `Executor`, converts a child runtime failure to `nil`, and continues to the next expression.
-
-Compatibility policy therefore remains at the adapter boundary rather than becoming a VM invariant.
-
-## Error boundary
-
-`JsonProgramImporter` throws `JsonProjectionError` for malformed syntax. Lower AVM layers throw explicit runtime/logic errors for malformed link structures or execution failures.
-
-`JsonCompatibilitySession::interpret()` is the JSON-shaped convenience facade: it maps those failures to JSON `null`. Direct users of `import_program()` and `execute()` retain explicit errors.
-
-## Historical `interpret(json)` API
-
-The old C++ API symbol is retained temporarily for source compatibility, but it no longer interprets JSON recursively:
+Общее правило:
 
 ```text
-interpret(json)
-  -> persistent JsonCompatibilitySession
-  -> JSON result
-  -> legacy import_json(result)
-  -> rel_t* outward value
+frontend compatibility policy != invariant ядра VM
 ```
 
-`clear_func_env()` is likewise only a compatibility name. It resets the persistent `JsonCompatibilitySession`; there is no function-environment map or parameter stack behind it.
+## Граница ошибок
 
-The historical `import_json` / `export_json` functions remain as a data codec for callers and roundtrip tests that still consume `rel_t*`. They do not define program execution semantics.
+`JsonProgramImporter` бросает `JsonProjectionError` для malformed syntax. Нижние уровни AVM используют явные runtime/logic errors для malformed link structures или execution failures.
 
-## Migration evidence
+Convenience facade `JsonCompatibilitySession::interpret()` остаётся только тонкой формой:
 
-Before removing the historical recursive interpreter, `json_legacy_conformance_tests` executed a representative corpus through both implementations. The suite passed in the portable Linux, Windows and macOS CI matrix together with the independent JSON projection tests and ASan/UBSan checks.
+```text
+JSON -> projection -> LinkId -> canonical execute -> result projection
+```
 
-After that evidence was obtained, the duplicate interpreter and the side-by-side harness were deleted. `json_projection_tests`, `legacy_facade_tests`, the historical data-codec tests and portable CI now protect the single production semantic path.
+Он не содержит recursive JSON evaluator.
+
+## Исторический semantic interpreter удалён
+
+Старый production path с:
+
+```text
+resolve_operator
+func_env
+param_stack
+recursive interpret(json)
+rel_t storage/identity universe
+legacy_json_compat
+```
+
+удалён после миграции consumers и conformance. Git хранит историю; рабочее дерево не сохраняет dead compatibility implementation.
+
+CI содержит явные regression guards против возврата этих identifiers в production/build sources.
+
+Поэтому текущее утверждение о совместимости относится к **внешнему JSON формату и наблюдаемому поведению поддерживаемого subset**, а не к сохранению старой C++ implementation.
+
+## Постоянное доказательство миграции
+
+После удаления side-by-side old/new interpreter harness остаются постоянные suites:
+
+- core link-native tests;
+- `json_projection_tests`;
+- `json_session_tests`;
+- `json_value_codec_tests`;
+- CLI JSON roundtrip/conformance;
+- warnings-as-errors и architecture guards;
+- ASan/UBSan;
+- portable Linux/Windows/macOS matrix.
+
+AVM 1.5 добавляет поверх этого versioned `jsonRVM` semantic inventory и differential golden corpus, чтобы дальнейшая миграция проверяла именно Relations Model semantics, а не возвращала старую реализацию.

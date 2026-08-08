@@ -1,16 +1,17 @@
-# AVM CI/CD policy
+# Политика CI/CD AVM
 
-AVM 1.0 has one production storage/identity path: `LinkStore`. JSON program projection, JSON value roundtrip and runtime execution are tested as separate concerns over that path.
+AVM имеет один production storage/identity path — `LinkStore`. Core execution, JSON projection/value roundtrip, Anum structural adapter, tooling и persistence проверяются как отдельные concerns над этим фундаментом.
 
-## CMake switches
+## Настройки CMake
 
-- `AVM_BUILD_CLI=ON|OFF` — build the JSON CLI and its file roundtrip fixtures.
-- `AVM_BUILD_CORE_TESTS=ON|OFF` — build link-native AVM 1.0 core suites.
-- `AVM_BUILD_JSON_COMPAT_TESTS=ON|OFF` — build JSON program projection/session compatibility suites.
-- `AVM_WARNINGS_AS_ERRORS=ON|OFF` — enable strict compiler diagnostics.
-- `AVM_ENABLE_SANITIZERS=ON|OFF` — enable AddressSanitizer and UndefinedBehaviorSanitizer on supported non-MSVC toolchains.
+- `AVM_BUILD_CLI=ON|OFF` — собирать JSON CLI и file-based fixtures;
+- `AVM_BUILD_CORE_TESTS=ON|OFF` — собирать link-native core suites;
+- `AVM_BUILD_JSON_COMPAT_TESTS=ON|OFF` — собирать JSON projection/session suites;
+- `AVM_BUILD_ANUM_ADAPTER_TESTS=ON|OFF` — собирать conformance Anum L3→L4 adapter;
+- `AVM_WARNINGS_AS_ERRORS=ON|OFF` — включать strict compiler diagnostics;
+- `AVM_ENABLE_SANITIZERS=ON|OFF` — включать ASan/UBSan на поддерживаемых non-MSVC toolchains.
 
-Fast core validation:
+Быстрая проверка core:
 
 ```bash
 cmake -S . -B build-core \
@@ -18,12 +19,13 @@ cmake -S . -B build-core \
   -DAVM_BUILD_CLI=OFF \
   -DAVM_BUILD_CORE_TESTS=ON \
   -DAVM_BUILD_JSON_COMPAT_TESTS=OFF \
+  -DAVM_BUILD_ANUM_ADAPTER_TESTS=ON \
   -DAVM_WARNINGS_AS_ERRORS=ON
-cmake --build build-core --target avm_core_tests --parallel
+cmake --build build-core --target avm_core_tests avm_anum_adapter_tests --parallel
 ctest --test-dir build-core --output-on-failure
 ```
 
-Independent JSON program/session validation:
+Независимая JSON compatibility validation:
 
 ```bash
 cmake -S . -B build-json \
@@ -31,93 +33,150 @@ cmake -S . -B build-json \
   -DAVM_BUILD_CLI=OFF \
   -DAVM_BUILD_CORE_TESTS=OFF \
   -DAVM_BUILD_JSON_COMPAT_TESTS=ON \
+  -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF \
   -DAVM_WARNINGS_AS_ERRORS=ON
 cmake --build build-json --target avm_json_compat_tests --parallel
 ctest --test-dir build-json --output-on-failure
 ```
 
-## Assertions are part of the test contract
+## Assertions входят в test contract
 
-The C++ suites use `assert(...)` for invariant checks. CMake Release configurations normally define `NDEBUG`, which would compile those checks out. Every C++ test target explicitly undefines `NDEBUG` (`-UNDEBUG` or `/UNDEBUG`) regardless of build type.
+C++ suites используют `assert(...)` для инвариантов. Release configuration обычно определяет `NDEBUG`, что отключило бы проверки. Поэтому test targets явно undefine-ят `NDEBUG` (`-UNDEBUG` или `/UNDEBUG`) независимо от build type.
 
-`assertions_enabled_tests` fails at compile time if `NDEBUG` reaches a core test target and verifies at runtime that an assertion expression is evaluated. Strict semantic lanes use Debug; the portable matrix also exercises Release builds with assertions forced active in test executables.
+`assertions_enabled_tests` проверяет это compile-time/runtime. Strict semantic lanes работают в Debug; portable matrix также выполняет Release tests с активными assertions.
 
-## Pull-request gates
+## Основные pull-request gates
 
-The `CI` workflow separates six concerns:
+Workflow `CI` разделяет несколько независимых проверок.
 
-1. `Quality gates` — source-size policy, removed semantic/storage path guards, RawCarrier isolation, external Anum/parser boundary and strict clang-format verification.
-2. `Core C++20 / warnings-as-errors` — Linux Debug core-only build and CTest, including the JSON value codec.
-3. `JSON projection + session / warnings-as-errors` — JSON program projection and stateful compatibility-session behavior without the CLI.
-4. `CLI + JSON roundtrip / warnings-as-errors` — built executable and file-based JSON data roundtrip fixtures.
-5. `Core + JSON ASan + UBSan` — core, JSON value codec and program/session projection under sanitizers.
-6. `Portable / <os>` — full Release build and all permanent tests on Linux, Windows and macOS.
+### `Quality gates`
 
-Recommended required checks for `main` are:
+Защищает архитектурные ограничения:
 
-- `Quality gates`;
-- `Core C++20 / warnings-as-errors`;
-- `JSON projection + session / warnings-as-errors`;
-- `CLI + JSON roundtrip / warnings-as-errors`;
-- `Core + JSON ASan + UBSan`.
+- лимит размера source files;
+- запрет возврата удалённых JSON semantic side channels;
+- запрет возврата `rel_t` storage path;
+- isolation `RawCarrier`;
+- запрет Anum grammar/parser coupling в AVM core;
+- structural-only Anum adapter;
+- запрет старого protocol-only Anum bridge;
+- read-only contract Relations query;
+- isolation execution observer/trace;
+- trace CLI остаётся consumer canonical runtime;
+- inspection tooling не определяет собственный executor/storage semantics;
+- public version contract;
+- `clang-format --Werror`.
 
-The portable matrix should also be green before merge.
+### `Core C++20 / warnings-as-errors`
 
-## Removed-path guards
+Linux Debug build core + Anum adapter suites с strict warnings.
 
-The historical recursive JSON interpreter was removed after conformance migration. CI rejects the old semantic side-channel identifiers:
+### `JSON projection + session / warnings-as-errors`
 
-- `resolve_operator`;
-- `func_def`;
-- `param_stack`.
+Проверяет JSON program projection и stateful compatibility session без CLI.
 
-The later pointer-based `rel_t` data/storage facade was also removed after its consumers migrated to `JsonValueCodec` and `JsonCompatibilitySession`. CI rejects production/build references to:
+### `CLI + JSON roundtrip / warnings-as-errors`
 
-- `rel_t`;
-- `legacy_json_compat`;
-- `UnitedMemoryLinks`.
+Проверяет executable и file-based JSON fixtures через реальный CLI.
 
-This prevents an apparently convenient compatibility patch from silently reintroducing a second storage/identity universe.
+### `Core + JSON + Anum adapter ASan + UBSan`
 
-## Protocol-layer guards
+Запускает core, JSON и Anum adapter под sanitizers.
 
-`RawCarrier` remains storage-only. CI rejects AVM semantic includes, JSON, Anum or abit references in `raw_carrier.h`.
+### `Installed package consumer / <os>`
 
-Production `src`/`include/avm` are also checked for direct Anum/abit parser coupling. Canonical grammar, tokenization, quotation/context projection and the L3 parser belong outside AVM. The stable handoff into the VM is a completed `ProjectionDescription` over externally resolved `Anchor(LinkId)` values.
+Устанавливает AVM во временный prefix и собирает внешний consumer через `find_package(avm ...)` на Linux, Windows и macOS.
 
-## Test suites
+### `Portable / <os>`
 
-Core includes:
+Полный Release build и tests на Linux, Windows и macOS.
 
-- `assertions_enabled_tests`;
-- `link_store_tests`;
-- `relations_model_tests`;
-- `executor_tests`;
-- `program_model_tests`;
-- `boolean_runtime_tests`;
-- `function_runtime_tests`;
-- `frame_runtime_tests`;
-- `deferred_definition_tests`;
-- `projection_tests`;
-- `raw_carrier_tests`;
-- `protocol_adapter_boundary_tests`;
-- `persistent_link_store_tests`;
-- `vertical_slice_tests`;
-- `json_value_codec_tests`.
+Перед merge все затронутые semantic/portable gates должны быть зелёными. Markdown-only PR может не запускать основной CI из-за `paths-ignore`; для documentation contracts используется отдельный focused audit.
 
-JSON compatibility includes:
+## Guards удалённых путей
 
-- `json_projection_tests` — permanent JSON program projection/runtime contract;
-- `json_session_tests` — persistent Def/Call session behavior, recursion, lazy If and sequence-error compatibility.
+Исторический recursive JSON interpreter удалён. CI запрещает identifiers:
 
-CLI compatibility includes `json_roundtrip_*` fixtures. They now exercise `JsonValueCodec`; there is no `rel_t` conversion behind the executable.
+```text
+resolve_operator
+func_def
+param_stack
+```
 
-## Benchmark workflow
+в production `src/include`.
 
-`.github/workflows/benchmark.yml` is intentionally separate from correctness CI. It builds and runs the performance baseline, validates the TSV schema/expected operations and uploads the result as an artifact. Shared-runner nanosecond values are observations, not merge veto thresholds.
+После полной миграции удалён и pointer-based storage compatibility path. CI запрещает:
 
-## Tagged delivery
+```text
+rel_t
+legacy_json_compat
+UnitedMemoryLinks
+```
 
-A `v*` tag builds the Linux `avm` executable and uploads it as a workflow artifact after core, JSON compatibility, CLI roundtrip and sanitizer gates pass.
+Это не позволяет удобному compatibility patch скрыто вернуть второй storage/identity universe.
 
-GitHub Release publication, signing and multi-platform release bundles remain separate delivery-policy work.
+## Guards протокольного слоя
+
+`RawCarrier` остаётся storage-only и не зависит от semantic AVM headers, JSON, Anum или abits.
+
+Production `src`/`include/avm` не может напрямую зависеть от Anum grammar/parser. Canonical tokenization, quotation/context projection и L3 semantics находятся вне VM. Handoff в AVM — completed structural denotation/`ProjectionDescription` с externally resolved anchors.
+
+Production Anum adapter также остаётся JSON-free; JSON используется только для versioned conformance snapshots в tests.
+
+## Guards для query/observer/tooling
+
+CI отдельно фиксирует, что:
+
+- `relations_query.h` не materialize-ит links и не угадывает full-store enumeration;
+- `execution_observer.h` не содержит backend/protocol/host exception identity;
+- `execution_trace.h` остаётся collector-only tooling;
+- CLI trace не регистрирует собственные handlers;
+- inspection tooling использует существующие `BootstrapRuntime`/`Executor` и read/query APIs.
+
+## Наборы тестов
+
+Core включает suites для:
+
+- assertions;
+- `LinkStore` и persistence;
+- Relations Model encode/decode/query;
+- Executor/program model;
+- Boolean runtime;
+- functions/frames/deferred definitions;
+- projection/RawCarrier/protocol boundary;
+- structural library;
+- observability/trace/persistent trace;
+- inspection session/commands/persistent inspection;
+- vertical slice;
+- JSON value codec, где он входит в aggregate core validation.
+
+Отдельно проверяются JSON compatibility/session, Anum adapter conformance, CLI fixtures и package consumer.
+
+## Отдельный gate semantic inventory jsonRVM
+
+`.github/workflows/jsonrvm-compatibility.yml` проверяет versioned manifest и frozen golden assertions из AVM 1.5 #123.
+
+Validator является metadata/conformance tool и **не** исполняет `jsonRVM`; он не создаёт второй interpreter.
+
+## Workflow измерений производительности
+
+`.github/workflows/benchmark.yml` отделён от correctness CI. Он собирает performance baseline, проверяет TSV schema/expected operations и публикует artifact.
+
+Nanosecond values shared runner являются наблюдениями, а не merge-veto thresholds.
+
+## Публикация по тегу
+
+Tag `v*` может создать Linux artifact только после успешных:
+
+```text
+core
+package-consumer
+json-compat
+cli-roundtrip
+sanitizers
+portable
+```
+
+Таким образом Linux artifact намеренно gated полной Linux/Windows/macOS portable matrix.
+
+GitHub Release publication, signing и multi-platform binary bundles остаются отдельной delivery policy.

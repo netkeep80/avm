@@ -255,7 +255,7 @@ AVM использует Semantic Versioning для документирован
 
 См. [политику релизов AVM 1.x](docs/release-policy.md).
 
-## Backends
+## Физические backends
 
 `InMemoryLinkStore` — эталонный backend. `PersistentLinkStore` доказывает reopen/identity semantics. Другие физические backends должны реализовывать тот же контракт `LinkStore`.
 

@@ -1,12 +1,12 @@
-# Deferred function definitions
+# Отложенные определения функций
 
-AVM 1.0 distinguishes an executable `Def` node from the immutable function-definition row it materializes.
+AVM различает исполнимый node `Def` и immutable строку определения функции, которую этот node материализует.
 
-## Why two shapes exist
+## Зачем нужны две формы
 
-Projection/import must be able to construct an entire program graph before execution while preserving declaration order. If the importer inserted the final function-definition row immediately, a `Call` located before `Def` in a sequence could incorrectly find the function.
+Projection/import должен уметь построить весь program graph до исполнения и при этом сохранить порядок объявлений. Если importer сразу вставит финальную строку function definition, `Call`, расположенный перед `Def` в sequence, ошибочно сможет найти функцию.
 
-The projection therefore emits a deferred definition expression:
+Поэтому projection создаёт deferred definition expression:
 
 ```text
 parameters        = List(formal1, formal2, ...)
@@ -15,29 +15,31 @@ payload           = Link(functionHandle, definitionPayload)
 defExpression     = (function_relation, unit, payload)
 ```
 
-No callable definition exists merely because this expression is present in the store.
+Само присутствие этой expression в store ещё не означает существование callable definition.
 
-## Execution
+## Исполнение
 
-When `Executor` dispatches `defExpression` to the bootstrap `function_relation` handler, the runtime decodes the node and materializes:
+Когда `Executor` dispatch-ит `defExpression` в handler `function_relation`, runtime декодирует node и materialize-ит:
 
 ```text
 (function_relation, functionHandle, definitionPayload)
 ```
 
-The stored definition remains immutable and canonical. Re-executing the same deferred definition is idempotent. Executing a different definition for the same handle is an explicit conflict.
+Сохранённое definition остаётся immutable и canonical. Повторное исполнение того же deferred definition идемпотентно. Другое definition для того же handle является явным conflict.
 
-This gives a direct ordering property:
+Это даёт непосредственное свойство порядка:
 
 ```text
-Sequence(Def(f), Call(f))  -> succeeds
-Sequence(Call(f), Def(f))  -> Call observes no definition and fails
+Sequence(Def(f), Call(f))  -> успешно
+Sequence(Call(f), Def(f))  -> Call не видит definition и завершается ошибкой
 ```
 
-## Recursion
+## Рекурсия
 
-The function handle is created before the body graph is built. The body can therefore contain `Call(handle, ...)` even though the final definition row does not exist yet. Executing the `Def` node makes that recursive handle callable without rewriting the body.
+Function handle создаётся до построения body graph. Поэтому body может содержать `Call(handle, ...)`, даже если финальной definition row ещё нет. Исполнение `Def` делает recursive handle вызываемым без переписывания body.
 
-## Boundary
+## Граница слоя
 
-The deferred node is part of the link-native AVM program model and has no JSON dependency. The JSON compatibility importer in #47 will use this shape to map textual `Def` syntax while keeping execution exclusively in `BootstrapRuntime` and `Executor`.
+Deferred node — часть link-native program model AVM и не зависит от JSON. JSON compatibility importer отображает textual syntax `Def` в эту форму, а execution целиком остаётся в `BootstrapRuntime` и `Executor`.
+
+Это важный пример общего правила AVM: frontend может управлять порядком проекции и resolution текстовых symbols, но runtime semantics выражается canonical links.

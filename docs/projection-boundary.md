@@ -1,25 +1,25 @@
-# ProjectionDescription: parser-independent find/realize boundary
+# ProjectionDescription: независимая от parser граница `find` / `realize`
 
-`ProjectionDescription` is the neutral boundary between an external protocol/model projection and AVM storage. It deliberately contains no JSON syntax, Anum abits, parser state, quotation rules or execution semantics.
+`ProjectionDescription` — нейтральная граница между внешним протоколом или проекцией модели и хранилищем AVM. Она намеренно не содержит JSON syntax, Anum abits, состояние parser, правила quotation или execution semantics.
 
-## Why projection points are not implicit
+## Почему projection points не создаются неявно
 
-`InMemoryLinkStore::create_point()` creates a unique identity represented physically as a self-link `{id,id}`. Two points are therefore different identities even though both have the same structural shape "self-link".
+`InMemoryLinkStore::create_point()` создаёт уникальную identity, физически представленную self-link `{id,id}`. Две точки различны, хотя обе имеют одинаковую структурную форму self-link.
 
-A read-only query cannot correctly discover an anonymous point merely by looking for a self-link: there can be many such links and none is structurally preferred. Hiding an external-name-to-point map inside `ProjectionDescription` would turn the memory layer into an identity resolver.
+Read-only query не может корректно «найти анонимную точку» только по self-link: таких связей может быть много, и ни одна структурно не предпочтительнее другой. Скрытый external-name→point map внутри `ProjectionDescription` превратил бы memory layer в resolver identity.
 
-AVM 1.0 v0.1 therefore uses two explicit reference kinds:
+Поэтому используются два явных вида references:
 
 ```text
-Anchor(LinkId)    identity already resolved by the external adapter/context
-Node(NodeId)      result of an earlier dyad node in the same projection
+Anchor(LinkId)    identity уже разрешена внешним adapter/context
+Node(NodeId)      результат более раннего дуплета в той же проекции
 ```
 
-The projection boundary itself never calls `create_point()`.
+Сама projection boundary никогда не вызывает `create_point()`.
 
-## Description graph
+## Граф описания
 
-A projection is a topologically ordered list of dyads plus a root reference:
+Проекция — топологически упорядоченный список дуплетов и root reference:
 
 ```text
 node[0] = Link(Anchor(a), Anchor(b))
@@ -27,9 +27,9 @@ node[1] = Link(Node(0),   Anchor(c))
 root    = Node(1)
 ```
 
-A node may only reference an earlier node. This matches the current immutable `LinkStore` construction model and makes cycles/forward references explicit validation errors rather than partially materialized states.
+Node может ссылаться только на более ранний node. Это соответствует immutable construction model `LinkStore` и превращает cycles/forward references в явные ошибки валидации, а не в частично материализованное состояние.
 
-The root may also be an `Anchor`, including for an empty node list.
+Root может быть и `Anchor`, в том числе при пустом списке nodes.
 
 ## `find_projection`
 
@@ -38,15 +38,15 @@ find_projection(const LinkStore&, description)
     -> optional<ProjectionResult>
 ```
 
-The operation is query-only by type and behavior:
+Операция является query-only и по типу, и по поведению:
 
-1. validate the description structure;
-2. resolve anchors with `contains`;
-3. resolve each dyad only with `find(begin,end)`;
-4. return absence as soon as a required anchor or dyad is missing;
-5. return the existing canonical LinkIds when the complete projection exists.
+1. валидирует структуру description;
+2. разрешает anchors через `contains`;
+3. разрешает каждый дуплет только через `find(begin,end)`;
+4. немедленно возвращает отсутствие, если необходимого anchor или дуплета нет;
+5. возвращает существующие canonical `LinkId`, если вся проекция уже существует.
 
-It never calls `create_point` or `intern`. Tests assert store size before/after successful and unsuccessful queries.
+Она никогда не вызывает `create_point` или `intern`. Тесты сравнивают размер store до и после успешных и неуспешных запросов.
 
 ## `realize_projection`
 
@@ -55,34 +55,34 @@ realize_projection(LinkStore&, description)
     -> ProjectionResult
 ```
 
-Realization is the explicit mutating operation:
+Это явная изменяющая операция:
 
-1. validate the full projection before writes;
-2. verify **all anchors** before writes;
-3. process nodes in topological order with `intern(begin,end)`;
-4. reuse existing canonical links where available;
-5. return the root and per-node LinkIds.
+1. валидирует всю проекцию до записи;
+2. проверяет **все anchors** до записи;
+3. обрабатывает nodes в топологическом порядке через `intern(begin,end)`;
+4. переиспользует существующие canonical links;
+5. возвращает root и `LinkId` каждого node.
 
-Pre-validating every anchor prevents an ordinary missing-anchor error from creating a valid prefix and then failing halfway through the description.
+Предварительная проверка anchors не позволяет обычной ошибке missing-anchor материализовать корректный prefix и затем упасть посередине description.
 
-Repeated realization of the same description over the same anchors is idempotent because `intern` is canonical.
+Повторный `realize_projection` над тем же description и теми же anchors идемпотентен благодаря canonical `intern`.
 
-## Identity ownership
+## Владение идентичностью
 
-The external adapter/context owns the question "which existing AVM identity corresponds to this protocol-level entity?" and supplies an `Anchor(LinkId)` after resolving it.
+Внешний adapter/context отвечает на вопрос: «какая существующая AVM identity соответствует этой protocol-level сущности?» — и после разрешения передаёт `Anchor(LinkId)`.
 
-If a future protocol needs persistent external-symbol-to-point identity creation, that must become a separate explicit resolver contract. It must not be smuggled into query semantics, because doing so would violate the `find`-does-not-create invariant.
+Если будущему протоколу потребуется persistent external-symbol→point creation, для этого нужен отдельный явный resolver contract. Его нельзя прятать в query semantics, иначе нарушится инвариант `find` не создаёт.
 
-## Relationship to Anum/MTS
+## Связь с Anum/МТС
 
-This layer corresponds to an L3/L4 boundary, not to Anum syntax itself:
+Этот слой соответствует границе L3/L4, а не syntax Anum:
 
 ```text
-external raw source
-  -> external parse / validate / quote / project(context)
+сырой внешний источник
+  -> внешний parse / validate / quote / project(context)
   -> ProjectionDescription
   -> AVM find_projection | realize_projection
-  -> canonical LinkStore denotation
+  -> каноническая денотация в LinkStore
 ```
 
-`anum_docs` can later provide the real parser/projector adapter. AVM only knows the completed structural description and resolved anchors.
+`anum_docs` предоставляет каноническую L3 semantics. AVM знает только завершённое структурное description и уже разрешённые anchors.

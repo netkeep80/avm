@@ -1,16 +1,16 @@
-# RawCarrier: `raw(A)` is not `den(A)`
+# RawCarrier: `raw(A)` не является `den(A)`
 
-`RawCarrier` stores opaque source material independently from AVM denotation links.
+`RawCarrier` хранит непрозрачный исходный носитель независимо от links, представляющих денотацию AVM.
 
-The boundary enforces the invariant:
+Граница закрепляет инвариант:
 
 ```text
-raw(A) can exist while den(A) does not exist
+raw(A) может существовать, когда den(A) ещё не существует
 ```
 
-and, conversely, a realized denotation can remain after its original raw carrier entry has been deleted.
+и наоборот: материализованная денотация может продолжать существовать после удаления исходной записи raw carrier.
 
-## Contract
+## Контракт
 
 ```text
 RawDocumentId put(RawBytes)
@@ -20,39 +20,39 @@ bool erase(RawDocumentId)
 size_t size() const
 ```
 
-The interface has no `LinkStore` parameter, no `ProjectionDescription`, no executor and no parser API. Therefore a raw load cannot materialize a link as an accidental side effect.
+Интерфейс не принимает `LinkStore`, `ProjectionDescription`, executor или parser API. Поэтому загрузка raw физически не может случайно materialize связь.
 
-`RawBytes` is binary, not text. Zero bytes and arbitrary byte values are valid payload content. Interpretation and character encoding belong to an external protocol adapter.
+`RawBytes` — бинарные данные, а не текст. Нулевые байты и произвольные значения допустимы. Интерпретация и character encoding принадлежат внешнему protocol adapter.
 
-## Identity
+## Идентичность
 
-`RawDocumentId` identifies a carrier record only. It is not a `LinkId` and does not define denotation identity.
+`RawDocumentId` идентифицирует только запись носителя. Это не `LinkId`, и он не задаёт identity денотации.
 
-The in-memory reference carrier currently allocates a fresh document ID for every `put`, even for byte-identical payloads. Another backend may choose a different deduplication policy. That storage policy must not change the denotation produced by an external projector.
+Эталонный `InMemoryRawCarrier` сейчас выдаёт новый document ID на каждый `put`, даже для одинаковых bytes. Другой backend может выбрать иную deduplication policy. Эта storage policy не должна менять денотацию, получаемую внешним projector.
 
-## Lifecycle independence
+## Независимый жизненный цикл
 
-The supported lifecycle is deliberately asymmetric:
+Поддерживаемая последовательность намеренно разделена:
 
 ```text
-put(raw)                 -> only RawCarrier changes
-project(raw, context)    -> external operation; produces ProjectionDescription
-find_projection(...)     -> only observes LinkStore
-realize_projection(...)  -> explicitly changes LinkStore
-erase(raw)               -> only RawCarrier changes
+put(raw)                 -> меняется только RawCarrier
+project(raw, context)    -> внешняя операция; создаёт ProjectionDescription
+find_projection(...)     -> только наблюдает LinkStore
+realize_projection(...)  -> явно изменяет LinkStore
+erase(raw)               -> меняется только RawCarrier
 ```
 
-Deleting raw source never cascades into `LinkStore`. Deleting realized denotation, when such an operation is introduced, must likewise be explicit and must not be inferred from raw carrier lifetime.
+Удаление raw source никогда каскадно не изменяет `LinkStore`. Будущее удаление materialized denotation также должно быть отдельной явной операцией и не выводиться из lifetime raw carrier.
 
-## Relationship to Anum
+## Связь с Anum
 
-For a future Anum adapter:
+Для будущего Anum adapter:
 
 ```text
 RawCarrier
    |
    v
-external Anum L3 parser / validator / projector(context)
+внешний Anum L3 parser / validator / projector(context)
    |
    v
 ProjectionDescription
@@ -61,8 +61,8 @@ ProjectionDescription
    `--> realize_projection(LinkStore&, ...)
 ```
 
-AVM does not know whether the bytes are Anum, JSON, a binary protocol or something else. This is intentional: parser/protocol semantics remain above the L4 memory boundary.
+AVM не знает, являются ли bytes Anum, JSON, бинарным protocol или чем-либо ещё. Это намеренно: parser/protocol semantics находятся выше L4 memory boundary.
 
-## Reference implementation
+## Эталонная реализация
 
-`InMemoryRawCarrier` is a test/reference backend only. Persistent raw storage, files, PMM integration, hashes and retention policies belong to backend work rather than to the semantic memory contract.
+`InMemoryRawCarrier` — только reference/test backend. Persistent raw storage, filesystem, PMM integration, hashes и retention policies относятся к backend work, а не к semantic memory contract.

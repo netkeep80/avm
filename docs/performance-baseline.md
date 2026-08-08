@@ -1,8 +1,8 @@
-# AVM performance baseline
+# Базовые измерения производительности AVM
 
-The AVM benchmark is an observation tool, not a correctness oracle.
+Benchmark AVM — инструмент наблюдения за производительностью, а не oracle корректности.
 
-## Local run
+## Локальный запуск
 
 ```bash
 cmake -S benchmark -B build-benchmark -DCMAKE_BUILD_TYPE=Release
@@ -10,36 +10,39 @@ cmake --build build-benchmark --parallel
 ./build-benchmark/avm_benchmark
 ```
 
-The executable writes tab-separated data:
+Executable записывает tab-separated данные:
 
 ```text
 name    operations    elapsed_ns    ns_per_op
 ```
 
-Current measurements cover:
+Текущие измерения покрывают:
 
-- creating a new canonical pair with `intern`;
-- reusing an existing pair with `intern`;
-- exact `find` hit and miss;
-- outgoing and incoming index queries;
+- создание новой canonical pair через `intern`;
+- повторное использование существующей пары через `intern`;
+- exact `find` hit/miss;
+- `outgoing`/`incoming` index queries;
 - Relations Model encode/decode;
-- execution of a minimal bootstrap relation;
-- persistent snapshot reopen/index rebuild.
+- execution минимальной bootstrap relation;
+- persistent snapshot reopen/index rebuild;
+- масштабирование constrained Relations queries там, где соответствующий benchmark добавлен.
 
-## CI policy
+## Политика CI
 
-`.github/workflows/benchmark.yml` builds and runs the benchmark on Ubuntu and uploads `avm-benchmark.tsv` as a workflow artifact.
+`.github/workflows/benchmark.yml` собирает и запускает benchmark на Ubuntu и публикует `avm-benchmark.tsv` как workflow artifact.
 
-CI validates only that:
+CI проверяет только:
 
-1. the benchmark builds with C++20 warnings-as-errors;
-2. the executable completes;
-3. every expected measurement is present in the TSV output.
+1. benchmark собирается с C++20 и warnings-as-errors;
+2. executable успешно завершается;
+3. в TSV присутствуют ожидаемые measurements и корректная schema.
 
-There is intentionally no hard nanosecond threshold on GitHub-hosted shared runners. Absolute timing there is too noisy to be a reliable merge veto.
+Жёсткого nanosecond threshold на GitHub-hosted shared runners намеренно нет: absolute timings слишком шумны для надёжного merge veto.
 
-Performance comparisons should be made on the same machine and toolchain. The TSV artifact provides a historical observation trail for main/tag runs. If a future regression needs an automated veto, prefer a stable structural/complexity invariant or a dedicated controlled runner before introducing a wall-clock threshold.
+Performance comparisons следует выполнять на одной машине и toolchain. TSV artifact даёт исторический trail наблюдений для main/tag runs.
 
-## Scope
+Если будущая regression требует автоматического veto, предпочтительнее сначала зафиксировать стабильный structural/complexity invariant или использовать dedicated controlled runner, а уже затем вводить wall-clock threshold.
 
-The benchmark does not claim that the current in-memory or persistent reference backend is production-optimal. Its purpose is to make algorithmic regressions visible while AVM 1.0 architecture is still being stabilized.
+## Область утверждений
+
+Benchmark не доказывает, что текущие `InMemoryLinkStore` или `PersistentLinkStore` production-optimal. Его задача — делать algorithmic regressions заметными, не смешивая performance measurement с semantic correctness.

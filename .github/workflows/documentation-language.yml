@@ -1,0 +1,32 @@
+name: Documentation language
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'analysis.md'
+      - 'plan.md'
+      - 'docs/**.md'
+      - 'tools/validate_documentation_language.py'
+      - '.github/workflows/documentation-language.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'analysis.md'
+      - 'plan.md'
+      - 'docs/**.md'
+      - 'tools/validate_documentation_language.py'
+      - '.github/workflows/documentation-language.yml'
+
+jobs:
+  validate:
+    name: Проверить русский язык документации
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Получить репозиторий
+        uses: actions/checkout@v4
+      - name: Проверить project-owned Markdown
+        run: python3 tools/validate_documentation_language.py

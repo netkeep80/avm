@@ -44,7 +44,7 @@ Expression handlers отклоняют Relations Model rows, у которых s
 
 Это ограничение относится именно к bootstrap expression protocol. AVM 1.5 расширяет общий execution contract для meaningful non-unit subject.
 
-## Lazy IF
+## Ленивый IF
 
 `IF` использует две ассоциативные строки выбора:
 

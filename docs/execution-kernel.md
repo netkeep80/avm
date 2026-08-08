@@ -36,7 +36,7 @@ parent/context, когда применимо
 
 Program bindings и call frames принадлежат ассоциативной модели, а не внешнему environment.
 
-## Bootstrap boundary
+## Граница bootstrap-механизма
 
 Native handler может быть зарегистрирован по relation `LinkId`:
 

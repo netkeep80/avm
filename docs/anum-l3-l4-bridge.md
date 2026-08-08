@@ -1,33 +1,33 @@
-# Anum L3 → AVM L4 structural denotation bridge
+# Структурный мост денотации Anum L3 → AVM L4
 
-## Status
+## Статус
 
-AVM consumes the canonical storage-neutral `AnumDenotation` v0.2 handoff produced by `netkeep80/anum_docs`.
+AVM принимает канонический storage-neutral handoff `AnumDenotation` v0.2, формируемый `netkeep80/anum_docs`.
 
-The production adapter is:
+Production adapter:
 
 ```text
 adapters/anum_denotation_bridge.h
 ```
 
-The old protocol-value-only `AnumL3Projection` bridge is removed. There is one L3→L4 adapter path.
+Старый protocol-value-only bridge `AnumL3Projection` удалён. Существует один путь L3→L4.
 
-## Responsibility split
+## Разделение ответственности
 
-Upstream L3 owns:
+Upstream L3 отвечает за:
 
 ```text
-raw [ ] 1 0 parsing
-context validation
+parsing raw [ ] 1 0
+валидацию контекста
 root / quote / relative projection
 root-opening collapse
 recursive structural denotation
 canonical inverse serialization
 ```
 
-AVM owns none of those rules.
+AVM не определяет ни одно из этих правил.
 
-AVM receives only a typed result:
+AVM получает только typed result одного из видов:
 
 ```text
 structural
@@ -35,24 +35,24 @@ raw
 quoted-raw
 ```
 
-For `structural`, the handoff contains:
+Для `structural` handoff содержит:
 
 ```text
-sorted opaque anchor keys
-topologically ordered description-local nodes
-start/end refs to anchors or earlier nodes
-one root ref
+отсортированные opaque anchor keys
+топологически упорядоченные description-local nodes
+start/end refs на anchors или более ранние nodes
+один root ref
 ```
 
-## Mapping to ProjectionDescription
+## Отображение в ProjectionDescription
 
-The caller supplies an anchor resolver:
+Caller передаёт resolver anchors:
 
 ```text
 opaque upstream anchor key -> LinkId
 ```
 
-The bridge then performs a purely structural translation:
+Bridge выполняет только структурное преобразование:
 
 ```text
 Anum anchor ref -> ProjectionRef::anchor(resolved LinkId)
@@ -61,49 +61,49 @@ Anum node       -> ProjectionNode(start,end)
 Anum root       -> ProjectionDescription.root
 ```
 
-Node order and repeated node references are preserved exactly. The adapter does not intern or deduplicate structure.
+Порядок nodes и повторные references сохраняются точно. Adapter не intern-ит и не deduplicate-ит структуру.
 
-`raw` and `quoted-raw` return no `ProjectionDescription`.
+`raw` и `quoted-raw` не создают `ProjectionDescription`.
 
-## Effects
+## Эффекты
 
-The bridge has no `LinkStore` parameter and therefore cannot read or mutate AVM memory.
+Bridge не принимает `LinkStore`, поэтому не может читать или изменять память AVM.
 
-L4 effects remain explicit:
-
-```text
-bridge_anum_denotation(...)  # structural translation only
-find_projection(...)         # observational / non-materializing
-realize_projection(...)      # explicit materialization
-```
-
-If a resolver returns a syntactically valid LinkId that is not present in a particular store, the bridge still remains pure. `find_projection` returns no result without mutation, and `realize_projection` rejects the missing physical anchor before creating ordinary projection nodes.
-
-## Validation boundary
-
-AVM validates the transport contract, not Anum grammar:
-
-- anchor keys are sorted, unique and non-empty;
-- node IDs are contiguous and topological;
-- anchor refs name declared anchors;
-- node refs target only earlier nodes;
-- structural/non-structural payload shapes do not mix;
-- every structural anchor resolves to a non-invalid LinkId.
-
-AVM intentionally does **not** validate:
+L4 effects остаются явными:
 
 ```text
-whether a raw carrier is valid Anum
-whether brackets encode a specific nested link
-whether root-opening collapse was applied correctly
-which ProjectionContext should be used
+bridge_anum_denotation(...)  # только structural translation
+find_projection(...)         # observation, без materialization
+realize_projection(...)      # явная materialization
 ```
 
-Those are canonical L3 responsibilities.
+Если resolver возвращает синтаксически допустимый `LinkId`, отсутствующий в конкретном store, bridge всё равно остаётся pure. `find_projection` возвращает отсутствие без mutation, а `realize_projection` отклоняет missing physical anchor до создания обычных projection nodes.
 
-## Cross-language conformance
+## Граница валидации
 
-Adapter tests vendor versioned snapshots from `netkeep80/anum_docs` v0.2 under:
+AVM проверяет transport contract, а не грамматику Anum:
+
+- anchor keys отсортированы, уникальны и непусты;
+- node IDs непрерывны и топологически корректны;
+- anchor refs ссылаются на объявленные anchors;
+- node refs указывают только на более ранние nodes;
+- structural и non-structural payload shapes не смешиваются;
+- каждый structural anchor разрешается в non-invalid `LinkId`.
+
+AVM намеренно **не** проверяет:
+
+```text
+валиден ли raw carrier как Anum
+кодируют ли скобки конкретную вложенную связь
+корректно ли выполнен root-opening collapse
+какой ProjectionContext следует использовать
+```
+
+Это каноническая ответственность L3.
+
+## Межъязыковой conformance
+
+Adapter tests используют versioned snapshots из `netkeep80/anum_docs` v0.2:
 
 ```text
 test/conformance/anum-denotation-conformance-v0.2.json
@@ -111,12 +111,12 @@ test/conformance/anum-recursive-denotation-conformance-v0.2.json
 test/conformance/anum-v0.2-provenance.json
 ```
 
-JSON parsing is test-only. `adapters/anum_denotation_bridge.h` remains JSON-free and parser-free.
+JSON parsing применяется только в тестах. `adapters/anum_denotation_bridge.h` остаётся JSON-free и parser-free.
 
-The tests consume generic anchor-only/nested/shared-substructure vectors and actual recursive L3 expected denotations, then exercise the existing AVM projection lifecycle.
+Tests проверяют generic anchor-only/nested/shared-substructure vectors, реальные recursive L3 expected denotations и существующий lifecycle AVM projection.
 
-## Identity
+## Идентичность
 
-Upstream node IDs are description-local positions, not persistent identities. The bridge maps them 1:1 to `ProjectionNodeId` only for one projection description.
+Upstream node IDs — локальные позиции description, а не persistent identities. Bridge отображает их 1:1 в `ProjectionNodeId` только внутри одной projection description.
 
-Physical identity remains a `LinkStore` concern. Equal pairs may converge during explicit realization; L3 and the bridge do not pre-intern occurrence structure.
+Физическая identity остаётся ответственностью `LinkStore`. Equal pairs могут сойтись при explicit realization; L3 и bridge не pre-intern-ят occurrence structure.
