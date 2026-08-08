@@ -53,24 +53,33 @@ public:
 		};
 		notify(ExecutionEvent{ExecutionEventKind::Enter, context, std::nullopt});
 
+		const auto handler = native_handlers_.find(context.relation);
+		if (handler == native_handlers_.end())
+		{
+			notify(ExecutionEvent{ExecutionEventKind::Fail, context, std::nullopt, ExecutionFailurePhase::Dispatch});
+			throw std::runtime_error("unknown relation LinkId: " + std::to_string(context.relation));
+		}
+
+		LinkId result = invalid_link_id;
 		try
 		{
-			const auto handler = native_handlers_.find(context.relation);
-			if (handler == native_handlers_.end())
-				throw std::runtime_error("unknown relation LinkId: " + std::to_string(context.relation));
-
-			const LinkId result = handler->second(context, *this);
-			if (!store_.contains(result))
-				throw std::runtime_error("native relation returned an unknown LinkId");
-
-			notify(ExecutionEvent{ExecutionEventKind::Return, context, result});
-			return result;
+			result = handler->second(context, *this);
 		}
 		catch (...)
 		{
-			notify(ExecutionEvent{ExecutionEventKind::Fail, context, std::nullopt});
+			notify(ExecutionEvent{ExecutionEventKind::Fail, context, std::nullopt, ExecutionFailurePhase::Handler});
 			throw;
 		}
+
+		if (!store_.contains(result))
+		{
+			notify(
+			    ExecutionEvent{ExecutionEventKind::Fail, context, std::nullopt, ExecutionFailurePhase::ResultValidation});
+			throw std::runtime_error("native relation returned an unknown LinkId");
+		}
+
+		notify(ExecutionEvent{ExecutionEventKind::Return, context, result});
+		return result;
 	}
 
 private:
