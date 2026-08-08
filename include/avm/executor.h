@@ -73,9 +73,8 @@ public:
 
 		if (!store_.contains(result))
 		{
-			notify(ExecutionEvent{
-			    ExecutionEventKind::Fail, context, std::nullopt, ExecutionFailurePhase::ResultValidation,
-			});
+			notify(ExecutionEvent{ExecutionEventKind::Fail, context, std::nullopt,
+			                      ExecutionFailurePhase::ResultValidation});
 			throw std::runtime_error("native relation returned an unknown LinkId");
 		}
 
