@@ -50,7 +50,7 @@ jobs:
               echo "ERROR: $file has $lines lines (max: $MAX_LINES)"
               FAILED=1
             fi
-          done < <(find src include -type f \( -name '*.cpp' -o -name '*.h' \) -print)
+          done < <(find src include adapters -type f \( -name '*.cpp' -o -name '*.h' \) -print)
           if [ "$FAILED" -ne 0 ]; then
             exit 1
           fi
@@ -91,6 +91,15 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce projection-only Anum adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E 'parse_raw_quaternary|validate_anum|project_anum|IncrementalQuaternaryDecoder' adapters; then
+            echo "ERROR: AVM Anum adapter must consume canonical L3 results, not duplicate the L3 parser/protocol"
+            exit 1
+          fi
+
       - name: Verify public version contract
         shell: bash
         run: |
@@ -117,6 +126,7 @@ jobs:
           clang-format --version
           clang-format --dry-run --Werror \
             include/avm/*.h \
+            adapters/*.h \
             src/cli.cpp \
             test/assertions_enabled_test.cpp \
             test/link_store_test.cpp \
@@ -135,6 +145,7 @@ jobs:
             test/json_value_codec_test.cpp \
             test/json_projection_test.cpp \
             test/json_session_test.cpp \
+            test/anum_projection_bridge_test.cpp \
             test/package_consumer/main.cpp
 
   core:
@@ -146,19 +157,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure core-only build
+      - name: Configure core and adapter build
         run: >-
           cmake -S . -B build-core
           -DCMAKE_BUILD_TYPE=Debug
           -DAVM_BUILD_CLI=OFF
           -DAVM_BUILD_CORE_TESTS=ON
           -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
 
-      - name: Build core tests
-        run: cmake --build build-core --target avm_core_tests --parallel
+      - name: Build core and adapter tests
+        run: cmake --build build-core --target avm_core_tests avm_anum_adapter_tests --parallel
 
-      - name: Run core tests
+      - name: Run core and adapter tests
         run: ctest --test-dir build-core --output-on-failure
 
   package-consumer:
@@ -182,6 +194,7 @@ jobs:
           -DAVM_BUILD_CLI=OFF
           -DAVM_BUILD_CORE_TESTS=OFF
           -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
 
       - name: Install public package
         run: cmake --install build-install --config Release
@@ -215,6 +228,7 @@ jobs:
           -DAVM_BUILD_CLI=OFF
           -DAVM_BUILD_CORE_TESTS=OFF
           -DAVM_BUILD_JSON_COMPAT_TESTS=ON
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
           -DAVM_WARNINGS_AS_ERRORS=ON
 
       - name: Build JSON compatibility tests
@@ -239,6 +253,7 @@ jobs:
           -DAVM_BUILD_CLI=ON
           -DAVM_BUILD_CORE_TESTS=OFF
           -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
           -DAVM_WARNINGS_AS_ERRORS=ON
 
       - name: Build CLI
@@ -248,7 +263,7 @@ jobs:
         run: ctest --test-dir build-cli --output-on-failure
 
   sanitizers:
-    name: Core + JSON ASan + UBSan
+    name: Core + JSON + adapter ASan + UBSan
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 7
@@ -263,11 +278,12 @@ jobs:
           -DAVM_BUILD_CLI=OFF
           -DAVM_BUILD_CORE_TESTS=ON
           -DAVM_BUILD_JSON_COMPAT_TESTS=ON
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
           -DAVM_ENABLE_SANITIZERS=ON
 
       - name: Build sanitizer tests
-        run: cmake --build build-sanitizers --target avm_core_tests avm_json_compat_tests --parallel
+        run: cmake --build build-sanitizers --target avm_core_tests avm_json_compat_tests avm_anum_adapter_tests --parallel
 
       - name: Run sanitizer tests
         env:
@@ -295,6 +311,7 @@ jobs:
           -DAVM_BUILD_CLI=ON
           -DAVM_BUILD_CORE_TESTS=ON
           -DAVM_BUILD_JSON_COMPAT_TESTS=ON
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=ON
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -319,6 +336,7 @@ jobs:
           -DAVM_BUILD_CLI=ON
           -DAVM_BUILD_CORE_TESTS=OFF
           -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
 
       - name: Build AVM executable
         run: cmake --build build-release --target avm --parallel
