@@ -37,7 +37,7 @@ void test_primitives(avm::JsonValueCodec &codec)
 
 void test_strings(avm::JsonValueCodec &codec)
 {
-	for (const std::string &value : {"", "a", "hello", "line1\nline2\ttab", "Hello, World!", "Привет"})
+	for (const char *value : {"", "a", "hello", "line1\nline2\ttab", "Hello, World!", "Привет"})
 		assert(roundtrip(codec, Json(value)) == Json(value));
 }
 
@@ -54,7 +54,7 @@ void test_arrays(avm::JsonValueCodec &codec)
 void test_objects(avm::JsonValueCodec &codec)
 {
 	assert(roundtrip(codec, Json::object()) == Json::object());
-	assert(roundtrip(codec, Json{{"key", "value"}}) == Json{{"key", "value"}});
+	assert((roundtrip(codec, Json{{"key", "value"}}) == Json{{"key", "value"}}));
 
 	const Json mixed = {
 	    {"array", Json::array({1, 2, 3})},
@@ -89,7 +89,7 @@ void test_restore_vocabulary()
 
 	avm::JsonValueCodec restored(store, vocabulary);
 	assert(store.size() == before_restore);
-	assert(restored.decode(value) == Json{{"persisted", Json::array({true, 42, "x"})}});
+	assert((restored.decode(value) == Json{{"persisted", Json::array({true, 42, "x"})}}));
 }
 
 void test_invalid_decode_rejected()
