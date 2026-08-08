@@ -1,5 +1,5 @@
+#include "avm/bootstrap_runtime.h"
 #include "avm/execution_trace.h"
-#include "avm/program_model.h"
 #include "avm/semantic_execution.h"
 
 #include <cassert>
@@ -13,8 +13,10 @@ static_assert(std::is_nothrow_copy_constructible_v<avm::ExecutionEvent>);
 int main()
 {
 	avm::InMemoryLinkStore store;
+	avm::BootstrapRuntime runtime(store);
 	avm::BoundedExecutionTrace trace(64);
-	avm::Executor executor(store, &trace);
+	avm::Executor &executor = runtime.executor();
+	executor.set_observer(&trace);
 
 	const avm::LinkId initial_state = store.create_point();
 	const avm::LinkId value_2 = store.create_point();
@@ -34,9 +36,7 @@ int main()
 	const avm::LinkId return_only_relation = store.create_point();
 	const avm::LinkId combine_relation = store.create_point();
 	const avm::LinkId invalid_result_relation = store.create_point();
-	const avm::LinkId sequence_relation = store.create_point();
 	const avm::LinkId dispatch_subject = store.create_point();
-	const avm::LinkId nil = store.create_point();
 
 	executor.register_native(set_state_relation,
 	                         [](const avm::ExecutionContext &context, avm::Executor &)
@@ -77,14 +77,6 @@ int main()
 		                         };
 	                         });
 
-	executor.register_native(sequence_relation,
-	                         [nil](const avm::ExecutionContext &context, avm::Executor &current_executor)
-	                         {
-		                         const std::vector<avm::LinkId> children =
-		                             avm::decode_link_list(current_executor.store(), nil, context.object);
-		                         return avm::execute_same_context_sequence(current_executor, children, nil, context);
-	                         });
-
 	const avm::LinkId set_value_2 =
 	    avm::encode_relation_entity(store, avm::RelationEntity{set_state_relation, dispatch_subject, value_2});
 	const avm::LinkId return_value_3 =
@@ -92,9 +84,7 @@ int main()
 	const avm::LinkId combine_value_3 =
 	    avm::encode_relation_entity(store, avm::RelationEntity{combine_relation, dispatch_subject, value_3});
 	const std::vector<avm::LinkId> children{set_value_2, return_value_3, combine_value_3};
-	const avm::LinkId child_list = avm::encode_link_list(store, nil, children);
-	const avm::LinkId sequence_entity =
-	    avm::encode_relation_entity(store, avm::RelationEntity{sequence_relation, dispatch_subject, child_list});
+	const avm::LinkId sequence_entity = runtime.builder().sequence(children);
 
 	const avm::SemanticContextView root_before = root;
 	const std::size_t store_before_sequence = store.size();
