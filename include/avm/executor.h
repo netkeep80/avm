@@ -52,9 +52,13 @@ public:
 		return execute_impl(entity, parent, frame, std::nullopt);
 	}
 
-	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic,
-	                          std::optional<LinkId> parent = std::nullopt,
-	                          std::optional<LinkId> frame = std::nullopt)
+	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic)
+	{
+		return execute_impl(entity, std::nullopt, std::nullopt, semantic);
+	}
+
+	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic, std::optional<LinkId> parent,
+	                          std::optional<LinkId> frame)
 	{
 		return execute_impl(entity, parent, frame, semantic);
 	}
