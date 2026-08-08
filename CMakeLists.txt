@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 message("Configuring: ${CMAKE_CURRENT_SOURCE_DIR}")
 
-set(CMAKE_PROJECT_VERSION 1.2.0)
+set(CMAKE_PROJECT_VERSION 1.3.0)
 
 project(avm
     VERSION ${CMAKE_PROJECT_VERSION}
@@ -28,6 +28,7 @@ target_include_directories(avm_core INTERFACE
 set(AVM_CORE_PUBLIC_HEADERS
     include/avm/avm.h
     include/avm/bootstrap_runtime.h
+    include/avm/execution_observer.h
     include/avm/executor.h
     include/avm/link_store.h
     include/avm/persistent_link_store.h
@@ -149,6 +150,7 @@ if(AVM_BUILD_CORE_TESTS)
     avm_add_core_test(avm_relations_model_test test/relations_model_test.cpp relations_model_tests)
     avm_add_core_test(avm_relations_query_test test/relations_query_test.cpp relations_query_tests)
     avm_add_core_test(avm_executor_test test/executor_test.cpp executor_tests)
+    avm_add_core_test(avm_execution_observer_test test/execution_observer_test.cpp execution_observer_tests)
     avm_add_core_test(avm_program_model_test test/program_model_test.cpp program_model_tests)
     avm_add_core_test(avm_boolean_runtime_test test/boolean_runtime_test.cpp boolean_runtime_tests)
     avm_add_core_test(avm_structural_runtime_test test/structural_runtime_test.cpp structural_runtime_tests)
@@ -182,6 +184,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_relations_model_test
         avm_relations_query_test
         avm_executor_test
+        avm_execution_observer_test
         avm_program_model_test
         avm_boolean_runtime_test
         avm_structural_runtime_test
