@@ -82,20 +82,24 @@ jobs:
             done
             test -n "$window"
             xdotool windowmove "$window" 0 0
+            xdotool windowfocus "$window" || true
             sleep 1
 
             import -display "$DISPLAY" -window root "$output_dir/avm-showcase-initial.png"
             test -s "$output_dir/avm-showcase-initial.png"
 
-            # Coordinates are relative to the GLFW window and are calibrated
-            # against the deterministic first-use ImGui layout captured above.
-            xdotool mousemove --window "$window" 150 285 click 1
-            sleep 0.3
-            xdotool mousemove --window "$window" 150 309 click 1
-            sleep 1
+            # The GLFW window is fixed at (0,0), so the calibrated screenshot
+            # coordinates are also deterministic root coordinates.
+            xdotool mousemove 150 285 click 1
+            sleep 0.6
+            import -display "$DISPLAY" -window root "$output_dir/avm-showcase-after-find.png"
 
-            import -display "$DISPLAY" -window root "$output_dir/avm-showcase-triune.png"
-            test -s "$output_dir/avm-showcase-triune.png"
+            xdotool mousemove 150 309 click 1
+            sleep 0.8
+            import -display "$DISPLAY" -window root "$output_dir/avm-showcase-after-realize.png"
+
+            test -s "$output_dir/avm-showcase-after-find.png"
+            test -s "$output_dir/avm-showcase-after-realize.png"
           ' _ "$binary" "$PWD/build-showcase/showcase-artifacts"
           file build-showcase/showcase-artifacts/*.png
       - name: Upload showcase screenshots
