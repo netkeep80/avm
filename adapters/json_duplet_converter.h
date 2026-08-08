@@ -50,8 +50,11 @@ template <typename Json> Json triplet_to_duplet(const Json &value, const std::st
 		if (relation_members != 3)
 			throw ConversionError(path + ": incomplete legacy relation form: expected $rel, $sub and $obj");
 		if (value.size() != 3)
-			throw ConversionError(
-			    path + ": mixed legacy relation form: foreign members are not losslessly convertible");
+		{
+			const std::string message =
+			    path + ": mixed legacy relation form: foreign members are not losslessly convertible";
+			throw ConversionError(message);
+		}
 
 		Json arguments = Json::object();
 		arguments["<<"] = triplet_to_duplet(value.at("$sub"), object_path(path, "$sub"));
