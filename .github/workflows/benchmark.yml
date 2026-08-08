@@ -1,0 +1,51 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Performance baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-format
+
+      - name: Check benchmark formatting
+        run: clang-format --dry-run --Werror benchmark/avm_benchmark.cpp
+
+      - name: Configure benchmark
+        run: cmake -S benchmark -B build-benchmark -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build benchmark
+        run: cmake --build build-benchmark --config Release --parallel
+
+      - name: Run benchmark smoke
+        run: ./build-benchmark/avm_benchmark > avm-benchmark.tsv
+
+      - name: Validate TSV output
+        shell: bash
+        run: |
+          set -euo pipefail
+          head -n 1 avm-benchmark.tsv | grep -F $'name\toperations\telapsed_ns\tns_per_op'
+          for name in intern_new_pair intern_existing_pair find_hit find_miss outgoing_query incoming_query relations_model_encode relations_model_decode execute_minimal_relation persistent_reopen_index_rebuild; do
+            grep -F "${name}" avm-benchmark.tsv >/dev/null
+          done
+
+      - name: Upload benchmark result
+        uses: actions/upload-artifact@v4
+        with:
+          name: avm-benchmark-${{ github.sha }}
+          path: avm-benchmark.tsv
+          if-no-files-found: error
