@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -96,9 +97,15 @@ struct FindPairResult
 	std::optional<LinkId> id;
 };
 
+enum class AdjacencyDirection
+{
+	Outgoing,
+	Incoming,
+};
+
 struct AdjacencyResult
 {
-	std::string_view direction;
+	AdjacencyDirection direction;
 	LinkId endpoint;
 	std::vector<LinkId> ids;
 };
@@ -148,6 +155,9 @@ using InspectionResult =
 namespace detail
 {
 
+template <typename>
+inline constexpr bool always_false = false;
+
 inline bool is_space(char value) noexcept
 {
 	return value == ' ' || value == '\t' || value == '\r' || value == '\n';
@@ -193,6 +203,18 @@ inline void require_arity(const std::vector<std::string_view> &tokens, std::size
 {
 	if (tokens.size() != expected)
 		throw InspectionCommandError(std::string(command) + " has invalid argument count");
+}
+
+inline const char *adjacency_direction_name(AdjacencyDirection direction) noexcept
+{
+	switch (direction)
+	{
+	case AdjacencyDirection::Outgoing:
+		return "outgoing";
+	case AdjacencyDirection::Incoming:
+		return "incoming";
+	}
+	return "unknown";
 }
 
 inline const char *event_kind_name(ExecutionEventKind kind) noexcept
@@ -355,9 +377,9 @@ inline InspectionResult execute_inspection_command(InspectionSession &session, c
 		    else if constexpr (std::is_same_v<Command, FindPairCommand>)
 			    return FindPairResult{typed.begin, typed.end, session.find_pair(typed.begin, typed.end)};
 		    else if constexpr (std::is_same_v<Command, OutgoingCommand>)
-			    return AdjacencyResult{"outgoing", typed.begin, session.outgoing(typed.begin)};
+			    return AdjacencyResult{AdjacencyDirection::Outgoing, typed.begin, session.outgoing(typed.begin)};
 		    else if constexpr (std::is_same_v<Command, IncomingCommand>)
-			    return AdjacencyResult{"incoming", typed.end, session.incoming(typed.end)};
+			    return AdjacencyResult{AdjacencyDirection::Incoming, typed.end, session.incoming(typed.end)};
 		    else if constexpr (std::is_same_v<Command, DecodeRelationCommand>)
 			    return DecodeRelationResult{typed.entity, session.decode_relation(typed.entity)};
 		    else if constexpr (std::is_same_v<Command, QueryRelationsCommand>)
@@ -377,11 +399,13 @@ inline InspectionResult execute_inspection_command(InspectionSession &session, c
 			        session.trace_truncated(),
 			    };
 		    }
-		    else
+		    else if constexpr (std::is_same_v<Command, TraceResetCommand>)
 		    {
 			    session.reset_trace();
 			    return TraceResetResult{};
 		    }
+		    else
+			    static_assert(detail::always_false<Command>, "unhandled InspectionCommand alternative");
 	    },
 	    command);
 }
@@ -402,7 +426,7 @@ inline std::string render_inspection_result(const InspectionResult &result)
 		    }
 		    else if constexpr (std::is_same_v<Result, AdjacencyResult>)
 		    {
-			    output << typed.direction << " endpoint=" << typed.endpoint << " ids=";
+			    output << detail::adjacency_direction_name(typed.direction) << " endpoint=" << typed.endpoint << " ids=";
 			    detail::append_ids(output, typed.ids);
 		    }
 		    else if constexpr (std::is_same_v<Result, DecodeRelationResult>)
@@ -441,8 +465,10 @@ inline std::string render_inspection_result(const InspectionResult &result)
 			    output << "trace result=" << typed.result << '\n';
 			    detail::append_trace(output, typed.events, typed.truncated);
 		    }
-		    else
+		    else if constexpr (std::is_same_v<Result, TraceResetResult>)
 			    output << "trace reset";
+		    else
+			    static_assert(detail::always_false<Result>, "unhandled InspectionResult alternative");
 		    return output.str();
 	    },
 	    result);
