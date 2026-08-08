@@ -8,11 +8,54 @@ project(avm
     DESCRIPTION "Associative virtual machine"
     LANGUAGES CXX)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 enable_testing()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_library(avm_core INTERFACE)
+add_library(avm::core ALIAS avm_core)
+set_target_properties(avm_core PROPERTIES EXPORT_NAME core)
+target_compile_features(avm_core INTERFACE cxx_std_20)
+target_include_directories(avm_core INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+set(AVM_CORE_PUBLIC_HEADERS
+    include/avm/avm.h
+    include/avm/bootstrap_runtime.h
+    include/avm/executor.h
+    include/avm/link_store.h
+    include/avm/persistent_link_store.h
+    include/avm/program_model.h
+    include/avm/projection.h
+    include/avm/raw_carrier.h
+    include/avm/relations_model.h
+    include/avm/version.h)
+
+install(TARGETS avm_core EXPORT avmTargets)
+install(FILES ${AVM_CORE_PUBLIC_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/avm)
+install(EXPORT avmTargets
+    FILE avmTargets.cmake
+    NAMESPACE avm::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avm)
+
+configure_package_config_file(
+    cmake/avmConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/avmConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avm)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/avmConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/avmConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/avmConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avm)
 
 option(AVM_BUILD_CLI "Build the AVM JSON CLI" ON)
 option(AVM_BUILD_CORE_TESTS "Build AVM 1.0 core tests" ON)
@@ -51,9 +94,8 @@ function(avm_enable_test_assertions target)
 endfunction()
 
 function(avm_add_json_includes target)
-    target_include_directories(${target} PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+    target_link_libraries(${target} PRIVATE avm_core)
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/3p")
 endfunction()
 
 if(AVM_BUILD_CLI)
@@ -94,7 +136,7 @@ endif()
 if(AVM_BUILD_CORE_TESTS)
     function(avm_add_core_test target source test_name)
         add_executable(${target} "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
-        target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        target_link_libraries(${target} PRIVATE avm_core)
         avm_apply_quality(${target})
         avm_enable_test_assertions(${target})
         add_test(NAME ${test_name} COMMAND ${target})
