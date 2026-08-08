@@ -77,7 +77,7 @@ public:
 	{
 		if (max_call_depth_ == 0)
 			throw std::invalid_argument("maximum call depth must be greater than zero");
-		upgrade_structural_vocabulary_if_needed();
+		upgrade_vocabulary_if_needed();
 		validate_vocabulary();
 		materialize_truth_tables();
 		register_handlers();
@@ -106,20 +106,8 @@ private:
 		}
 	}
 
-	void upgrade_structural_vocabulary_if_needed()
+	void validate_legacy_vocabulary() const
 	{
-		const bool begin_missing = vocabulary_.begin_relation == invalid_link_id;
-		const bool end_missing = vocabulary_.end_relation == invalid_link_id;
-		const bool same_missing = vocabulary_.same_relation == invalid_link_id;
-		const bool exists_missing = vocabulary_.link_exists_relation == invalid_link_id;
-		const unsigned missing = static_cast<unsigned>(begin_missing) + static_cast<unsigned>(end_missing) +
-		                         static_cast<unsigned>(same_missing) + static_cast<unsigned>(exists_missing);
-
-		if (missing == 0)
-			return;
-		if (missing != 4)
-			throw std::invalid_argument("bootstrap structural vocabulary must be fully present or fully absent");
-
 		validate_vocabulary_ids({
 		    vocabulary_.unit,
 		    vocabulary_.nil,
@@ -137,11 +125,65 @@ private:
 		    vocabulary_.binding_relation,
 		    vocabulary_.frame_relation,
 		});
+	}
 
-		vocabulary_.begin_relation = store_.create_point();
-		vocabulary_.end_relation = store_.create_point();
-		vocabulary_.same_relation = store_.create_point();
-		vocabulary_.link_exists_relation = store_.create_point();
+	void validate_read_only_structural_vocabulary() const
+	{
+		validate_vocabulary_ids({
+		    vocabulary_.unit,
+		    vocabulary_.nil,
+		    vocabulary_.true_value,
+		    vocabulary_.false_value,
+		    vocabulary_.quote_relation,
+		    vocabulary_.parameter_relation,
+		    vocabulary_.sequence_relation,
+		    vocabulary_.not_relation,
+		    vocabulary_.and_relation,
+		    vocabulary_.or_relation,
+		    vocabulary_.if_relation,
+		    vocabulary_.function_relation,
+		    vocabulary_.call_relation,
+		    vocabulary_.binding_relation,
+		    vocabulary_.frame_relation,
+		    vocabulary_.begin_relation,
+		    vocabulary_.end_relation,
+		    vocabulary_.same_relation,
+		    vocabulary_.link_exists_relation,
+		});
+	}
+
+	void upgrade_vocabulary_if_needed()
+	{
+		const bool begin_missing = vocabulary_.begin_relation == invalid_link_id;
+		const bool end_missing = vocabulary_.end_relation == invalid_link_id;
+		const bool same_missing = vocabulary_.same_relation == invalid_link_id;
+		const bool exists_missing = vocabulary_.link_exists_relation == invalid_link_id;
+		const bool intern_missing = vocabulary_.intern_relation == invalid_link_id;
+		const unsigned read_only_missing = static_cast<unsigned>(begin_missing) + static_cast<unsigned>(end_missing) +
+		                                   static_cast<unsigned>(same_missing) + static_cast<unsigned>(exists_missing);
+
+		if (read_only_missing == 0 && !intern_missing)
+			return;
+
+		if (read_only_missing == 4 && intern_missing)
+		{
+			validate_legacy_vocabulary();
+			vocabulary_.begin_relation = store_.create_point();
+			vocabulary_.end_relation = store_.create_point();
+			vocabulary_.same_relation = store_.create_point();
+			vocabulary_.link_exists_relation = store_.create_point();
+			vocabulary_.intern_relation = store_.create_point();
+			return;
+		}
+
+		if (read_only_missing == 0 && intern_missing)
+		{
+			validate_read_only_structural_vocabulary();
+			vocabulary_.intern_relation = store_.create_point();
+			return;
+		}
+
+		throw std::invalid_argument("bootstrap vocabulary extension state is not a supported complete generation");
 	}
 
 	void validate_vocabulary() const
@@ -166,6 +208,7 @@ private:
 		    vocabulary_.end_relation,
 		    vocabulary_.same_relation,
 		    vocabulary_.link_exists_relation,
+		    vocabulary_.intern_relation,
 		});
 	}
 
@@ -350,6 +393,16 @@ private:
 			                              executor.execute(arguments[0], context.entity, context.frame);
 			                          const LinkId end = executor.execute(arguments[1], context.entity, context.frame);
 			                          return store_.find(begin, end) ? vocabulary_.true_value : vocabulary_.false_value;
+		                          });
+
+		executor_.register_native(vocabulary_.intern_relation,
+		                          [this](const ExecutionContext &context, Executor &executor)
+		                          {
+			                          const std::vector<LinkId> arguments = expression_arguments(context, 2);
+			                          const LinkId begin =
+			                              executor.execute(arguments[0], context.entity, context.frame);
+			                          const LinkId end = executor.execute(arguments[1], context.entity, context.frame);
+			                          return store_.intern(begin, end);
 		                          });
 
 		executor_.register_native(
