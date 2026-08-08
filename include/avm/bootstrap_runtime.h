@@ -345,14 +345,14 @@ private:
 			                          return context.object;
 		                          });
 
-		executor_.register_native(vocabulary_.sequence_relation,
-		                          [this](const ExecutionContext &context, Executor &executor)
-		                          {
-			                          require_expression_subject(context, vocabulary_.unit);
-			                          const std::vector<LinkId> expressions =
-			                              decode_link_list(store_, vocabulary_.nil, context.object);
-			                          return execute_same_context_sequence(executor, expressions, vocabulary_.nil, context);
-		                          });
+		executor_.register_native(
+		    vocabulary_.sequence_relation,
+		    [this](const ExecutionContext &context, Executor &executor)
+		    {
+			    require_expression_subject(context, vocabulary_.unit);
+			    const std::vector<LinkId> expressions = decode_link_list(store_, vocabulary_.nil, context.object);
+			    return execute_same_context_sequence(executor, expressions, vocabulary_.nil, context);
+		    });
 
 		executor_.register_native(vocabulary_.begin_relation,
 		                          [this](const ExecutionContext &context, Executor &executor)
