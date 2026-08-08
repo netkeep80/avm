@@ -22,7 +22,8 @@ struct DirectTriuneVocabulary
 	static DirectTriuneVocabulary create(LinkStore &store)
 	{
 		return DirectTriuneVocabulary{
-		    store.create_point(), store.create_point(), store.create_point(), store.create_point(), store.create_point(),
+		    store.create_point(), store.create_point(), store.create_point(), store.create_point(),
+		    store.create_point(),
 		};
 	}
 
