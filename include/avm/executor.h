@@ -49,12 +49,42 @@ public:
 	LinkId execute(LinkId entity, std::optional<LinkId> parent = std::nullopt,
 	               std::optional<LinkId> frame = std::nullopt)
 	{
+		return execute_impl(entity, parent, frame, std::nullopt);
+	}
+
+	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic,
+	                          std::optional<LinkId> parent = std::nullopt,
+	                          std::optional<LinkId> frame = std::nullopt)
+	{
+		return execute_impl(entity, parent, frame, semantic);
+	}
+
+	LinkId execute_same_semantic_context(LinkId entity, const ExecutionContext &parent_context)
+	{
+		if (!parent_context.semantic)
+			throw std::logic_error("parent execution context has no semantic context");
+		return execute_in_context(entity, *parent_context.semantic, parent_context.entity, parent_context.frame);
+	}
+
+	LinkId execute_child_semantic_context(LinkId entity, const ExecutionContext &parent_context,
+	                                      SemanticContextFrame child_frame)
+	{
+		if (!parent_context.semantic)
+			throw std::logic_error("parent execution context has no semantic context");
+		const SemanticContextView child = parent_context.semantic->child(std::move(child_frame));
+		return execute_in_context(entity, child, parent_context.entity, parent_context.frame);
+	}
+
+private:
+	LinkId execute_impl(LinkId entity, std::optional<LinkId> parent, std::optional<LinkId> frame,
+	                    std::optional<SemanticContextView> semantic)
+	{
 		if (!store_.contains(entity))
 			throw std::invalid_argument("execution entity is not present in LinkStore");
 
 		const RelationEntity decoded = decode_relation_entity(store_, entity);
 		const ExecutionContext context{
-		    entity, decoded.relation, decoded.subject, decoded.object, parent, frame,
+		    entity, decoded.relation, decoded.subject, decoded.object, parent, frame, std::move(semantic),
 		};
 		notify(ExecutionEvent{ExecutionEventKind::Enter, context, std::nullopt});
 
@@ -87,7 +117,6 @@ public:
 		return result;
 	}
 
-private:
 	void notify(const ExecutionEvent &event) noexcept
 	{
 		if (observer_ == nullptr)

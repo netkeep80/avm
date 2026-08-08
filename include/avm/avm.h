@@ -11,5 +11,6 @@
 #include "avm/raw_carrier.h"
 #include "avm/relations_model.h"
 #include "avm/relations_query.h"
+#include "avm/semantic_context.h"
 #include "avm/triune_primitives.h"
 #include "avm/version.h"
