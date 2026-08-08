@@ -61,8 +61,7 @@ void assert_definition_roots_use_existing_relations(const avm::LinkStore &store,
 {
 	const auto self_definition = avm::find_function_definition(store, vocabulary, library.is_self_link);
 	const auto match_definition = avm::find_function_definition(store, vocabulary, library.pair_matches);
-	const auto nested_definition =
-	    avm::find_function_definition(store, vocabulary, library.is_self_via_pair_matches);
+	const auto nested_definition = avm::find_function_definition(store, vocabulary, library.is_self_via_pair_matches);
 	assert(self_definition.has_value());
 	assert(match_definition.has_value());
 	assert(nested_definition.has_value());
@@ -96,17 +95,15 @@ void verify_composed_structural_library_behavior()
 	assert(runtime.execute(nonpoint_call) == vocabulary.false_value);
 	assert(runtime.execute(self_pair_call) == vocabulary.true_value);
 
-	const avm::LinkId match_call = builder.call(
-	    library.pair_matches, {builder.literal(nonpoint), builder.literal(left), builder.literal(right)});
-	const avm::LinkId wrong_end_call = builder.call(
-	    library.pair_matches, {builder.literal(nonpoint), builder.literal(left), builder.literal(point)});
+	const avm::LinkId match_call =
+	    builder.call(library.pair_matches, {builder.literal(nonpoint), builder.literal(left), builder.literal(right)});
+	const avm::LinkId wrong_end_call =
+	    builder.call(library.pair_matches, {builder.literal(nonpoint), builder.literal(left), builder.literal(point)});
 	assert(runtime.execute(match_call) == vocabulary.true_value);
 	assert(runtime.execute(wrong_end_call) == vocabulary.false_value);
 
-	const avm::LinkId nested_point =
-	    builder.call(library.is_self_via_pair_matches, {builder.literal(point)});
-	const avm::LinkId nested_nonpoint =
-	    builder.call(library.is_self_via_pair_matches, {builder.literal(nonpoint)});
+	const avm::LinkId nested_point = builder.call(library.is_self_via_pair_matches, {builder.literal(point)});
+	const avm::LinkId nested_nonpoint = builder.call(library.is_self_via_pair_matches, {builder.literal(nonpoint)});
 	assert(runtime.execute(nested_point) == vocabulary.true_value);
 	assert(runtime.execute(nested_nonpoint) == vocabulary.false_value);
 }
