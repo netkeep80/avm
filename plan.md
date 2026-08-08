@@ -187,13 +187,11 @@ Properties:
 
 Epic: #95.
 
-### Gate 14 — deterministic non-controlling execution observer (current)
+### Gate 14 — deterministic non-controlling execution observer ✅
 
-Child: #96.
+Implemented through #96/#97.
 
-Goal: make the canonical `Executor::execute` path observable without turning tracing/debugging into a second execution path or control channel.
-
-Initial event model:
+Public event model:
 
 ```text
 Enter(ExecutionContext)
@@ -201,26 +199,48 @@ Return(ExecutionContext, result LinkId)
 Fail(ExecutionContext)
 ```
 
-Requirements:
+Properties:
 
-- events contain canonical LinkId/context data only;
-- no timestamps, host pointers, textual opcode names, JSON/Anum or backend data in the semantic event contract;
+- canonical LinkId/context data only;
+- no timestamps, host pointers, textual opcode names, JSON/Anum or backend data;
 - observer receives no mutable `Executor`, `LinkStore`, context or result reference;
 - observer exceptions cannot replace program success/failure;
 - nested calls are observed through the same `Executor::execute` recursion;
 - observer presence/absence does not change program result or store effects;
 - pre-context failures emit no context event;
-- installed package consumer validates the observer API on Linux/Windows/macOS;
-- strict warnings, ASan+UBSan and portable matrix remain green.
+- installed package consumer validates the API on Linux/Windows/macOS;
+- strict warnings, ASan+UBSan and portable matrix are green.
+
+### Gate 15 — deterministic failure phase and unwind observation (current)
+
+Child: #98.
+
+Extend `Fail` with a finite AVM-owned phase taxonomy:
+
+```text
+Dispatch
+Handler
+ResultValidation
+```
+
+Requirements:
+
+- phase identifies the canonical execution boundary that failed, not exception text/type;
+- no `std::exception_ptr`, host exception object or backend/protocol diagnostic in `ExecutionEvent`;
+- unknown relation, throwing handler and invalid returned LinkId are distinguishable;
+- nested failure is observed through ordinary stack-shaped `Executor::execute` events;
+- original exception type/message behavior remains unchanged;
+- observer exceptions remain suppressed for every failure phase;
+- repeated failure against unchanged state produces identical events;
+- observation does not materialize links.
 
 ### Later AVM 1.3 gates
 
-After Gate 14 is stable:
+After Gate 15 is stable:
 
-1. failure/unwind trace hardening and explicit diagnostics policy;
-2. reusable collector/tooling layer outside semantic state;
-3. InMemory/Persistent reopen trace equivalence;
-4. debugger/REPL consumer built on observation rather than a traced executor fork.
+1. reusable collector/tooling layer outside semantic state;
+2. InMemory/Persistent reopen trace equivalence;
+3. debugger/REPL consumer built on observation rather than a traced executor fork.
 
 ## Later AVM 1.x directions
 
