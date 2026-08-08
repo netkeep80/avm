@@ -7,6 +7,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -119,16 +120,28 @@ private:
 	void validate_vocabulary() const
 	{
 		const std::vector<LinkId> ids{
-		    vocabulary_.unit,              vocabulary_.nil,              vocabulary_.null_value,
-		    vocabulary_.true_value,        vocabulary_.false_value,      vocabulary_.array_relation,
-		    vocabulary_.byte_relation,     vocabulary_.string_relation,  vocabulary_.unsigned_relation,
-		    vocabulary_.integer_relation,  vocabulary_.float_relation,   vocabulary_.object_relation,
+		    vocabulary_.unit,
+		    vocabulary_.nil,
+		    vocabulary_.null_value,
+		    vocabulary_.true_value,
+		    vocabulary_.false_value,
+		    vocabulary_.array_relation,
+		    vocabulary_.byte_relation,
+		    vocabulary_.string_relation,
+		    vocabulary_.unsigned_relation,
+		    vocabulary_.integer_relation,
+		    vocabulary_.float_relation,
+		    vocabulary_.object_relation,
 		    vocabulary_.entry_relation,
 		};
+
+		std::set<LinkId> unique;
 		for (const LinkId id : ids)
 		{
 			if (!store_.contains(id))
 				throw std::invalid_argument("JSON value vocabulary contains an unknown LinkId");
+			if (!unique.insert(id).second)
+				throw std::invalid_argument("JSON value vocabulary identities must be distinct");
 		}
 	}
 
