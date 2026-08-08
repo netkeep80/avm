@@ -12,9 +12,9 @@ namespace avm
 
 struct RelationQuery
 {
-	std::optional<LinkId> relation;
-	std::optional<LinkId> subject;
-	std::optional<LinkId> object;
+	std::optional<LinkId> relation = std::nullopt;
+	std::optional<LinkId> subject = std::nullopt;
+	std::optional<LinkId> object = std::nullopt;
 };
 
 struct RelationMatch
