@@ -1,19 +1,19 @@
-# Relations Model query contract
+# Контракт запросов Модели Отношений
 
-## Status
+## Статус
 
-This document defines the public AVM 1.1 read-only query layer over canonical Relations Model entities.
+Этот документ определяет публичный read-only query layer AVM 1.1 над каноническими сущностями Модели Отношений.
 
-The physical and semantic foundations remain unchanged:
+Физический и семантический фундамент неизменен:
 
 ```text
 LinkId -> (begin, end)
 (relation, subject, object) = (relation, (subject, object))
 ```
 
-Queries are a derived read-only view over the existing `LinkStore` contract. They do not introduce a second database, index universe, entity registry or execution path.
+Запросы — производное read-only представление над существующим контрактом `LinkStore`. Они не вводят вторую database, отдельный universe индексов, entity registry или execution path.
 
-## Public API
+## Публичный API
 
 ```cpp
 #include <avm/relations_query.h>
@@ -28,39 +28,39 @@ std::vector<avm::RelationMatch> matches =
     avm::query_relation_entities(store, query);
 ```
 
-A `RelationMatch` contains:
+`RelationMatch` содержит:
 
 ```text
-entity_id  canonical LinkId of the outer relation link
+entity_id  канонический LinkId внешней relation-link
 entity     decoded RelationEntity {relation, subject, object}
 ```
 
-At least one field must be constrained. An all-wildcard query is rejected because `LinkStore` deliberately exposes no full-store enumeration contract.
+Хотя бы одно поле должно быть ограничено. All-wildcard query запрещён, потому что `LinkStore` намеренно не предоставляет contract полного enumeration store.
 
-## Existing-index strategies
+## Стратегии на существующих индексах
 
-The query layer uses exactly the indexes already implied by the `LinkStore` API.
+Query layer использует только индексы, уже выраженные публичным `LinkStore` API.
 
-### Relation constrained
+### Ограничено relation
 
 ```text
 outgoing(relation)
 -> outer candidate links
--> decode + filter remaining fields
+-> decode + filter остальных полей
 ```
 
-### Subject and object constrained, relation wildcard
+### Ограничены subject и object, relation wildcard
 
 ```text
 find(subject, object)
--> canonical subject/object pair, if already present
+-> canonical subject/object pair, если она существует
 -> incoming(pair)
 -> decode + filter
 ```
 
-The query never calls `intern(subject, object)`. A missing pair produces an empty result without mutation.
+Запрос никогда не вызывает `intern(subject, object)`. Missing pair даёт пустой результат без mutation.
 
-### Subject constrained
+### Ограничен subject
 
 ```text
 outgoing(subject)
@@ -70,7 +70,7 @@ outgoing(subject)
 -> decode + filter
 ```
 
-### Object constrained
+### Ограничен object
 
 ```text
 incoming(object)
@@ -80,19 +80,19 @@ incoming(object)
 -> decode + filter
 ```
 
-No backend-specific containers are visible to this layer.
+Backend-specific containers этому слою не видны.
 
-## Structural totality
+## Структурная тотальность
 
-AVM does not maintain a hidden registry of links previously created through `encode_relation_entity`.
+AVM не поддерживает hidden registry связей, ранее созданных через `encode_relation_entity`.
 
-`decode_relation_entity(store, id)` is structural: for any existing outer link, its `end` is itself an existing link and therefore supplies the subject/object pair. Consequently a point:
+`decode_relation_entity(store, id)` структурен: для любой существующей outer link её `end` сам является существующей link и поэтому задаёт пару subject/object. Следовательно point:
 
 ```text
 x = (x, x)
 ```
 
-also structurally represents:
+структурно также представляет:
 
 ```text
 relation = x
@@ -100,36 +100,36 @@ subject  = x
 object   = x
 ```
 
-Likewise, intermediate pair links may themselves satisfy a broader structural query. This is intentional. Introducing an external "this LinkId is an entity" registry would create a second semantic identity universe and contradict the Relations Model representation.
+Промежуточные pair links также могут удовлетворять более широкому structural query. Это намеренно. External registry вида «этот LinkId является entity» создал бы второй semantic identity universe и противоречил бы универсальности представления.
 
-Applications that need a narrower domain should express that domain through additional relations/constraints rather than hidden C++ classification state.
+Если application нужен более узкий domain, его следует выражать дополнительными relations/constraints в самой асети, а не hidden C++ classification state.
 
-## Result semantics
+## Семантика результата
 
-Results are:
+Результаты:
 
-- observational: the store size and canonical identities do not change;
-- deterministic: sorted by ascending `entity_id`;
-- defensively deduplicated by `entity_id`;
-- structurally verified: every returned `entity` equals `decode_relation_entity(store, entity_id)`.
+- observational: размер store и canonical identities не меняются;
+- deterministic: сортируются по возрастанию `entity_id`;
+- defensively deduplicated по `entity_id`;
+- structurally verified: каждая `entity` совпадает с `decode_relation_entity(store, entity_id)`.
 
-Unknown constrained LinkIds yield an empty result. Querying does not materialize missing links.
+Unknown constrained `LinkId` дают пустой результат. Query не materialize-ит missing links.
 
-## Backend equivalence
+## Эквивалентность backends
 
-The same query fixture is required to return equivalent results for:
+Один и тот же fixture обязан давать эквивалентный результат для:
 
 ```text
 InMemoryLinkStore
-PersistentLinkStore before close
-PersistentLinkStore after reopen
+PersistentLinkStore до close
+PersistentLinkStore после reopen
 ```
 
-This keeps query semantics above the backend boundary.
+Query semantics остаётся выше backend boundary.
 
-## Explicit non-goals
+## Явные non-goals
 
-AVM 1.1 query v1 does not add:
+AVM 1.1 query v1 не добавляет:
 
 ```text
 full-store enumeration
@@ -138,18 +138,18 @@ planner statistics
 secondary persistent indexes
 hidden entity registries
 mutation through queries
-JSON or Anum query semantics
+JSON или Anum query semantics
 ```
 
-A future index extension must first demonstrate a measured need against the benchmark baselines and then extend the `LinkStore` contract explicitly rather than inspecting backend internals.
+Будущий индекс сначала должен быть оправдан измеряемой потребностью относительно benchmark baseline, а затем явно расширить `LinkStore` contract, а не читать backend internals.
 
 ## Quality gates
 
-CI rejects production `relations_query.h` if it introduces:
+CI не позволяет production `relations_query.h` вводить:
 
-- `intern()` or `create_point()`;
-- guessed enumeration through `store.size()`;
-- direct dependency on `InMemoryLinkStore` or `PersistentLinkStore`;
+- `intern()` или `create_point()`;
+- guessed enumeration через `store.size()`;
+- прямую зависимость от `InMemoryLinkStore` или `PersistentLinkStore`;
 - JSON/Anum dependencies.
 
-Benchmark baselines cover relation-, subject-, object- and exact subject+object-driven queries.
+Benchmark baseline покрывает relation-, subject-, object- и exact subject+object-driven queries.
