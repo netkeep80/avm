@@ -80,15 +80,13 @@ Validated on the same public package/core contracts:
 - one documented execution path;
 - no legacy semantic path.
 
-## AVM 1.1 — associative query facilities
+## AVM 1.1 — associative query facilities — complete ✅
 
-Current epic: #83.
+Epic: #83.
 
-### Gate 9 — constrained Relations Model queries (current)
+### Gate 9 — constrained Relations Model queries ✅
 
-Child: #84.
-
-Goal: read-only query facilities over the existing Relations Model and `LinkStore` indexes, without a second storage/index universe.
+Implemented through #84/#85.
 
 Public query shape:
 
@@ -99,37 +97,106 @@ relation? / subject? / object?
 -> deterministic RelationMatch list
 ```
 
-Requirements:
+Properties:
 
 - at least one constraint;
 - no `intern` / `create_point` in queries;
 - no guessed full-store enumeration;
 - deterministic ordering/deduplication;
 - InMemory/Persistent/reopen equivalence;
-- benchmark baselines for each lookup strategy;
 - installed public package consumption.
 
-### Gate 10 — measured query/index evolution
+### Gate 10 — measured query/index evolution ✅ decision
 
-Only after Gate 9 benchmarks and real workloads show a need:
+Fan-out scaling was measured at 1/8/64/256 in #86/#87. Existing-index query cost grows with candidate expansion, but no concrete AVM workload/SLA currently justifies another physical/persistent index.
 
-- evaluate explicit LinkStore enumeration contract;
-- evaluate additional secondary/index operations;
-- preserve backend replaceability and read-only semantics;
-- require conformance across in-memory/persistent backends.
+Decision:
+
+- keep canonical `find/outgoing/incoming` as the only primitive lookup/index contract;
+- defer extra indexes until real workload evidence demonstrates a need;
+- any future extension must compare against the recorded scaling baseline and prove InMemory/Persistent conformance.
 
 No backend-specific map is promoted into semantic code merely for convenience.
 
+## AVM 1.2 — link-native structural standard library
+
+Epic: #88.
+
+### Gate 11 — read-only structural primitives ✅
+
+Implemented through #89/#90.
+
+Native observational kernel:
+
+```text
+link_begin(expr)
+link_end(expr)
+identity_equal(a,b)
+link_exists(a,b)
+```
+
+Properties:
+
+- arguments are evaluated ordinary AVM expressions;
+- handlers observe `LinkStore::get/find` only;
+- no missing-link materialization;
+- canonical Boolean results for predicates;
+- `link_exists` does not overload `nil` as a missing sentinel;
+- persisted 1.1 vocabulary can upgrade without changing older LinkIds.
+
+### Gate 12 — explicit canonical pair effect ✅
+
+Implemented through #91/#92.
+
+```text
+pair_intern(a,b) -> canonical LinkId(a,b)
+```
+
+Properties:
+
+- the handler delegates to canonical `LinkStore::intern`;
+- missing pair creates exactly one link;
+- existing/repeated materialization is idempotent;
+- no point synthesis in the effect handler;
+- vocabulary migration supports complete 15-ID, 19-ID and current 20-ID generations with prevalidation before writes;
+- persistent reopen preserves the materialized LinkId.
+
+### Gate 13 — standard-library composition (current)
+
+Child: #93.
+
+Goal: prove that higher-level structural operations are ordinary AVM functions instead of new native handlers.
+
+Initial compositions:
+
+```text
+is_self_link(x) = identity_equal(link_begin(x), link_end(x))
+
+pair_matches(x,b,e) = AND(identity_equal(link_begin(x), b),
+                          identity_equal(link_end(x), e))
+```
+
+Requirements:
+
+- function bodies are ordinary link-native expressions;
+- function handles have no native handlers;
+- composed functions may call other composed functions;
+- definitions survive persistent reopen through explicit handles;
+- effect accounting keeps existing link-native binding/call-frame materialization visible instead of hiding it in an ephemeral host-language stack;
+- no new production relation identity or storage API merely for a reducible library operation.
+
+Completion of this gate closes AVM 1.2.
+
 ## Later AVM 1.x directions
 
-After the query foundation:
+After the structural standard-library foundation:
 
-1. link-native standard library expansion;
-2. additional thin protocol/front-end adapters;
-3. debugger/REPL and observability;
-4. packaging/integration tooling;
-5. visualization/GUI;
-6. production physical backends and persistence experiments.
+1. additional thin protocol/front-end adapters;
+2. debugger/REPL and execution observability;
+3. packaging/integration tooling;
+4. visualization/GUI;
+5. production physical backends and persistence experiments;
+6. standard-library growth by link-native composition, with new native primitives only for irreducible observation/effect boundaries.
 
 Every extension must reuse the existing `LinkStore -> Relations Model -> Executor` architecture.
 
