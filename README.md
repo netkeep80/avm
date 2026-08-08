@@ -98,11 +98,23 @@ See [Structural standard library](docs/structural-standard-library.md).
 
 ## AVM 1.3 — execution observability
 
-AVM 1.3 begins with an optional deterministic observer attached to the existing `Executor::execute` path. It emits immutable `Enter`, `Return` and `Fail` events containing only canonical `ExecutionContext`/`LinkId` data.
+AVM 1.3 adds deterministic, non-controlling observation to the existing `Executor::execute` path. `ExecutionEvent` uses only canonical AVM data: `Enter`, `Return` and `Fail`, the decoded `ExecutionContext`, optional result `LinkId`, and a finite failure phase (`Dispatch`, `Handler`, `ResultValidation`).
 
-Observers cannot replace handlers, skip execution or substitute results. Observer exceptions are isolated from program control flow, and observation itself does not materialize links. Nested calls are observed through the same executor path, including explicit parent/frame identities.
+Observers cannot replace handlers, skip execution or substitute results. Observer exceptions are isolated from program control flow, and observation itself does not materialize links. Nested calls and failure unwind are observed through the same executor recursion, including explicit parent/frame identities.
 
-This is the boundary for future debugger/REPL tooling; no traced executor, JSON opcode trace or second program representation is introduced.
+`BoundedExecutionTrace` is the reusable public host-memory collector. It reserves a configured event capacity before normal execution, exposes immutable events, reports truncation explicitly, and never becomes `Executor` or `LinkStore` semantic state.
+
+Persistence conformance distinguishes two identity claims: the same `PersistentLinkStore` must produce exactly identical LinkId-based traces after reopen, while independently constructed backends are compared only modulo bijective renaming of opaque LinkIds. AVM never treats raw numeric LinkIds as globally comparable across stores.
+
+The CLI is a real consumer of the same public observation boundary:
+
+```text
+avm program.json
+avm --trace program.json
+avm --trace-limit 64 program.json
+```
+
+Normal mode preserves the compatibility behavior. Trace mode uses the existing `JsonProgramImporter`, the same `BootstrapRuntime::execute(LinkId)` path and existing JSON result projection; it merely attaches `BoundedExecutionTrace` and renders the retained events. Text labels are tooling presentation, not string opcodes or canonical trace identity. Failing executions render retained `Fail(phase)` events before the normal host diagnostic, and trace truncation is never silent.
 
 See [Execution observability contract](docs/execution-observability.md).
 
@@ -179,7 +191,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-CI installs the package into a staging prefix and builds an external consumer on Linux, Windows and macOS using only `find_package` and `avm::core`.
+CI installs the package into a staging prefix and builds an external consumer on Linux, Windows and macOS using only `find_package` and `avm::core`. The full portable matrix also runs the trace-enabled CLI conformance cases.
 
 ## Architecture documents
 
@@ -197,7 +209,7 @@ CI installs the package into a staging prefix and builds an external consumer on
 
 ## Project status
 
-AVM 1.0 foundation, AVM 1.1 read-only queries and AVM 1.2 structural standard-library gates are complete. AVM 1.3 is introducing deterministic non-controlling execution observation as the prerequisite for debugger/REPL tooling without creating a second execution path.
+AVM 1.0 foundation, AVM 1.1 read-only queries and AVM 1.2 structural standard-library gates are complete. AVM 1.3 provides deterministic observation, failure-phase classification, bounded trace collection, persistence/backend conformance and trace-enabled CLI tooling while preserving the single `LinkStore -> Relations Model -> Executor` execution path.
 
 ## Dependencies
 
