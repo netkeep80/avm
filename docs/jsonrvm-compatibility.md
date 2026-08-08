@@ -237,7 +237,7 @@ Filesystem, HTTP и dynamic dictionary loading являются capabilities. О
 
 Authoritative tooling representation — JSON manifest; таблица здесь предназначена для человека.
 
-## Differential corpus
+## Дифференциальный корпус
 
 ### `CASE-RELATIVE-ADDRESSING`
 
