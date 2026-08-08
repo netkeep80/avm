@@ -1,0 +1,77 @@
+name: AVM Showcase
+
+on:
+  pull_request:
+    branches:
+      - main
+      - agent/semantic-context-view
+    paths:
+      - 'CMakeLists.txt'
+      - 'examples/showcase/**'
+      - 'include/avm/execution_observer.h'
+      - 'include/avm/execution_trace.h'
+      - 'include/avm/executor.h'
+      - 'include/avm/relations_model.h'
+      - 'include/avm/semantic_context.h'
+      - 'include/avm/triune_primitives.h'
+      - '.github/workflows/showcase.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Showcase formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-format
+      - name: Check showcase formatting
+        run: clang-format --dry-run --Werror examples/showcase/main.cpp
+
+  linux:
+    name: Showcase / Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install window-system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xorg-dev libgl1-mesa-dev
+      - name: Configure
+        run: >-
+          cmake -S . -B build-showcase
+          -DCMAKE_BUILD_TYPE=Release
+          -DAVM_BUILD_IMGUI_DEMO=ON
+          -DAVM_BUILD_CLI=OFF
+          -DAVM_BUILD_CORE_TESTS=OFF
+          -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
+          -DAVM_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build-showcase --target avm_showcase --parallel
+
+  windows:
+    name: Showcase / Windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: >-
+          cmake -S . -B build-showcase
+          -DAVM_BUILD_IMGUI_DEMO=ON
+          -DAVM_BUILD_CLI=OFF
+          -DAVM_BUILD_CORE_TESTS=OFF
+          -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
+          -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
+          -DAVM_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build-showcase --config Release --target avm_showcase --parallel

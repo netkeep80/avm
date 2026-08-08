@@ -66,6 +66,7 @@ option(AVM_BUILD_CLI "Build the AVM JSON CLI" ON)
 option(AVM_BUILD_CORE_TESTS "Build AVM core tests" ON)
 option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection/session tests" ON)
 option(AVM_BUILD_ANUM_ADAPTER_TESTS "Build canonical Anum denotation adapter tests" ON)
+option(AVM_BUILD_IMGUI_DEMO "Build the optional Dear ImGui AVM showcase" OFF)
 option(AVM_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(AVM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
@@ -283,4 +284,8 @@ if(AVM_BUILD_JSON_COMPAT_TESTS)
     add_test(NAME json_session_tests COMMAND avm_json_session_test)
 
     add_custom_target(avm_json_compat_tests DEPENDS avm_json_projection_test avm_json_session_test)
+endif()
+
+if(AVM_BUILD_IMGUI_DEMO)
+    add_subdirectory(examples/showcase)
 endif()
