@@ -1,145 +1,181 @@
-# AVM 1.0 architecture contract
+# Архитектурный контракт AVM
 
-This document defines the engineering boundaries for the AVM 1.0 foundation. It intentionally does not define the whole Meta-Theory of Links (MTS); it defines how AVM stores and executes associative structures.
+Этот документ задаёт инженерные границы ядра AVM. Он намеренно не определяет всю Метатеорию Связей (МТС): его задача — определить, как AVM хранит и исполняет ассоциативные структуры.
 
-## Layers
+## Уровни
 
 ```text
-A0  Link model       LinkId -> (begin, end)
-A1  LinkStore        canonical identity, queries and explicit writes
-A2  Relations Model  (relation, subject, object) <-> nested dyads
-A3  Execution        context + relation dispatch + program evaluation
-A4  Projection       JSON, Anum and other external representations
-A5  Backend          in-memory, persistent adapters or another store
+A0  Модель связи       LinkId -> (begin, end)
+A1  LinkStore          каноническая идентичность, запросы и явные записи
+A2  Модель Отношений   (relation, subject, object) <-> вложенные дуплеты
+A3  Исполнение         контекст + dispatch отношения + вычисление программы
+A4  Проекция           JSON, Anum и другие внешние представления
+A5  Backend            in-memory, persistent adapter или другое хранилище
 ```
 
-A higher layer must not silently redefine a lower layer.
+Верхний уровень не должен скрыто переопределять семантику нижнего.
 
-## A0. Link model
+## A0. Модель связи
 
-The physical primitive of the AVM 1.0 core is a directed dyad:
+Физический примитив ядра AVM — направленный дуплет:
 
 ```text
 LinkId -> (begin: LinkId, end: LinkId)
 ```
 
-`LinkId` is an opaque identity. Semantic code must not derive meaning from a C++ pointer value or from the physical layout of a backend.
+`LinkId` — непрозрачная идентичность. Семантический код не должен выводить смысл из значения C++ pointer или физического layout backend.
 
-An independent identity is bootstrapped as a self-link `(x, x)`. This keeps the reference in-memory implementation link-only instead of introducing a second physical atom record type.
+Независимая идентичность bootstrap-ится как self-link `(x, x)`. Благодаря этому эталонная in-memory реализация остаётся полностью link-only и не вводит второй физический тип записи «атом».
 
 ## A1. LinkStore
 
-The canonical storage contract separates reads from writes.
+Канонический контракт хранения разделяет чтение и запись.
 
-| Operation | May mutate | Meaning |
+| Операция | Может изменять store | Смысл |
 |---|---:|---|
-| `create_point()` | yes | Introduce a new independent self-link identity |
-| `intern(begin,end)` | yes | Return the canonical link for a pair, creating it when missing |
-| `find(begin,end)` | no | Find an existing exact pair |
-| `get(id)` | no | Read endpoints |
-| `outgoing(begin)` | no | Read links that begin at an identity |
-| `incoming(end)` | no | Read links that end at an identity |
+| `create_point()` | да | Создать новую независимую self-link identity |
+| `intern(begin,end)` | да | Вернуть каноническую связь пары, создав её при отсутствии |
+| `find(begin,end)` | нет | Найти уже существующую точную пару |
+| `get(id)` | нет | Прочитать полюса связи |
+| `outgoing(begin)` | нет | Получить связи с указанным begin |
+| `incoming(end)` | нет | Получить связи с указанным end |
 
-The important invariant is:
+Ключевой инвариант:
 
 ```text
-find(a, b) never creates Link(a, b)
+find(a, b) никогда не создаёт Link(a, b)
 ```
 
-and canonicalization means:
+Канонизация означает:
 
 ```text
 intern(a, b) == intern(a, b)
 ```
 
-inside one logical store.
+в пределах одного логического store.
 
-## A2. Relations Model compatibility
+## A2. Совместимость с Моделью Отношений
 
-An executable entity is represented as the triplet:
+Триединая сущность имеет форму:
 
 ```text
 (relation, subject, object)
 ```
 
-AVM uses one canonical nesting order:
+AVM использует единственный канонический порядок вложения:
 
 ```text
 subject_object = Link(subject, object)
 entity         = Link(relation, subject_object)
 ```
 
-therefore:
+следовательно:
 
 ```text
 (relation, subject, object)
 = (relation, (subject, object))
 ```
 
-The Relations Model codec is responsible for this mapping. `LinkStore` itself does not know what a relation, subject or object is.
+За это отображение отвечает Relations Model codec. Сам `LinkStore` не знает, какие связи играют роли relation, subject или object.
 
-## A3. Execution
+Важно различать **представление** и **семантику исполнения**. Lossless encoding триплета через два дуплета не определяет автоматически, что означает исполнение всех трёх ролей. Этот более сильный контракт развивается в AVM 1.5.
 
-The executor accepts a root/entity `LinkId`, not a JSON AST. It decodes a Relations Model entity, constructs an explicit execution context and dispatches by relation identity.
+## A3. Исполнение
 
-Native C++ handlers are allowed as a bootstrap vocabulary, but their keys are relation `LinkId`s in the associative store. Program structures, bindings and call frames belong to the associative representation; the native registry must not become a second program database.
+`Executor` принимает root/entity `LinkId`, а не JSON AST. Он декодирует сущность Модели Отношений, формирует явный execution context и выполняет dispatch по identity отношения.
 
-The historical pointer-based `rel_t` storage/runtime and JSON-centric `eval()`/`interpret()` semantic path have been removed after migration of their consumers. They are available only through Git history and are not compatibility APIs of AVM 1.0.
+Native C++ handlers допускаются как bootstrap vocabulary, но ключом является relation `LinkId` в ассоциативном store. Program structures, bindings и call frames принадлежат ассоциативному представлению; native registry не должен становиться второй базой программ.
 
-## A4. Projection
+Исторический pointer-based `rel_t` storage/runtime и JSON-centric `eval()`/`interpret()` semantic path удалены после миграции consumers. Они доступны только в Git history и не являются compatibility API AVM.
 
-JSON and Anum are external representations.
+### Частный и общий случаи исполнения
+
+Первый bootstrap program model использует удобную форму:
 
 ```text
-external representation
+(relation, unit, payload)
+```
+
+Это допустимый частный случай, но не определение всей Модели Отношений. AVM 1.5 расширяет контракт до meaningful execution произвольной сущности:
+
+```text
+(relation, subject, object)
+```
+
+без требования `subject == unit`.
+
+## A4. Проекция
+
+JSON и Anum являются внешними представлениями:
+
+```text
+внешнее представление
 -> parser / codec / projection
 -> LinkStore + Relations Model
 -> execution
 ```
 
-The executor must not depend on `nlohmann::json` as its internal instruction type.
+`Executor` не должен зависеть от `nlohmann::json` как внутреннего instruction/value type.
 
-For Anum, AVM follows the separation used by the Anum/MTS work:
+Для Anum AVM следует разделению L3/L4:
 
 ```text
 raw(A) != den(A)
-load(A) does not imply materializing den(A)
-find(A) is non-mutating
-realize(A) is an explicit materializing operation
+load(A) не означает материализацию den(A)
+find(A) не изменяет store
+realize(A) является явной materializing operation
 ```
 
-The Anum parser and context projection belong outside the storage layer.
+Anum parser, grammar, quotation/context semantics находятся вне storage layer. Канонический источник этих правил — `netkeep80/anum_docs`.
 
 ## A5. Backend
 
-Storage backends implement the same `LinkStore` semantics. They do not define VM relations, JSON rules or Anum semantics.
+Физические backends реализуют один и тот же `LinkStore` contract. Они не определяют VM relations, JSON rules, Anum semantics или правила исполнения.
 
-`InMemoryLinkStore` is the reference backend. Persistent adapters are backend follow-ups and must pass the same observable conformance contract; they are not prerequisites for VM semantics.
+`InMemoryLinkStore` — эталонный backend. `PersistentLinkStore` — reference persistence implementation, доказывающая reopen/identity semantics.
 
-## Core invariants
+Production-grade crash consistency, WAL, locking, concurrent writers и другие физические свойства должны развиваться как backend contracts, не изменяя semantic kernel.
 
-1. One physical core primitive: a directed dyad.
-2. Opaque link identity.
-3. Canonical identity for an exact pair.
-4. Read/query operations do not materialize missing links.
-5. Relations Model triplets use exactly `(relation, (subject, object))`.
-6. JSON is a projection, not the VM instruction storage.
-7. Execution consumes link identities.
-8. Program structures and call state belong to the associative model.
-9. Backend implementation is independent from VM semantics.
-10. Legacy paths are deleted after migration; Git is the history store.
+## Основные инварианты
 
-## Foundation sequence
+1. Один физический примитив ядра — направленный дуплет.
+2. `LinkId` является непрозрачной identity.
+3. Точная пара имеет каноническую identity в одном logical store.
+4. Read/query operations не материализуют missing links.
+5. Триплет Модели Отношений имеет единственный порядок `(relation, (subject, object))`.
+6. JSON является проекцией, а не внутренним хранилищем инструкций VM.
+7. Исполнение принимает identities связей.
+8. Program structures и call state принадлежат ассоциативной модели.
+9. Backend implementation не определяет VM semantics.
+10. External protocol parsing не находится внутри semantic core.
+11. Observation/inspection не создают второй executor.
+12. Legacy paths удаляются после миграции; историю хранит Git.
+13. Эффекты и materialization должны быть явными.
+14. Полная triune semantics не сводится к `subject = unit`.
+
+## Эволюция архитектуры
+
+Фундамент AVM 1.0 строился в порядке:
 
 ```text
-architecture contract
+архитектурный контракт
 -> LinkStore
 -> Relations Model codec
 -> execution kernel
 -> program-as-links
 -> external protocol boundary
 -> persistence / vertical slice / performance hardening
--> AVM 1.0 release readiness
+-> release readiness
 ```
 
-The dependency-ordered status is maintained in `plan.md` and the AVM 1.0 GitHub roadmap issues.
+Следующие версии сохраняют тот же фундамент:
+
+```text
+AVM 1.1  read-only Relations queries
+AVM 1.2  structural standard library
+AVM 1.3  execution observability
+AVM 1.4  inspection tooling
+AVM 1.5  semantic migration from jsonRVM
+```
+
+Актуальный dependency-ordered status поддерживается в `plan.md` и GitHub issues.
