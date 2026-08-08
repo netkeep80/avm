@@ -136,8 +136,8 @@ void verify_read_only_commands_match_canonical_apis()
 	assert(decoded.entity.subject == fixture.point_a);
 	assert(decoded.entity.object == fixture.point_c);
 
-	const std::string query_line = "query " + std::to_string(fixture.relation) + " " +
-	                               std::to_string(fixture.point_a) + " " + std::to_string(fixture.point_c);
+	const std::string query_line = "query " + std::to_string(fixture.relation) + " " + std::to_string(fixture.point_a) +
+	                               " " + std::to_string(fixture.point_c);
 	const auto query_command = avm::tooling::parse_inspection_command(query_line);
 	const auto query_result = avm::tooling::execute_inspection_command(session, query_command);
 	const auto &matches = std::get<avm::tooling::QueryRelationsResult>(query_result).matches;
@@ -160,7 +160,8 @@ void verify_execute_and_trace_reuse_session_runtime()
 	    avm::tooling::run_inspection_command(session, command("execute", fixture.boolean_root));
 	assert(execute_text == "execute result=" + std::to_string(fixture.vocabulary.true_value));
 
-	const std::string trace_text = avm::tooling::run_inspection_command(session, command("trace", fixture.boolean_root));
+	const std::string trace_text =
+	    avm::tooling::run_inspection_command(session, command("trace", fixture.boolean_root));
 	assert(trace_text.find("trace result=" + std::to_string(fixture.vocabulary.true_value)) == 0);
 	assert(trace_text.find("enter entity=") != std::string::npos);
 	assert(trace_text.find("return entity=") != std::string::npos);

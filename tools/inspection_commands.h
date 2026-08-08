@@ -147,15 +147,14 @@ struct TraceResetResult
 {
 };
 
-using InspectionResult = std::variant<InspectLinkResult, FindPairResult, AdjacencyResult, DecodeRelationResult,
-                                      QueryRelationsResult, FunctionDefinitionResult, CallFrameResult, ExecuteResult,
-                                      TraceExecuteResult, TraceResetResult>;
+using InspectionResult =
+    std::variant<InspectLinkResult, FindPairResult, AdjacencyResult, DecodeRelationResult, QueryRelationsResult,
+                 FunctionDefinitionResult, CallFrameResult, ExecuteResult, TraceExecuteResult, TraceResetResult>;
 
 namespace detail
 {
 
-template <typename>
-inline constexpr bool always_false = false;
+template <typename> inline constexpr bool always_false = false;
 
 inline bool is_space(char value) noexcept
 {
@@ -197,8 +196,7 @@ inline std::optional<LinkId> parse_constraint(std::string_view token)
 	return parse_link_id(token);
 }
 
-inline void require_arity(const std::vector<std::string_view> &tokens, std::size_t expected,
-                          std::string_view command)
+inline void require_arity(const std::vector<std::string_view> &tokens, std::size_t expected, std::string_view command)
 {
 	if (tokens.size() != expected)
 		throw InspectionCommandError(std::string(command) + " has invalid argument count");
@@ -269,8 +267,9 @@ inline void append_ids(std::ostringstream &output, const std::vector<LinkId> &id
 
 inline void append_event(std::ostringstream &output, const ExecutionEvent &event)
 {
-	output << event_kind_name(event.kind) << " entity=" << event.context.entity << " relation=" << event.context.relation
-	       << " subject=" << event.context.subject << " object=" << event.context.object << " parent=";
+	output << event_kind_name(event.kind) << " entity=" << event.context.entity
+	       << " relation=" << event.context.relation << " subject=" << event.context.subject
+	       << " object=" << event.context.object << " parent=";
 	append_optional_link(output, event.context.parent);
 	output << " frame=";
 	append_optional_link(output, event.context.frame);
@@ -368,7 +367,8 @@ inline InspectionCommand parse_inspection_command(std::string_view line)
 inline InspectionResult execute_inspection_command(InspectionSession &session, const InspectionCommand &command)
 {
 	return std::visit(
-	    [&session](const auto &typed) -> InspectionResult {
+	    [&session](const auto &typed) -> InspectionResult
+	    {
 		    using Command = std::decay_t<decltype(typed)>;
 		    if constexpr (std::is_same_v<Command, InspectLinkCommand>)
 			    return InspectLinkResult{typed.id, session.inspect_link(typed.id)};
@@ -410,7 +410,8 @@ inline InspectionResult execute_inspection_command(InspectionSession &session, c
 inline std::string render_inspection_result(const InspectionResult &result)
 {
 	return std::visit(
-	    [](const auto &typed) {
+	    [](const auto &typed)
+	    {
 		    using Result = std::decay_t<decltype(typed)>;
 		    std::ostringstream output;
 		    if constexpr (std::is_same_v<Result, InspectLinkResult>)
@@ -422,7 +423,8 @@ inline std::string render_inspection_result(const InspectionResult &result)
 		    }
 		    else if constexpr (std::is_same_v<Result, AdjacencyResult>)
 		    {
-			    output << detail::adjacency_direction_name(typed.direction) << " endpoint=" << typed.endpoint << " ids=";
+			    output << detail::adjacency_direction_name(typed.direction) << " endpoint=" << typed.endpoint
+			           << " ids=";
 			    detail::append_ids(output, typed.ids);
 		    }
 		    else if constexpr (std::is_same_v<Result, DecodeRelationResult>)
@@ -432,9 +434,9 @@ inline std::string render_inspection_result(const InspectionResult &result)
 		    {
 			    output << "query matches=" << typed.matches.size();
 			    for (const RelationMatch &match : typed.matches)
-			        output << '\n'
-			               << "entity=" << match.entity_id << " relation=" << match.entity.relation
-			               << " subject=" << match.entity.subject << " object=" << match.entity.object;
+				    output << '\n'
+				           << "entity=" << match.entity_id << " relation=" << match.entity.relation
+				           << " subject=" << match.entity.subject << " object=" << match.entity.object;
 		    }
 		    else if constexpr (std::is_same_v<Result, FunctionDefinitionResult>)
 		    {
