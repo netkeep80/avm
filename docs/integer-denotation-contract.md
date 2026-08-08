@@ -250,7 +250,7 @@ realize semantic value
 
 Это продолжает общий AVM contract `find != realize`, уже закреплённый для links и PairTarget.
 
-## Direct arithmetic relations
+## Прямые арифметические отношения
 
 Первый vocabulary:
 
@@ -351,7 +351,7 @@ Encoder/decoder используют unsigned magnitude arithmetic, наприм
 
 Decoder не пытается «исправить» malformed structure materialization-ом.
 
-## Persistent semantics
+## Семантика persistent-хранилища
 
 Vocabulary identities и все structural links сохраняются обычным `LinkStore` backend-ом.
 
@@ -405,7 +405,7 @@ raw(A) != den(A)
 9. GUI/JSON/Anum layers отсутствуют в integer core;
 10. persistent and in-memory meanings equivalent.
 
-## Conformance gate
+## Проверка соответствия
 
 Минимальные значения:
 
