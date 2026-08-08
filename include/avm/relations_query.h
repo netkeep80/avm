@@ -57,7 +57,7 @@ inline void append_entities_for_pair(const LinkStore &store, const RelationQuery
                                      std::vector<RelationMatch> &matches)
 {
 	for (const LinkId entity_id : store.incoming(pair_id))
-		append_relation_candidate(store, query, entity_id, matches);
+		detail::append_relation_candidate(store, query, entity_id, matches);
 }
 
 } // namespace detail
@@ -94,8 +94,8 @@ inline std::vector<RelationMatch> query_relation_entities(const LinkStore &store
 			detail::append_entities_for_pair(store, query, pair_id, matches);
 	}
 
-	std::sort(matches.begin(), matches.end(), [](const RelationMatch &left, const RelationMatch &right)
-	          { return left.entity_id < right.entity_id; });
+	std::sort(matches.begin(), matches.end(),
+	          [](const RelationMatch &left, const RelationMatch &right) { return left.entity_id < right.entity_id; });
 	matches.erase(std::unique(matches.begin(), matches.end(), [](const RelationMatch &left, const RelationMatch &right)
 	                          { return left.entity_id == right.entity_id; }),
 	              matches.end());
