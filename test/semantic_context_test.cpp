@@ -95,8 +95,8 @@ int main()
 		                         assert(context.semantic.has_value());
 		                         return context.semantic->role(avm::SemanticContextRole::RelationState);
 	                         });
-	const avm::LinkId context_entity = avm::encode_relation_entity(
-	    store, avm::RelationEntity{context_relation, dispatch_subject, dispatch_object});
+	const avm::LinkId context_entity =
+	    avm::encode_relation_entity(store, avm::RelationEntity{context_relation, dispatch_subject, dispatch_object});
 
 	const std::size_t before_context_execute = store.size();
 	assert(executor.execute_in_context(context_entity, root) == root_relation_state);
@@ -118,15 +118,15 @@ int main()
 		                         assert(context.semantic.has_value());
 		                         return context.semantic->role(avm::SemanticContextRole::Subject);
 	                         });
-	const avm::LinkId same_child = avm::encode_relation_entity(
-	    store, avm::RelationEntity{same_child_relation, dispatch_subject, dispatch_object});
+	const avm::LinkId same_child =
+	    avm::encode_relation_entity(store, avm::RelationEntity{same_child_relation, dispatch_subject, dispatch_object});
 
 	const avm::LinkId same_parent_relation = store.create_point();
 	executor.register_native(same_parent_relation,
 	                         [same_child](const avm::ExecutionContext &context, avm::Executor &current_executor)
 	                         { return current_executor.execute_same_semantic_context(same_child, context); });
-	const avm::LinkId same_parent = avm::encode_relation_entity(
-	    store, avm::RelationEntity{same_parent_relation, dispatch_subject, dispatch_object});
+	const avm::LinkId same_parent =
+	    avm::encode_relation_entity(store, avm::RelationEntity{same_parent_relation, dispatch_subject, dispatch_object});
 
 	assert(executor.execute_in_context(same_parent, root) == root_subject);
 	assert(observer.events.size() == 4);
@@ -145,8 +145,8 @@ int main()
 		                         assert(context.semantic->current() == child_frame);
 		                         return context.semantic->role(avm::SemanticContextRole::Object);
 	                         });
-	const avm::LinkId explicit_child = avm::encode_relation_entity(
-	    store, avm::RelationEntity{child_relation, dispatch_subject, dispatch_object});
+	const avm::LinkId explicit_child =
+	    avm::encode_relation_entity(store, avm::RelationEntity{child_relation, dispatch_subject, dispatch_object});
 
 	const avm::LinkId child_parent_relation = store.create_point();
 	executor.register_native(
