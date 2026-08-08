@@ -1,0 +1,23 @@
+{
+  "schema": "anum-recursive-denotation-conformance/v0.2",
+  "contract": "anum-recursive-denotation/v0.2",
+  "status": "accepted",
+  "cases": [
+    {"name":"direct-pair","raw":"01","context":"root","expected":{"kind":"structural","anchors":["protocol:0","protocol:1"],"nodes":[{"id":0,"start":{"anchor":"protocol:0"},"end":{"anchor":"protocol:1"}}],"root":{"node":0}}},
+    {"name":"nested-left","raw":"[01]1","context":"root","expected":{"kind":"structural","anchors":["protocol:0","protocol:1"],"nodes":[{"id":0,"start":{"anchor":"protocol:0"},"end":{"anchor":"protocol:1"}},{"id":1,"start":{"node":0},"end":{"anchor":"protocol:1"}}],"root":{"node":1}}},
+    {"name":"nested-right","raw":"0[10]","context":"root","expected":{"kind":"structural","anchors":["protocol:0","protocol:1"],"nodes":[{"id":0,"start":{"anchor":"protocol:1"},"end":{"anchor":"protocol:0"}},{"id":1,"start":{"anchor":"protocol:0"},"end":{"node":0}}],"root":{"node":1}}},
+    {"name":"nested-both","raw":"[01][10]","context":"root","expected":{"kind":"structural","anchors":["protocol:0","protocol:1"],"nodes":[{"id":0,"start":{"anchor":"protocol:0"},"end":{"anchor":"protocol:1"}},{"id":1,"start":{"anchor":"protocol:1"},"end":{"anchor":"protocol:0"}},{"id":2,"start":{"node":0},"end":{"node":1}}],"root":{"node":2}}},
+    {"name":"deeper-left-root-open-collapse","raw":"[01]1]0","context":"root","expected":{"kind":"structural","anchors":["protocol:0","protocol:1"],"nodes":[{"id":0,"start":{"anchor":"protocol:0"},"end":{"anchor":"protocol:1"}},{"id":1,"start":{"node":0},"end":{"anchor":"protocol:1"}},{"id":2,"start":{"node":1},"end":{"anchor":"protocol:0"}}],"root":{"node":2}}},
+    {"name":"deeper-right","raw":"0[1[01]]","context":"root","expected":{"kind":"structural","anchors":["protocol:0","protocol:1"],"nodes":[{"id":0,"start":{"anchor":"protocol:0"},"end":{"anchor":"protocol:1"}},{"id":1,"start":{"anchor":"protocol:1"},"end":{"node":0}},{"id":2,"start":{"anchor":"protocol:0"},"end":{"node":1}}],"root":{"node":2}}},
+    {"name":"root-link-boundary-precedence","raw":"[]","context":"root","expected":{"kind":"structural","anchors":["protocol:1"],"nodes":[],"root":{"anchor":"protocol:1"}}},
+    {"name":"root-unlink-boundary-precedence","raw":"][","context":"root","expected":{"kind":"structural","anchors":["protocol:0"],"nodes":[],"root":{"anchor":"protocol:0"}}},
+    {"name":"open-open-stays-raw","raw":"[[","context":"root","expected":{"kind":"raw","raw":"[["}},
+    {"name":"close-close-stays-raw","raw":"]]","context":"root","expected":{"kind":"raw","raw":"]]"}},
+    {"name":"noncanonical-uncollapsed-leading-opens","raw":"[[01]1]0","context":"root","expected":{"kind":"raw","raw":"[[01]1]0"}},
+    {"name":"single-value-bracket-rejected","raw":"[0]1","context":"root","expected":{"kind":"raw","raw":"[0]1"}},
+    {"name":"extra-root-value-rejected","raw":"010","context":"root","expected":{"kind":"raw","raw":"010"}},
+    {"name":"standalone-bracket-value-rejected","raw":"[01]","context":"root","expected":{"kind":"raw","raw":"[01]"}},
+    {"name":"quote-context-does-not-run-recursive-grammar","raw":"[[01]1]","context":"quote","expected":{"kind":"quoted-raw","raw":"[01]1"}},
+    {"name":"relative-context-does-not-run-recursive-grammar","raw":"[01]1","context":"relative","expected":{"kind":"raw","raw":"[01]1"}}
+  ]
+}
