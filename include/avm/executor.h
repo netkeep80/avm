@@ -49,7 +49,7 @@ public:
 	LinkId execute(LinkId entity, std::optional<LinkId> parent = std::nullopt,
 	               std::optional<LinkId> frame = std::nullopt)
 	{
-		return execute_impl(entity, parent, frame, std::nullopt);
+		return execute_impl(entity, parent, frame, SemanticContextView{});
 	}
 
 	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic)
@@ -67,7 +67,7 @@ public:
 	{
 		if (!parent_context.semantic)
 			throw std::logic_error("parent execution context has no semantic context");
-		return execute_in_context(entity, *parent_context.semantic, parent_context.entity, parent_context.frame);
+		return execute_in_context(entity, parent_context.semantic, parent_context.entity, parent_context.frame);
 	}
 
 	LinkId execute_child_semantic_context(LinkId entity, const ExecutionContext &parent_context,
@@ -75,13 +75,13 @@ public:
 	{
 		if (!parent_context.semantic)
 			throw std::logic_error("parent execution context has no semantic context");
-		const SemanticContextView child = parent_context.semantic->child(std::move(child_frame));
+		const SemanticContextView child = parent_context.semantic.child(std::move(child_frame));
 		return execute_in_context(entity, child, parent_context.entity, parent_context.frame);
 	}
 
 private:
 	LinkId execute_impl(LinkId entity, std::optional<LinkId> parent, std::optional<LinkId> frame,
-	                    std::optional<SemanticContextView> semantic)
+	                    SemanticContextView semantic)
 	{
 		if (!store_.contains(entity))
 			throw std::invalid_argument("execution entity is not present in LinkStore");
