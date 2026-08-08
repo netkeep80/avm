@@ -154,6 +154,7 @@ if(AVM_BUILD_CLI)
     avm_add_trace_cli_test(cli_trace_truncate truncate "${TEST_DIR}/trace_boolean.json")
     avm_add_trace_cli_test(cli_trace_failure failure "${TEST_DIR}/trace_failure.json")
     avm_add_trace_cli_test(cli_trace_nonexpression nonexpression "${TEST_DIR}/true.json")
+    avm_add_trace_cli_test(cli_trace_badlimit badlimit "${TEST_DIR}/trace_boolean.json")
 endif()
 
 if(AVM_BUILD_CORE_TESTS)
