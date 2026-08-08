@@ -1,6 +1,7 @@
 #pragma once
 
 #include "avm/execution_observer.h"
+#include "avm/execution_outcome.h"
 #include "avm/relations_model.h"
 
 #include <functional>
@@ -14,7 +15,7 @@ namespace avm
 {
 
 class Executor;
-using NativeRelationHandler = std::function<LinkId(const ExecutionContext &, Executor &)>;
+using NativeRelationHandler = std::function<ExecutionOutcome(const ExecutionContext &, Executor &)>;
 
 class Executor
 {
@@ -46,42 +47,70 @@ public:
 
 	bool has_native(LinkId relation) const { return native_handlers_.contains(relation); }
 
-	LinkId execute(LinkId entity, std::optional<LinkId> parent = std::nullopt,
-	               std::optional<LinkId> frame = std::nullopt)
+	ExecutionOutcome execute_outcome(LinkId entity, std::optional<LinkId> parent = std::nullopt,
+	                                 std::optional<LinkId> frame = std::nullopt)
 	{
 		return execute_impl(entity, parent, frame, SemanticContextView{});
 	}
 
-	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic)
+	LinkId execute(LinkId entity, std::optional<LinkId> parent = std::nullopt,
+	               std::optional<LinkId> frame = std::nullopt)
+	{
+		return execute_outcome(entity, parent, frame).result;
+	}
+
+	ExecutionOutcome execute_outcome_in_context(LinkId entity, const SemanticContextView &semantic)
 	{
 		return execute_impl(entity, std::nullopt, std::nullopt, semantic);
+	}
+
+	ExecutionOutcome execute_outcome_in_context(LinkId entity, const SemanticContextView &semantic,
+	                                            std::optional<LinkId> parent, std::optional<LinkId> frame)
+	{
+		return execute_impl(entity, parent, frame, semantic);
+	}
+
+	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic)
+	{
+		return execute_outcome_in_context(entity, semantic).result;
 	}
 
 	LinkId execute_in_context(LinkId entity, const SemanticContextView &semantic, std::optional<LinkId> parent,
 	                          std::optional<LinkId> frame)
 	{
-		return execute_impl(entity, parent, frame, semantic);
+		return execute_outcome_in_context(entity, semantic, parent, frame).result;
+	}
+
+	ExecutionOutcome execute_same_semantic_context_outcome(LinkId entity, const ExecutionContext &parent_context)
+	{
+		if (!parent_context.semantic)
+			throw std::logic_error("parent execution context has no semantic context");
+		return execute_outcome_in_context(entity, parent_context.semantic, parent_context.entity, parent_context.frame);
 	}
 
 	LinkId execute_same_semantic_context(LinkId entity, const ExecutionContext &parent_context)
 	{
+		return execute_same_semantic_context_outcome(entity, parent_context).result;
+	}
+
+	ExecutionOutcome execute_child_semantic_context_outcome(LinkId entity, const ExecutionContext &parent_context,
+	                                                        SemanticContextFrame child_frame)
+	{
 		if (!parent_context.semantic)
 			throw std::logic_error("parent execution context has no semantic context");
-		return execute_in_context(entity, parent_context.semantic, parent_context.entity, parent_context.frame);
+		const SemanticContextView child = parent_context.semantic.child(std::move(child_frame));
+		return execute_outcome_in_context(entity, child, parent_context.entity, parent_context.frame);
 	}
 
 	LinkId execute_child_semantic_context(LinkId entity, const ExecutionContext &parent_context,
 	                                      SemanticContextFrame child_frame)
 	{
-		if (!parent_context.semantic)
-			throw std::logic_error("parent execution context has no semantic context");
-		const SemanticContextView child = parent_context.semantic.child(std::move(child_frame));
-		return execute_in_context(entity, child, parent_context.entity, parent_context.frame);
+		return execute_child_semantic_context_outcome(entity, parent_context, std::move(child_frame)).result;
 	}
 
 private:
-	LinkId execute_impl(LinkId entity, std::optional<LinkId> parent, std::optional<LinkId> frame,
-	                    SemanticContextView semantic)
+	ExecutionOutcome execute_impl(LinkId entity, std::optional<LinkId> parent, std::optional<LinkId> frame,
+	                              SemanticContextView semantic)
 	{
 		if (!store_.contains(entity))
 			throw std::invalid_argument("execution entity is not present in LinkStore");
@@ -99,10 +128,10 @@ private:
 			throw std::runtime_error("unknown relation LinkId: " + std::to_string(context.relation));
 		}
 
-		LinkId result = invalid_link_id;
+		ExecutionOutcome outcome{invalid_link_id};
 		try
 		{
-			result = handler->second(context, *this);
+			outcome = handler->second(context, *this);
 		}
 		catch (...)
 		{
@@ -110,15 +139,18 @@ private:
 			throw;
 		}
 
-		if (!store_.contains(result))
+		if (!store_.contains(outcome.result))
 		{
 			notify(ExecutionEvent{ExecutionEventKind::Fail, context, std::nullopt,
 			                      ExecutionFailurePhase::ResultValidation});
 			throw std::runtime_error("native relation returned an unknown LinkId");
 		}
 
-		notify(ExecutionEvent{ExecutionEventKind::Return, context, result});
-		return result;
+		if (!outcome.semantic)
+			outcome.semantic = context.semantic;
+
+		notify(ExecutionEvent{ExecutionEventKind::Return, context, outcome.result, std::nullopt, outcome.semantic});
+		return outcome;
 	}
 
 	void notify(const ExecutionEvent &event) noexcept
