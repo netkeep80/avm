@@ -9,6 +9,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -27,7 +28,7 @@ struct FileCleanup
 	~FileCleanup()
 	{
 		std::error_code error;
-		std::filesystem::remove(path, error);
+		std::filesystem::remove_all(path, error);
 	}
 };
 
@@ -52,6 +53,26 @@ void expect_open_failure(const std::filesystem::path &path)
 	assert(rejected);
 }
 
+template <typename Operation> void expect_faulted_rejection(Operation &&operation)
+{
+	bool rejected = false;
+	try
+	{
+		std::forward<Operation>(operation)();
+	}
+	catch (const std::runtime_error &)
+	{
+		rejected = true;
+	}
+	assert(rejected);
+}
+
+void replace_file_with_directory(const std::filesystem::path &path)
+{
+	assert(std::filesystem::remove(path));
+	assert(std::filesystem::create_directory(path));
+}
+
 void test_empty_reopen()
 {
 	const std::filesystem::path path = temporary_path("empty");
@@ -61,11 +82,13 @@ void test_empty_reopen()
 		assert(store.size() == 0);
 		const avm::LinkId point = store.create_point();
 		assert(point == 1);
+		assert(!store.faulted());
 	}
 	{
 		avm::PersistentLinkStore reopened(path);
 		assert(reopened.size() == 1);
 		assert(reopened.get(1) == (avm::Link{1, 1}));
+		assert(!reopened.faulted());
 	}
 }
 
@@ -165,12 +188,73 @@ void test_endpoint_validation_survives_reopen()
 		}
 		assert(rejected);
 		assert(store.size() == 1);
+		assert(!store.faulted());
 	}
 	{
 		avm::PersistentLinkStore reopened(path);
 		assert(reopened.size() == 1);
 		assert(reopened.get(1) == (avm::Link{1, 1}));
 	}
+}
+
+void test_failed_create_faults_live_store()
+{
+	const std::filesystem::path path = temporary_path("fault-create");
+	FileCleanup cleanup{path};
+	avm::PersistentLinkStore store(path);
+	const avm::LinkId first = store.create_point();
+	assert(first == 1);
+	assert(!store.faulted());
+
+	replace_file_with_directory(path);
+	bool failed = false;
+	try
+	{
+		static_cast<void>(store.create_point());
+	}
+	catch (const std::runtime_error &)
+	{
+		failed = true;
+	}
+	assert(failed);
+	assert(store.faulted());
+	assert(store.path() == path);
+
+	expect_faulted_rejection([&store] { static_cast<void>(store.size()); });
+	expect_faulted_rejection([&store, first] { static_cast<void>(store.contains(first)); });
+	expect_faulted_rejection([&store, first] { static_cast<void>(store.get(first)); });
+	expect_faulted_rejection([&store, first] { static_cast<void>(store.outgoing(first)); });
+	expect_faulted_rejection([&store, first] { static_cast<void>(store.incoming(first)); });
+	expect_faulted_rejection([&store, first] { static_cast<void>(store.find(first, first)); });
+	expect_faulted_rejection([&store] { static_cast<void>(store.create_point()); });
+}
+
+void test_existing_intern_does_not_persist_but_new_intern_faults()
+{
+	const std::filesystem::path path = temporary_path("fault-intern");
+	FileCleanup cleanup{path};
+	avm::PersistentLinkStore store(path);
+	const avm::LinkId first = store.create_point();
+	const avm::LinkId second = store.create_point();
+	const avm::LinkId pair = store.intern(first, second);
+	assert(!store.faulted());
+
+	replace_file_with_directory(path);
+	assert(store.intern(first, second) == pair);
+	assert(!store.faulted());
+
+	bool failed = false;
+	try
+	{
+		static_cast<void>(store.intern(second, first));
+	}
+	catch (const std::runtime_error &)
+	{
+		failed = true;
+	}
+	assert(failed);
+	assert(store.faulted());
+	expect_faulted_rejection([&store, first, second] { static_cast<void>(store.intern(first, second)); });
 }
 
 } // namespace
@@ -181,5 +265,7 @@ int main()
 	test_reopen_identity_and_indexes();
 	test_corruption_rejection();
 	test_endpoint_validation_survives_reopen();
+	test_failed_create_faults_live_store();
+	test_existing_intern_does_not_persist_but_new_intern_faults();
 	return 0;
 }
