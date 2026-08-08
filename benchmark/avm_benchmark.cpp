@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace
@@ -90,27 +91,27 @@ void assert_match_count(const avm::LinkStore &store, const avm::RelationQuery &q
 
 void benchmark_relation_query_scale(std::size_t fanout, std::size_t &sink)
 {
-	avm::InMemoryLinkStore query_store;
-	const avm::LinkId relation = query_store.create_point();
-	const avm::LinkId subject = query_store.create_point();
-	const avm::LinkId object = query_store.create_point();
+	avm::InMemoryLinkStore qs;
+	const avm::LinkId relation = qs.create_point();
+	const avm::LinkId subject = qs.create_point();
+	const avm::LinkId object = qs.create_point();
 
 	for (std::size_t i = 0; i < fanout; ++i)
 	{
-		const avm::LinkId relation_subject = query_store.create_point();
-		const avm::LinkId relation_object = query_store.create_point();
-		static_cast<void>(avm::encode_relation_entity(query_store, {relation, relation_subject, relation_object}));
+		const avm::LinkId relation_subject = qs.create_point();
+		const avm::LinkId relation_object = qs.create_point();
+		static_cast<void>(avm::encode_relation_entity(qs, {relation, relation_subject, relation_object}));
 
-		const avm::LinkId subject_relation = query_store.create_point();
-		const avm::LinkId subject_object = query_store.create_point();
-		static_cast<void>(avm::encode_relation_entity(query_store, {subject_relation, subject, subject_object}));
+		const avm::LinkId subject_relation = qs.create_point();
+		const avm::LinkId subject_object = qs.create_point();
+		static_cast<void>(avm::encode_relation_entity(qs, {subject_relation, subject, subject_object}));
 
-		const avm::LinkId object_relation = query_store.create_point();
-		const avm::LinkId object_subject = query_store.create_point();
-		static_cast<void>(avm::encode_relation_entity(query_store, {object_relation, object_subject, object}));
+		const avm::LinkId object_relation = qs.create_point();
+		const avm::LinkId object_subject = qs.create_point();
+		static_cast<void>(avm::encode_relation_entity(qs, {object_relation, object_subject, object}));
 
-		const avm::LinkId exact_relation = query_store.create_point();
-		static_cast<void>(avm::encode_relation_entity(query_store, {exact_relation, subject, object}));
+		const avm::LinkId exact_relation = qs.create_point();
+		static_cast<void>(avm::encode_relation_entity(qs, {exact_relation, subject, object}));
 	}
 
 	const avm::RelationQuery relation_query{.relation = relation};
@@ -123,28 +124,26 @@ void benchmark_relation_query_scale(std::size_t fanout, std::size_t &sink)
 	const std::size_t object_matches = 3 * fanout + 2;
 	const std::size_t subject_object_matches = fanout;
 
-	assert_match_count(query_store, relation_query, relation_matches, "relation");
-	assert_match_count(query_store, subject_query, subject_matches, "subject");
-	assert_match_count(query_store, object_query, object_matches, "object");
-	assert_match_count(query_store, subject_object_query, subject_object_matches, "subject+object");
+	assert_match_count(qs, relation_query, relation_matches, "relation");
+	assert_match_count(qs, subject_query, subject_matches, "subject");
+	assert_match_count(qs, object_query, object_matches, "object");
+	assert_match_count(qs, subject_object_query, subject_object_matches, "subject+object");
 
 	const std::size_t iterations = scale_iterations(fanout);
 	std::cout << "# query_scale\t" << fanout << '\t' << iterations << '\t' << relation_matches << '\t'
 	          << subject_matches << '\t' << object_matches << '\t' << subject_object_matches << '\n';
 
 	const std::string suffix = "_fanout_" + std::to_string(fanout);
-	const auto relation_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(query_store, relation_query).size(); };
+	const auto relation_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(qs, relation_query).size(); };
 	print(measure("relations_query_relation" + suffix, iterations, relation_bench));
 
-	const auto subject_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(query_store, subject_query).size(); };
+	const auto subject_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(qs, subject_query).size(); };
 	print(measure("relations_query_subject" + suffix, iterations, subject_bench));
 
-	const auto object_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(query_store, object_query).size(); };
+	const auto object_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(qs, object_query).size(); };
 	print(measure("relations_query_object" + suffix, iterations, object_bench));
 
-	const auto pair_bench = [&](std::size_t) {
-		sink ^= avm::query_relation_entities(query_store, subject_object_query).size();
-	};
+	const auto pair_bench = [&](std::size_t) { sink ^= avm::query_relation_entities(qs, subject_object_query).size(); };
 	print(measure("relations_query_subject_object" + suffix, iterations, pair_bench));
 }
 
