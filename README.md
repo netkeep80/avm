@@ -4,7 +4,7 @@
 
 AVM is an experimental C++20 virtual machine built on the Relations Model and a canonical store of directed links.
 
-**Current public version: 1.1.0.**
+**Current public version: 1.2.0.**
 
 ## Semantic path
 
@@ -48,9 +48,9 @@ AVM 1.0 established and validated:
 
 The former pointer-based `rel_t` universe, JSON semantic interpreter and temporary protocol-value-only Anum bridge have been removed. Git history preserves them; AVM keeps one semantic path.
 
-## AVM 1.1 — read-only associative queries
+## AVM 1.1 — read-only associative queries — complete
 
-AVM 1.1 begins with a dependency-free Relations Model query layer:
+AVM 1.1 added a dependency-free Relations Model query layer:
 
 ```cpp
 avm::RelationQuery query{
@@ -66,7 +66,35 @@ At least one relation/subject/object field must be constrained. Queries use only
 
 Relations Model querying is structural rather than registry-based. AVM does not track a hidden list of links "created as entities"; domain restrictions must themselves be represented through links/relations.
 
+Fan-out benchmarks at 1/8/64/256 demonstrated the expected candidate-expansion cost but did not justify an additional persistent physical index without a concrete workload SLA. Extra indexes remain deferred until measured workloads require them.
+
 See [Relations Model query contract](docs/relations-query.md).
+
+## AVM 1.2 — structural standard library
+
+AVM 1.2 makes canonical dyad structure directly usable by link-native programs.
+
+The minimal native structural kernel is:
+
+```text
+link_begin(expr)       -> begin pole
+link_end(expr)         -> end pole
+identity_equal(a,b)    -> canonical Boolean
+link_exists(a,b)       -> canonical Boolean, observational
+pair_intern(a,b)       -> canonical LinkId(a,b), explicit effect
+```
+
+`link_exists` does not use `nil` as a missing sentinel because `nil` is itself a valid self-link. `pair_intern` is the explicit materialization boundary and is idempotent through `LinkStore::intern`.
+
+Operations reducible to this kernel should be ordinary AVM functions rather than new C++ native handlers. For example:
+
+```text
+is_self_link(x) = identity_equal(link_begin(x), link_end(x))
+```
+
+Function definitions, bindings and call frames remain links. A first function call may therefore materialize canonical execution-state links even when the composed function body contains only observational primitives; this is existing call-frame semantics, not a hidden library effect.
+
+See [Structural standard library](docs/structural-standard-library.md).
 
 ## Supported core library API
 
@@ -110,10 +138,10 @@ cmake -S . -B build-install \
 cmake --install build-install
 ```
 
-A consuming CMake project can require the current AVM 1.1 package:
+A consuming CMake project can require the current AVM 1.2 package:
 
 ```cmake
-find_package(avm 1.1 CONFIG REQUIRED)
+find_package(avm 1.2 CONFIG REQUIRED)
 target_link_libraries(my_program PRIVATE avm::core)
 ```
 
@@ -150,6 +178,7 @@ CI installs the package into a staging prefix and builds an external consumer on
 - [External protocol adapter contract](docs/protocol-adapter-contract.md)
 - [Anum L3→L4 bridge](docs/anum-l3-l4-bridge.md)
 - [Relations Model query contract](docs/relations-query.md)
+- [Structural standard library](docs/structural-standard-library.md)
 - [Persistent LinkStore contract](docs/persistent-link-store.md)
 - [AVM 1.x release policy](docs/release-policy.md)
 - [Project analysis](analysis.md)
@@ -157,7 +186,7 @@ CI installs the package into a staging prefix and builds an external consumer on
 
 ## Project status
 
-Architecture Foundation / AVM 1.0 gates are complete. AVM 1.1 now develops read-only associative query facilities while preserving the same canonical `LinkStore -> Relations Model -> Executor` foundation. New physical indexes are considered only after the existing-index query baselines demonstrate a measured need.
+AVM 1.0 foundation and AVM 1.1 read-only query gates are complete. AVM 1.2 provides link-native structural observation plus explicit canonical pair materialization, and is closing with proof that higher-level structural operations compose as ordinary AVM functions instead of expanding the native registry.
 
 ## Dependencies
 
