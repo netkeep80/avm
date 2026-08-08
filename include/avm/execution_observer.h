@@ -1,6 +1,7 @@
 #pragma once
 
 #include "avm/link_store.h"
+#include "avm/semantic_context.h"
 
 #include <optional>
 
@@ -15,6 +16,7 @@ struct ExecutionContext
 	LinkId object;
 	std::optional<LinkId> parent;
 	std::optional<LinkId> frame;
+	std::optional<SemanticContextView> semantic;
 
 	bool operator==(const ExecutionContext &) const = default;
 };
