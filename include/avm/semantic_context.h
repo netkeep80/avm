@@ -3,6 +3,7 @@
 #include "avm/link_store.h"
 
 #include <cstddef>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -36,30 +37,33 @@ public:
 		return SemanticContextView(std::vector<SemanticContextFrame>{std::move(frame)});
 	}
 
-	const SemanticContextFrame &current() const { return frames_.back(); }
+	const SemanticContextFrame &current() const { return frames_->back(); }
 
-	std::size_t depth() const noexcept { return frames_.size() - 1; }
+	std::size_t depth() const noexcept { return frames_->size() - 1; }
 
 	SemanticContextView parent() const { return ancestor(1); }
 
 	SemanticContextView ancestor(std::size_t levels) const
 	{
-		const std::size_t removable = frames_.size() - 1;
+		const std::size_t removable = frames_->size() - 1;
 		const std::size_t removed = levels < removable ? levels : removable;
-		const std::size_t retained = frames_.size() - removed;
-		return SemanticContextView(std::vector<SemanticContextFrame>(frames_.begin(), frames_.begin() + retained));
+		if (removed == 0)
+			return *this;
+
+		const std::size_t retained = frames_->size() - removed;
+		return SemanticContextView(std::vector<SemanticContextFrame>(frames_->begin(), frames_->begin() + retained));
 	}
 
 	SemanticContextView child(SemanticContextFrame frame) const
 	{
-		std::vector<SemanticContextFrame> child_frames = frames_;
+		std::vector<SemanticContextFrame> child_frames = *frames_;
 		child_frames.push_back(std::move(frame));
 		return SemanticContextView(std::move(child_frames));
 	}
 
 	SemanticContextView with_relation_state(LinkId relation_state) const
 	{
-		std::vector<SemanticContextFrame> updated_frames = frames_;
+		std::vector<SemanticContextFrame> updated_frames = *frames_;
 		updated_frames.back().relation_state = relation_state;
 		return SemanticContextView(std::move(updated_frames));
 	}
@@ -81,16 +85,18 @@ public:
 		throw std::logic_error("unknown semantic context role");
 	}
 
-	bool operator==(const SemanticContextView &) const = default;
+	bool operator==(const SemanticContextView &other) const { return *frames_ == *other.frames_; }
 
 private:
-	explicit SemanticContextView(std::vector<SemanticContextFrame> frames) : frames_(std::move(frames))
+	using Frames = std::vector<SemanticContextFrame>;
+
+	explicit SemanticContextView(Frames frames) : frames_(std::make_shared<const Frames>(std::move(frames)))
 	{
-		if (frames_.empty())
+		if (frames_->empty())
 			throw std::invalid_argument("semantic context lineage must contain a root frame");
 	}
 
-	std::vector<SemanticContextFrame> frames_;
+	std::shared_ptr<const Frames> frames_;
 };
 
 } // namespace avm
