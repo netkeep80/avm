@@ -18,7 +18,7 @@ definition = (function, handle, payload)
 
 JSON compatibility importer отвечает только за сохранение textual declaration order и resolution имён в handles; сама runtime-функция не зависит от textual names.
 
-## Bindings
+## Связывания (bindings)
 
 Каждый вычисленный actual argument связывается со своим formal parameter сущностью Модели Отношений:
 
@@ -28,7 +28,7 @@ JSON compatibility importer отвечает только за сохранен�
 
 В новом runtime нет `map<string, value>`. Formal identity — это `LinkId`, actual values — тоже `LinkId`.
 
-## Call frames
+## Кадры вызова (call frames)
 
 Bindings собираются в канонический link-list и присоединяются к immutable call frame:
 
