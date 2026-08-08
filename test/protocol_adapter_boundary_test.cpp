@@ -47,10 +47,16 @@ public:
 			throw std::invalid_argument("toy AST does not describe a relation entity");
 
 		avm::ProjectionDescription description{{}, avm::ProjectionRef::anchor(context.relation)};
-		description.nodes.push_back(
-		    {avm::ProjectionRef::anchor(context.subject), avm::ProjectionRef::anchor(context.object)});
-		description.nodes.push_back(
-		    {avm::ProjectionRef::anchor(context.relation), avm::ProjectionRef::node(0)});
+		const avm::ProjectionNode subject_object{
+		    avm::ProjectionRef::anchor(context.subject),
+		    avm::ProjectionRef::anchor(context.object),
+		};
+		const avm::ProjectionNode relation_subject_object{
+		    avm::ProjectionRef::anchor(context.relation),
+		    avm::ProjectionRef::node(0),
+		};
+		description.nodes.push_back(subject_object);
+		description.nodes.push_back(relation_subject_object);
 		description.root = avm::ProjectionRef::node(1);
 		return description;
 	}
@@ -84,8 +90,8 @@ int main()
 	const avm::ProjectionResult realized = avm::realize_projection(store, binary_projection);
 	assert(realized.nodes.size() == 2);
 	assert(realized.root == realized.nodes[1]);
-	assert(avm::decode_relation_entity(store, realized.root) ==
-	       (avm::RelationEntity{relation, subject, object}));
+	const avm::RelationEntity decoded = avm::decode_relation_entity(store, realized.root);
+	assert(decoded == (avm::RelationEntity{relation, subject, object}));
 
 	const std::size_t after_realize = store.size();
 	const AstToyAdapter ast_adapter;
@@ -117,8 +123,8 @@ int main()
 
 	const avm::ProjectionResult context_realized = avm::realize_projection(store, context_projection);
 	assert(context_realized.root != realized.root);
-	assert(avm::decode_relation_entity(store, context_realized.root) ==
-	       (avm::RelationEntity{relation, subject, another_object}));
+	const avm::RelationEntity context_decoded = avm::decode_relation_entity(store, context_realized.root);
+	assert(context_decoded == (avm::RelationEntity{relation, subject, another_object}));
 
 	const ToyContext missing_context{relation, subject, 999999};
 	const avm::ProjectionDescription missing_projection = ast_adapter.project(ToyAst{true}, missing_context);
