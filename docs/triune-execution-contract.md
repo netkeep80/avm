@@ -10,6 +10,8 @@
 
 Поэтому AVM 1.5 не вводит второй executor и не меняет каноническое представление сущности.
 
+Контракт доказан runtime-сценарием #140, слитым через PR #141.
+
 ## Каноническая сущность
 
 Исполняемая сущность имеет форму:
@@ -152,9 +154,9 @@ $.sub = value
 Нельзя смешивать:
 
 ```text
-entity_id   — identity входной исполняемой сущности
-result      — вычисленный результат
-manifestation — при необходимости явно представленное проявление
+entity_id      — identity входной исполняемой сущности
+result         — вычисленный результат
+manifestation  — при необходимости явно представленное проявление
 ```
 
 В простом pure case manifestation может не существовать отдельно вообще.
@@ -200,6 +202,8 @@ else:
 
 Но #124 фиксирует основу: context roles являются typed identities и должны оставаться наблюдаемыми без JSON references.
 
+Дополнительный аудит #125 показал, что execution step и semantic context boundary нельзя автоматически считать одним и тем же понятием. Этот вопрос вынесен в ADR #144 и не меняет triune contract #124.
+
 ## Наблюдаемость
 
 Существующий observer contract уже различает:
@@ -234,7 +238,7 @@ Pure failure не должен materialize-ить repair data или partial man
 
 ## Conformance-инварианты #124
 
-Минимальный suite должен доказать:
+Suite #140/#141 доказывает:
 
 1. handler получает точные `entity/relation/subject/object` identities;
 2. non-unit `subject` реально влияет на результат relation;
@@ -243,13 +247,138 @@ Pure failure не должен materialize-ить repair data или partial man
 5. read-only projection miss не materialize-ит отсутствующую structure;
 6. explicit materialization relation изменяет store только через объявленную write operation;
 7. `result` отделён от identity входной entity и от `subject`;
-8. nested execution сохраняет существующую parent/frame semantics;
-9. старый `(relation, unit, payload)` bootstrap path продолжает проходить все tests;
-10. observer events сохраняют текущий context и отдельный return result.
+8. старый `(relation, unit, payload)` bootstrap path исполняется через тот же `Executor`;
+9. `unit` остаётся допустимым обычным `subject` direct relation и не превращён в скрытый mode switch;
+10. observer events сохраняют исходный context и отдельный return result.
+
+Full CI для #141 прошёл warnings-as-errors, ASan/UBSan, installed-package consumer и portable matrix на Linux/Windows/macOS.
+
+## Фактическая реализация direct-triune слоя
+
+Public API находится в:
+
+```text
+include/avm/triune_primitives.h
+```
+
+и экспортируется через `avm/avm.h` и установленный `avm::core` package.
+
+`DirectTriuneVocabulary` вводит отдельные identities:
+
+```text
+subject_value_relation
+pair_find_relation
+pair_realize_relation
+pair_target_begin_relation
+pair_target_end_relation
+```
+
+Ни одна из них не перегружает существующие bootstrap expression relations.
+
+Регистрация выполняется в **существующий** executor:
+
+```cpp
+register_direct_triune_primitives(runtime.executor(), vocabulary);
+```
+
+Нового `TriuneExecutor` или второго runtime нет.
+
+### Relation `subject_value`
+
+Минимальное доказательство meaningful subject:
+
+```text
+(subject_value_relation, subject, object)
+-> subject
+```
+
+Execution не изменяет store. Две entity с одинаковыми relation/object и различными subject возвращают разные identities.
+
+### Почему target пары нельзя кодировать прямо в subject/object entity
+
+Каноническое представление исполняемой entity само требует:
+
+```text
+Link(subject, object)
+```
+
+как inner dyad. Поэтому к моменту существования entity эта пара уже materialized.
+
+Следовательно ошибочным был бы тест вида:
+
+```text
+(pair_find, subject, object)
+-> проверить, отсутствует ли Link(subject, object)
+```
+
+Он никогда не может наблюдать настоящий miss: pair создана самим encoding entity.
+
+### Link-native `PairTarget`
+
+Для honest `find != realize` target вынесена в отдельную denotation.
+
+`PairTarget` — свежая point identity `descriptor`, к которой привязаны два typed facts:
+
+```text
+(pair_target_begin_relation, descriptor, begin)
+(pair_target_end_relation,   descriptor, end)
+```
+
+Создание descriptor и этих facts **не создаёт**:
+
+```text
+Link(begin, end)
+```
+
+поэтому target pair действительно может отсутствовать.
+
+API:
+
+```cpp
+materialize_pair_target(store, vocabulary, begin, end);
+decode_pair_target(store, vocabulary, descriptor);
+```
+
+Descriptor остаётся полностью link-native: JSON, string role names и side tables не используются.
+
+### Relation `pair_find`
+
+```text
+(pair_find_relation, receiver, pair_target)
+-> existing Link(begin, end)
+```
+
+Handler декодирует PairTarget и вызывает только:
+
+```cpp
+store.find(begin, end)
+```
+
+При miss возникает deterministic semantic failure. `store.size()` не изменяется ни на miss, ни на hit.
+
+### Relation `pair_realize`
+
+```text
+(pair_realize_relation, receiver, pair_target)
+-> intern(begin, end)
+```
+
+Это отдельная явная materialization boundary.
+
+Первый вызов для missing pair создаёт ровно одну canonical связь. Повторный вызов возвращает тот же `LinkId` без роста store.
+
+Таким образом граница:
+
+```text
+pair_find != pair_realize
+```
+
+доказана кодом и conformance tests, а не только документацией.
 
 ## Не входит в #124
 
 - textual pronouns `$ent/$rel/$sub/$obj` — #125/#126;
+- semantic context lineage и точная граница context creation — #144;
 - mutable reference/lvalue algebra — #126;
 - foreach/lambda/projection aggregation — #127;
 - полный numeric/text/collection universe — #128;
@@ -258,12 +387,6 @@ Pure failure не должен materialize-ить repair data или partial man
 - второй executor;
 - mutable JSON slot внутри `ExecutionContext`.
 
-## Следующий implementation slice
+## Следующий gate
 
-После принятия этого контракта нужно добавить небольшой direct-triune conformance vocabulary, не меняя generic `Executor`:
-
-- pure relation, возвращающую/использующую `subject`;
-- pure structural projection/find над `subject/object` без materialization;
-- отдельную explicit materialization relation над теми же roles.
-
-Эти operations должны иметь однозначные relation identities и не перегружать существующий `unit` sentinel скрытым переключением режима.
+Triune execution contract завершён. Следующий semantic layer — #125/#144: определить program-visible current/parent context так, чтобы различать обычный dispatch step и настоящее создание дочернего Relations Model context, не materialize-я context автоматически в `LinkStore`.
