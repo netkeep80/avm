@@ -124,8 +124,8 @@ void verify_arity_validation()
 	const avm::LinkId first = builder.literal(value);
 	const avm::LinkId second = builder.literal(value);
 	const avm::LinkId arguments = avm::encode_link_list(store, vocabulary.nil, {first, second});
-	const avm::LinkId malformed = avm::encode_relation_entity(
-	    store, avm::RelationEntity{vocabulary.begin_relation, vocabulary.unit, arguments});
+	const avm::LinkId malformed =
+	    avm::encode_relation_entity(store, avm::RelationEntity{vocabulary.begin_relation, vocabulary.unit, arguments});
 
 	bool thrown = false;
 	try
