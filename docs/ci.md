@@ -2,7 +2,7 @@
 
 AVM имеет один production storage/identity path — `LinkStore`. Core execution, JSON projection/value roundtrip, Anum structural adapter, tooling и persistence проверяются как отдельные concerns над этим фундаментом.
 
-## CMake switches
+## Настройки CMake
 
 - `AVM_BUILD_CLI=ON|OFF` — собирать JSON CLI и file-based fixtures;
 - `AVM_BUILD_CORE_TESTS=ON|OFF` — собирать link-native core suites;
@@ -115,7 +115,7 @@ UnitedMemoryLinks
 
 Это не позволяет удобному compatibility patch скрыто вернуть второй storage/identity universe.
 
-## Protocol-layer guards
+## Guards протокольного слоя
 
 `RawCarrier` остаётся storage-only и не зависит от semantic AVM headers, JSON, Anum или abits.
 
@@ -123,7 +123,7 @@ Production `src`/`include/avm` не может напрямую зависеть
 
 Production Anum adapter также остаётся JSON-free; JSON используется только для versioned conformance snapshots в tests.
 
-## Query/observer/tooling guards
+## Guards для query/observer/tooling
 
 CI отдельно фиксирует, что:
 
@@ -152,19 +152,19 @@ Core включает suites для:
 
 Отдельно проверяются JSON compatibility/session, Anum adapter conformance, CLI fixtures и package consumer.
 
-## Focused jsonRVM semantic inventory gate
+## Отдельный gate semantic inventory jsonRVM
 
 `.github/workflows/jsonrvm-compatibility.yml` проверяет versioned manifest и frozen golden assertions из AVM 1.5 #123.
 
 Validator является metadata/conformance tool и **не** исполняет `jsonRVM`; он не создаёт второй interpreter.
 
-## Benchmark workflow
+## Workflow измерений производительности
 
 `.github/workflows/benchmark.yml` отделён от correctness CI. Он собирает performance baseline, проверяет TSV schema/expected operations и публикует artifact.
 
 Nanosecond values shared runner являются наблюдениями, а не merge-veto thresholds.
 
-## Tagged delivery
+## Публикация по тегу
 
 Tag `v*` может создать Linux artifact только после успешных:
 
