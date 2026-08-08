@@ -121,12 +121,12 @@ inline Json duplet_to_triplet(const Json &value, const std::string &path)
 
 inline Json convert_explicit_triplets_to_duplets(const Json &value)
 {
-	return detail::triplet_to_duplet(value, "$ ");
+	return detail::triplet_to_duplet(value, "$");
 }
 
 inline Json convert_relation_duplets_to_explicit_triplets(const Json &value)
 {
-	return detail::duplet_to_triplet(value, "$ ");
+	return detail::duplet_to_triplet(value, "$");
 }
 
 } // namespace avm::json_duplet
