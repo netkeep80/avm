@@ -1,74 +1,72 @@
-# Persistent inspection session contract
+# Контракт persistent-сессии инспекции
 
-AVM 1.4 inspection tooling remains backend-neutral. A persistent session is therefore not a new session class or backend adapter: the same typed `InspectionSession` is constructed over an already opened `PersistentLinkStore` and an explicit persisted `BootstrapVocabulary`.
+Inspection tooling AVM 1.4 остаётся backend-neutral. Поэтому persistent session — не новый class и не backend adapter: та же typed `InspectionSession` создаётся поверх уже открытого `PersistentLinkStore` и явно переданного persisted `BootstrapVocabulary`.
 
-## Reopen boundary
+## Граница reopen
 
-A caller/tool owns the persistent store and the identities required to use it:
+Caller/tool владеет persistent store и identities, необходимыми для работы:
 
 ```text
 persistent file
-  -> PersistentLinkStore open/validate/rebuild indexes
+  -> PersistentLinkStore open / validate / rebuild indexes
   -> explicit BootstrapVocabulary LinkIds
   -> explicit program/root/function LinkIds
   -> InspectionSession(store, vocabulary)
-  -> existing read/query/execute/trace APIs
+  -> существующие read/query/execute/trace APIs
 ```
 
-`InspectionSession` does not know a filesystem path and does not open, repair or reinterpret the backend. Corruption/version errors remain the responsibility of `PersistentLinkStore` and occur before a session can be constructed.
+`InspectionSession` не знает filesystem path и не открывает, repair-ит или reinterpret-ит backend. Corruption/version errors остаются ответственностью `PersistentLinkStore` и возникают до construction session.
 
-## Identity
+## Идентичность
 
-For one logical persistent store, LinkIds are exact across close/reopen. Tooling therefore reuses the caller-supplied vocabulary/root/handle IDs verbatim.
+В одном logical persistent store `LinkId` сохраняются точно через close/reopen. Tooling переиспользует caller-supplied vocabulary/root/handle IDs без преобразования.
 
-The persistent-session contract does not define numeric LinkIds as portable across independent stores. The AVM 1.3 backend-neutral renaming rule still applies when comparing independently constructed stores.
+Contract не объявляет numeric `LinkId` portable между independent stores. Для их сравнения продолжает действовать AVM 1.3 rule equivalence modulo bijective renaming.
 
-## No hidden bootstrap
+## Никакого hidden bootstrap
 
-Constructing an inspection session over a complete explicit vocabulary must not create replacement bootstrap identities. A read-only session that is opened, inspected and destroyed must leave `LinkStore::size()` unchanged.
+Создание inspection session над полным explicit vocabulary не должно materialize-ить replacement bootstrap identities. Read-only session после open/inspect/destroy оставляет `LinkStore::size()` неизменным.
 
-The session also keeps no hidden symbolic database of selected roots or handles. File path, selected root, command history and trace capacity are host tooling configuration unless a future explicit persistence projection is designed.
+Session не хранит скрытую symbolic database выбранных roots/handles. File path, selected root, command history и trace capacity являются host tooling configuration, пока для них не спроектирована отдельная explicit persistence projection.
 
-## Converged execution state
+## Сошедшееся execution state
 
-Function calls can materialize canonical binding/frame links as part of ordinary AVM execution. Persistent trace equality is therefore asserted only after that existing link-native state has converged.
+Function calls могут materialize-ить canonical binding/frame links как часть обычного runtime. Поэтому exact persistent trace equality проверяется после convergence этого link-native state.
 
-The conformance sequence is:
+Conformance sequence:
 
-1. create a persistent store and bootstrap vocabulary;
-2. materialize a function/program and execute the function once to converge canonical call state;
-3. capture a complete bounded call trace and final store size;
-4. close the store;
-5. reopen with the exact saved vocabulary/root/handle LinkIds;
-6. construct `InspectionSession` and prove construction/read operations do not grow the store;
-7. execute an already materialized root without reparsing frontend data;
-8. trace the converged function call and require exact `ExecutionEvent` equality;
-9. repeat reopen again and require the same identities, trace and store size.
+1. создать persistent store и bootstrap vocabulary;
+2. materialize-ить function/program и один раз выполнить function для convergence call state;
+3. сохранить полный bounded call trace и final store size;
+4. закрыть store;
+5. reopen с теми же vocabulary/root/handle `LinkId`;
+6. создать `InspectionSession` и доказать, что construction/read operations не увеличивают store;
+7. выполнить уже materialized root без reparsing frontend data;
+8. trace-нуть converged function call и потребовать точное равенство `ExecutionEvent`;
+9. повторить reopen и потребовать те же identities, trace и store size.
 
-This reuses the AVM 1.3 rule that the same persistent logical store has exact trace identity after reopen.
+## Гарантии инспекции после reopen
 
-## Inspection guarantees
-
-Across reopen the session must preserve direct observations of:
+Сохраняются наблюдения:
 
 - `LinkId -> (begin,end)`;
 - exact pair lookup;
-- Relations Model decode and constrained query results;
+- Relations Model decode и constrained query results;
 - function definition identity;
-- call-frame structural decode after execution;
+- structural decode call frame после execution;
 - deterministic execution result;
 - bounded trace events/failure phases.
 
-`reset_trace()` changes only host tooling state and never the persistent store.
+`reset_trace()` меняет только host tooling state и никогда persistent store.
 
 ## Non-goals
 
-Persistent inspection does not add:
+Persistent inspection не добавляет:
 
-- hidden bootstrap or identity migration;
-- a shell sidecar database;
-- implicit persistence of trace/history/bookmarks;
+- hidden bootstrap или identity migration;
+- shell sidecar database;
+- implicit persistence trace/history/bookmarks;
 - backend-specific VM semantics;
-- repair/recovery logic above `PersistentLinkStore`;
-- cross-store numeric LinkId equivalence;
-- frontend reparsing as a requirement for reopened execution.
+- repair/recovery logic поверх `PersistentLinkStore`;
+- cross-store numeric `LinkId` equivalence;
+- frontend reparsing как условие execution после reopen.
