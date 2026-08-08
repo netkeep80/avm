@@ -15,8 +15,7 @@ using Json = nlohmann::json;
 std::filesystem::path temporary_path()
 {
 	const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
-	return std::filesystem::temp_directory_path() /
-	       ("avm-vertical-slice-" + std::to_string(nonce) + ".bin");
+	return std::filesystem::temp_directory_path() / ("avm-vertical-slice-" + std::to_string(nonce) + ".bin");
 }
 
 struct FileCleanup
@@ -56,8 +55,7 @@ ImportedProgram import_and_execute(avm::LinkStore &store)
 	const avm::LinkId lazy_if_root = importer.import_program(lazy_if_program);
 	assert(runtime.execute(lazy_if_root) == vocabulary.true_value);
 
-	const Json identity_definition = {
-	    {"Def", Json::array({"identity", Json::array({"x"}), "x"})}};
+	const Json identity_definition = {{"Def", Json::array({"identity", Json::array({"x"}), "x"})}};
 	const avm::LinkId identity_definition_root = importer.import_program(identity_definition);
 	assert(runtime.execute(identity_definition_root) == vocabulary.nil);
 
@@ -65,10 +63,10 @@ ImportedProgram import_and_execute(avm::LinkStore &store)
 	const avm::LinkId call_root = importer.import_program(identity_call);
 	assert(runtime.execute(call_root) == vocabulary.true_value);
 
+	const Json recursive_body = {
+	    {"If", Json::array({"x", true, Json{{"Call", Json::array({"eventually_true", true})}}})}};
 	const Json recursive_definition = {
-	    {"Def",
-	     Json::array({"eventually_true", Json::array({"x"}),
-	                  Json{{"If", Json::array({"x", true, Json{{"Call", Json::array({"eventually_true", true})}}})}}})}};
+	    {"Def", Json::array({"eventually_true", Json::array({"x"}), recursive_body})}};
 	const avm::LinkId recursive_definition_root = importer.import_program(recursive_definition);
 	assert(runtime.execute(recursive_definition_root) == vocabulary.nil);
 
@@ -80,14 +78,7 @@ ImportedProgram import_and_execute(avm::LinkStore &store)
 	assert(decoded_boolean.relation == vocabulary.and_relation);
 	assert(decoded_boolean.subject == vocabulary.unit);
 
-	return ImportedProgram{
-	    vocabulary,
-	    sequence_relation,
-	    boolean_root,
-	    lazy_if_root,
-	    call_root,
-	    recursive_call_root,
-	};
+	return ImportedProgram{vocabulary, sequence_relation, boolean_root, lazy_if_root, call_root, recursive_call_root};
 }
 
 void assert_program_executes(avm::LinkStore &store, const ImportedProgram &program)
