@@ -22,9 +22,9 @@ struct Options
 
 [[noreturn]] void usage_error(const std::string &message)
 {
-	throw std::invalid_argument(message +
-	                            "\nusage: avm-json-convert --from=jsonrvm-triplet --to=avm-duplet [input|-] "
-	                            "[-o output|-] [--check]");
+	throw std::invalid_argument(
+	    message + "\nusage: avm-json-convert --from=jsonrvm-triplet --to=avm-duplet [input|-] "
+	              "[-o output|-] [--check]");
 }
 
 std::string option_value(const std::string &argument, const std::string &name)
