@@ -1,0 +1,122 @@
+name: Gate and merge Anum structural bridge PR 104
+
+on:
+  push:
+    branches: [agent/anum-merge-gate-104]
+    paths:
+      - '.github/workflows/anum-pr104-merge-gate.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: read
+
+jobs:
+  gate-and-merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: '104'
+    steps:
+      - name: Require current branch and update it if main moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          state=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state --jq .state)
+          test "$state" = "OPEN"
+
+          merge_state=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json mergeStateStatus --jq .mergeStateStatus)
+          if [ "$merge_state" = "BEHIND" ]; then
+            head=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+            gh api \
+              --method PUT \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/$GITHUB_REPOSITORY/pulls/$PR/update-branch" \
+              -f expected_head_sha="$head"
+          fi
+
+      - name: Wait for PR checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --watch --interval 15
+
+      - name: Require every AVM veto lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          checks=$(gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name,state)
+          required=(
+            'Quality gates'
+            'Core C++20 / warnings-as-errors'
+            'JSON projection + session / warnings-as-errors'
+            'CLI + JSON roundtrip / warnings-as-errors'
+            'Core + JSON + Anum adapter ASan + UBSan'
+            'Installed package consumer / ubuntu-latest'
+            'Installed package consumer / windows-latest'
+            'Installed package consumer / macos-latest'
+            'Portable / ubuntu-latest'
+            'Portable / windows-latest'
+            'Portable / macos-latest'
+            'Performance baseline'
+          )
+
+          for name in "${required[@]}"; do
+            state=$(jq -r --arg name "$name" '[.[] | select(.name == $name) | .state] | first // "MISSING"' <<<"$checks")
+            echo "$name -> $state"
+            test "$state" = "SUCCESS"
+          done
+
+      - name: Require clean mergeability and exact current head
+        id: mergeability
+        shell: bash
+        run: |
+          set -euo pipefail
+          data=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,mergeable,mergeStateStatus,headRefOid,isDraft)
+          test "$(jq -r .state <<<"$data")" = "OPEN"
+          test "$(jq -r .mergeable <<<"$data")" = "MERGEABLE"
+          test "$(jq -r .mergeStateStatus <<<"$data")" = "CLEAN"
+          head=$(jq -r .headRefOid <<<"$data")
+          test -n "$head"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+
+      - name: Mark ready only after all gates are green
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = "true" ]; then
+            gh pr ready "$PR" --repo "$GITHUB_REPOSITORY"
+          fi
+
+      - name: Merge exact checked head
+        shell: bash
+        env:
+          CHECKED_HEAD: ${{ steps.mergeability.outputs.head }}
+        run: |
+          set -euo pipefail
+          current=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+          test "$current" = "$CHECKED_HEAD"
+          result=$(gh api \
+            --method PUT \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/$GITHUB_REPOSITORY/pulls/$PR/merge" \
+            -f merge_method=merge \
+            -f sha="$CHECKED_HEAD")
+          jq -e '.merged == true' <<<"$result"
+
+      - name: Close completed Anum integration issues
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue close 79 --repo "$GITHUB_REPOSITORY" --reason completed --comment \
+            'Completed by PR #104 after canonical anum_docs v0.2 denotation contracts, cross-language conformance, strict/sanitizer/portable CI, and exact-head merge gate.'
+          gh issue close 3 --repo "$GITHUB_REPOSITORY" --reason completed --comment \
+            'The original Anum serialization/deserialization integration goal is complete through canonical netkeep80/anum_docs L3 v0.2 plus the single structural AnumDenotation -> ProjectionDescription AVM adapter. Raw parsing/grammar remains upstream; AVM has no second parser or semantic path.'
+
+      - name: Remove helper branch
+        if: success()
+        shell: bash
+        run: |
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/agent/anum-merge-gate-104" || true
