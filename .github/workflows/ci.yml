@@ -152,6 +152,15 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce trace CLI remains a consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -n -E 'TraceExecutor|DebugExecutor|register_native[[:space:]]*\(|register_handler[[:space:]]*\(' src/cli.cpp; then
+            echo "ERROR: trace CLI must consume the canonical runtime/observer path, not define execution semantics"
+            exit 1
+          fi
+
       - name: Verify public version contract
         shell: bash
         run: |
