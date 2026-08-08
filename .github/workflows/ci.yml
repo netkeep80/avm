@@ -64,6 +64,15 @@ jobs:
             exit 1
           fi
 
+      - name: Reject removed rel_t storage path
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E '\brel_t\b|legacy_json_compat|UnitedMemoryLinks' src include CMakeLists.txt; then
+            echo "ERROR: removed pointer-based rel_t storage path found in production/build sources"
+            exit 1
+          fi
+
       - name: Enforce RawCarrier isolation
         shell: bash
         run: |
@@ -82,7 +91,7 @@ jobs:
             exit 1
           fi
 
-      - name: Check AVM 1.0 and compatibility formatting
+      - name: Check AVM 1.0 formatting
         shell: bash
         run: |
           set -euo pipefail
@@ -90,7 +99,6 @@ jobs:
           clang-format --dry-run --Werror \
             include/avm/*.h \
             src/cli.cpp \
-            src/legacy_json_compat.cpp \
             test/assertions_enabled_test.cpp \
             test/link_store_test.cpp \
             test/relations_model_test.cpp \
@@ -105,8 +113,9 @@ jobs:
             test/protocol_adapter_boundary_test.cpp \
             test/persistent_link_store_test.cpp \
             test/vertical_slice_test.cpp \
+            test/json_value_codec_test.cpp \
             test/json_projection_test.cpp \
-            test/legacy_facade_test.cpp
+            test/json_session_test.cpp
 
   core:
     name: Core C++20 / warnings-as-errors
@@ -121,7 +130,7 @@ jobs:
         run: >-
           cmake -S . -B build-core
           -DCMAKE_BUILD_TYPE=Debug
-          -DAVM_BUILD_LEGACY=OFF
+          -DAVM_BUILD_CLI=OFF
           -DAVM_BUILD_CORE_TESTS=ON
           -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
           -DAVM_WARNINGS_AS_ERRORS=ON
@@ -133,7 +142,7 @@ jobs:
         run: ctest --test-dir build-core --output-on-failure
 
   json-compat:
-    name: JSON projection / warnings-as-errors
+    name: JSON projection + session / warnings-as-errors
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -145,19 +154,19 @@ jobs:
         run: >-
           cmake -S . -B build-json
           -DCMAKE_BUILD_TYPE=Debug
-          -DAVM_BUILD_LEGACY=OFF
+          -DAVM_BUILD_CLI=OFF
           -DAVM_BUILD_CORE_TESTS=OFF
           -DAVM_BUILD_JSON_COMPAT_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
 
-      - name: Build JSON projection tests
+      - name: Build JSON compatibility tests
         run: cmake --build build-json --target avm_json_compat_tests --parallel
 
-      - name: Run JSON projection tests
-        run: ctest --test-dir build-json -R json_projection_tests --output-on-failure
+      - name: Run JSON compatibility tests
+        run: ctest --test-dir build-json --output-on-failure
 
-  legacy-facade:
-    name: Legacy facade / warnings-as-errors
+  cli-roundtrip:
+    name: CLI + JSON roundtrip / warnings-as-errors
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 7
@@ -165,29 +174,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure legacy facade build
+      - name: Configure CLI build
         run: >-
-          cmake -S . -B build-legacy
+          cmake -S . -B build-cli
           -DCMAKE_BUILD_TYPE=Debug
-          -DAVM_BUILD_LEGACY=ON
+          -DAVM_BUILD_CLI=ON
           -DAVM_BUILD_CORE_TESTS=OFF
-          -DAVM_BUILD_JSON_COMPAT_TESTS=ON
+          -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
           -DAVM_WARNINGS_AS_ERRORS=ON
 
-      - name: Build strict facade targets and historical unit suite
-        run: >-
-          cmake --build build-legacy
-          --target avm avm_unit_test avm_legacy_facade_test avm_json_projection_test
-          --parallel
+      - name: Build CLI
+        run: cmake --build build-cli --target avm --parallel
 
-      - name: Run facade, projection and roundtrip tests
-        run: ctest --test-dir build-legacy --output-on-failure
+      - name: Run JSON roundtrip fixtures
+        run: ctest --test-dir build-cli --output-on-failure
 
   sanitizers:
     name: Core + JSON ASan + UBSan
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -196,7 +202,7 @@ jobs:
         run: >-
           cmake -S . -B build-sanitizers
           -DCMAKE_BUILD_TYPE=Debug
-          -DAVM_BUILD_LEGACY=OFF
+          -DAVM_BUILD_CLI=OFF
           -DAVM_BUILD_CORE_TESTS=ON
           -DAVM_BUILD_JSON_COMPAT_TESTS=ON
           -DAVM_WARNINGS_AS_ERRORS=ON
@@ -224,11 +230,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure full compatibility build
+      - name: Configure full build
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
-          -DAVM_BUILD_LEGACY=ON
+          -DAVM_BUILD_CLI=ON
           -DAVM_BUILD_CORE_TESTS=ON
           -DAVM_BUILD_JSON_COMPAT_TESTS=ON
 
@@ -241,7 +247,7 @@ jobs:
   release-artifact:
     name: Tagged Linux artifact
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [core, json-compat, legacy-facade, sanitizers]
+    needs: [core, json-compat, cli-roundtrip, sanitizers]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -252,7 +258,8 @@ jobs:
         run: >-
           cmake -S . -B build-release
           -DCMAKE_BUILD_TYPE=Release
-          -DAVM_BUILD_LEGACY=ON
+          -DAVM_BUILD_CLI=ON
+          -DAVM_BUILD_CORE_TESTS=OFF
           -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
 
       - name: Build AVM executable
