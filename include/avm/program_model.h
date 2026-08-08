@@ -30,10 +30,10 @@ struct BootstrapVocabulary
 	LinkId call_relation;
 	LinkId binding_relation;
 	LinkId frame_relation;
-	LinkId begin_relation;
-	LinkId end_relation;
-	LinkId same_relation;
-	LinkId link_exists_relation;
+	LinkId begin_relation = invalid_link_id;
+	LinkId end_relation = invalid_link_id;
+	LinkId same_relation = invalid_link_id;
+	LinkId link_exists_relation = invalid_link_id;
 
 	static BootstrapVocabulary create(LinkStore &store)
 	{
