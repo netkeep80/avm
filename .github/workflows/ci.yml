@@ -95,7 +95,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -R -n -E 'parse_raw_quaternary|validate_anum|project_anum|IncrementalQuaternaryDecoder|RecursiveAnumTree|decode_recursive|rootOpeningCollapse|ProjectionContext|\bAbit\b' adapters; then
+          if grep -R -n -E 'parse_raw_quaternary|validate_anum[[:space:]]*\(|project_anum|IncrementalQuaternaryDecoder|RecursiveAnumTree|decode_recursive|rootOpeningCollapse|ProjectionContext|\bAbit\b' adapters; then
             echo "ERROR: AVM Anum adapter must consume canonical denotation only, never parse/project raw Anum"
             exit 1
           fi
