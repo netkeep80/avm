@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - agent/semantic-context-view
     paths:
       - 'CMakeLists.txt'
       - 'examples/showcase/**'
@@ -44,7 +43,7 @@ jobs:
       - name: Install window-system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xorg-dev libgl1-mesa-dev
+          sudo apt-get install -y xorg-dev libgl1-mesa-dev xvfb xdotool imagemagick
       - name: Configure
         run: >-
           cmake -S . -B build-showcase
@@ -57,6 +56,54 @@ jobs:
           -DAVM_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build-showcase --target avm_showcase --parallel
+      - name: Run showcase and capture real UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-showcase/showcase-artifacts
+          binary=$(find build-showcase -type f -name avm_showcase -perm -111 -print -quit)
+          test -n "$binary"
+          xvfb-run -a --server-args="-screen 0 1600x1000x24" bash -c '
+            set -euo pipefail
+            export LIBGL_ALWAYS_SOFTWARE=1
+            binary="$1"
+            output_dir="$2"
+            "$binary" &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+
+            window=""
+            for _ in $(seq 1 100); do
+              window=$(xdotool search --name "AVM Showcase" 2>/dev/null | head -n 1 || true)
+              if [ -n "$window" ]; then
+                break
+              fi
+              sleep 0.1
+            done
+            test -n "$window"
+            xdotool windowmove "$window" 0 0
+            sleep 1
+
+            import -display "$DISPLAY" -window root "$output_dir/avm-showcase-initial.png"
+            test -s "$output_dir/avm-showcase-initial.png"
+
+            # ImGui first-use window starts near (60,60); these clicks target the
+            # PairTarget pair_find and pair_realize buttons in the left panel.
+            xdotool mousemove --window "$window" 150 315 click 1
+            sleep 0.3
+            xdotool mousemove --window "$window" 150 342 click 1
+            sleep 1
+
+            import -display "$DISPLAY" -window root "$output_dir/avm-showcase-triune.png"
+            test -s "$output_dir/avm-showcase-triune.png"
+          ' _ "$binary" "$PWD/build-showcase/showcase-artifacts"
+          file build-showcase/showcase-artifacts/*.png
+      - name: Upload showcase screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: avm-showcase-screenshots
+          path: build-showcase/showcase-artifacts/*.png
+          if-no-files-found: error
 
   windows:
     name: Showcase / Windows
