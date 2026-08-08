@@ -1,19 +1,19 @@
-# AVM 1.0 associative Boolean runtime
+# Ассоциативный Boolean runtime AVM
 
-The bootstrap runtime executes the first link-native AVM program subset without JSON semantics or string operator dispatch.
+Bootstrap runtime исполняет первый link-native subset программ AVM без JSON semantics и строкового dispatch операторов.
 
-## Truth tables are data
+## Таблицы истинности являются данными
 
-Boolean semantics are materialized in `LinkStore` as Relations Model entities. Native C++ handlers do not encode the truth table with `if`/`switch` statements; they evaluate arguments and perform associative lookup.
+Boolean semantics материализуются в `LinkStore` как сущности Модели Отношений. Native C++ handlers не кодируют таблицы истинности через `if`/`switch`: они вычисляют аргументы и выполняют ассоциативный поиск.
 
-Unary NOT rows are represented as:
+Строки унарного NOT:
 
 ```text
 (not, true,  false)
 (not, false, true)
 ```
 
-Binary functions use a canonical argument-pair LinkId as the subject:
+Бинарные функции используют канонический `LinkId` пары аргументов как subject:
 
 ```text
 key = Link(left, right)
@@ -21,17 +21,17 @@ key = Link(left, right)
 (or,  key, result)
 ```
 
-The lookup path uses `LinkStore::find(left, right)` and therefore does not materialize missing argument keys while evaluating a query.
+Lookup использует `LinkStore::find(left, right)` и поэтому не материализует отсутствующий key во время запроса.
 
-## Executable expressions
+## Исполнимые expressions
 
-Program expressions keep the #35 shape:
+Bootstrap expressions используют форму:
 
 ```text
 (relation, unit, payload)
 ```
 
-The bootstrap handlers currently cover:
+Handlers покрывают:
 
 - quote/literal;
 - sequence;
@@ -40,27 +40,38 @@ The bootstrap handlers currently cover:
 - OR;
 - IF.
 
-Expression handlers reject Relations Model rows whose subject is not the `unit` execution marker. This keeps truth-table data and executable application nodes in the same relation namespace without conflating their roles.
+Expression handlers отклоняют Relations Model rows, у которых subject не равен execution marker `unit`. Благодаря этому truth-table data и executable application nodes могут использовать один relation namespace без смешения ролей.
+
+Это ограничение относится именно к bootstrap expression protocol. AVM 1.5 расширяет общий execution contract для meaningful non-unit subject.
 
 ## Lazy IF
 
-`IF` uses two associative condition rows:
+`IF` использует две ассоциативные строки выбора:
 
 ```text
 (if, true,  true)
 (if, false, false)
 ```
 
-Execution is:
+Исполнение:
 
-1. evaluate only the condition expression;
-2. resolve its Boolean selector through the stored relation;
-3. execute exactly one selected branch.
+1. вычислить только condition expression;
+2. определить Boolean selector через сохранённое отношение;
+3. исполнить ровно одну выбранную branch.
 
-The test suite proves laziness by placing an entity with an unregistered relation in the unselected branch. The expression succeeds while the same entity fails when moved into the selected branch.
+Тесты доказывают lazy semantics: entity с незарегистрированной relation помещается в невыбранную branch. Expression успешно завершается, тогда как та же entity приводит к ошибке, если становится выбранной.
 
-## Mutation rule
+## Правило мутаций
 
-All truth-table rows are materialized during `BootstrapRuntime` construction. Executing an already constructed Boolean program performs read-only table lookup; tests assert that `LinkStore::size()` does not change for nested Boolean evaluation or invalid Boolean lookup.
+Truth-table rows материализуются при создании `BootstrapRuntime`. Исполнение уже построенной Boolean program выполняет read-only lookup таблиц; тесты проверяют, что `LinkStore::size()` не меняется при nested Boolean evaluation и invalid Boolean lookup.
 
-Runtime frame/binding materialization is intentionally not part of this gate. Calls and parameters are implemented by #37.
+Материализация runtime bindings/call frames является отдельной существующей семантикой функции и не скрывается внутри Boolean relations.
+
+## Инварианты
+
+- truth tables представлены links, а не C++ branching logic;
+- Boolean lookup не создаёт missing keys;
+- lazy `IF` не исполняет unselected branch;
+- Boolean results являются canonical vocabulary identities;
+- runtime dispatch идёт по relation `LinkId`;
+- JSON/string operators не участвуют в semantic path.

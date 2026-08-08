@@ -1,56 +1,80 @@
 <p align="center"><img src="EOSR.jpg"></p>
 
-# AVM — Associative Virtual Machine
+# AVM — ассоциативная виртуальная машина
 
-AVM is an experimental C++20 virtual machine built on the Relations Model and a canonical store of directed links.
+AVM — экспериментальная виртуальная машина на C++20, построенная поверх Модели Отношений и канонического хранилища направленных связей.
 
-**Current public version: 1.3.0.**
+**Текущая публичная версия: 1.3.0.** Архитектурное развитие репозитория уже прошло этапы AVM 1.0–1.4; текущая ветка работ AVM 1.5 посвящена переносу существенной семантики `jsonRVM` в единый link-native runtime.
 
-## Semantic path
+## Главная идея
 
-There is one production semantic path:
+AVM использует один производственный семантический путь:
 
 ```text
-external representation
-  -> projection / adapter
-  -> canonical LinkStore
-  -> Relations Model entity codec
-  -> LinkId program
+внешнее представление
+  -> проекция / адаптер
+  -> канонический LinkStore
+  -> кодек Модели Отношений
+  -> программа как LinkId
   -> BootstrapRuntime / Executor
-  -> result LinkId
+  -> LinkId результата
 ```
 
-JSON is an external projection and compatibility protocol. Anum/MTS grammar and contextual denotation remain canonical in `netkeep80/anum_docs`; AVM consumes only the storage-neutral structural denotation handoff. Neither format is the VM AST or execution core.
+JSON является внешней проекцией и протоколом совместимости. Грамматика Anum/МТС и контекстная денотация остаются канонически определёнными в `netkeep80/anum_docs`; AVM принимает только структурный, независимый от физического хранилища результат проекции. Ни JSON, ни Anum не являются внутренним AST виртуальной машины.
 
-The physical primitive is a canonical directed dyad:
+Физический примитив AVM — канонический направленный дуплет:
 
 ```text
 LinkId -> (begin: LinkId, end: LinkId)
 ```
 
-`LinkId` is opaque. Reads do not materialize missing links, and `intern(a,b)` returns the canonical identity for an exact pair inside one logical store.
+`LinkId` — непрозрачная идентичность. Операции чтения не материализуют отсутствующие связи, а `intern(a,b)` возвращает канонический `LinkId` точной пары в пределах одного логического хранилища.
 
-## AVM 1.0 foundation — complete
+## Модель Отношений поверх дуплетов
 
-AVM 1.0 established and validated:
+Триединая сущность Модели Отношений имеет роли:
 
-- `LinkStore` as the storage contract, with in-memory and persistent reference implementations;
-- canonical Relations Model encoding `(relation, subject, object) = (relation, (subject, object))`;
-- explicit bootstrap vocabulary identity;
-- link-native execution through `BootstrapRuntime` and `Executor`;
-- associative program structures, bindings and call frames represented by links;
-- parser-independent protocol projection boundary;
-- canonical structural Anum L3→L4 bridge with no grammar duplication in AVM;
-- separate JSON value and JSON program/session adapters;
-- persistent reopen/identity conformance independent from VM semantics;
-- installed-package consumer validation on Linux, Windows and macOS;
-- warnings-as-errors, sanitizers, architecture quality guards and benchmark baselines.
+```text
+(relation, subject, object)
+```
 
-The former pointer-based `rel_t` universe, JSON semantic interpreter and temporary protocol-value-only Anum bridge have been removed. Git history preserves them; AVM keeps one semantic path.
+В AVM используется один канонический порядок вложения:
 
-## AVM 1.1 — read-only associative queries — complete
+```text
+subject_object = Link(subject, object)
+entity         = Link(relation, subject_object)
+```
 
-AVM 1.1 added a dependency-free Relations Model query layer:
+то есть:
+
+```text
+(relation, subject, object)
+= (relation, (subject, object))
+```
+
+Такое представление сохраняет все три роли без отдельного физического типа «триплет».
+
+## AVM 1.0 — архитектурный фундамент завершён
+
+AVM 1.0 сформировал и проверил:
+
+- `LinkStore` как единый контракт хранения, с эталонными in-memory и persistent реализациями;
+- каноническое представление `(relation, subject, object) = (relation, (subject, object))`;
+- явные идентичности bootstrap-словаря;
+- link-native исполнение через `BootstrapRuntime` и `Executor`;
+- программы, функции, bindings и call frames как связи;
+- независимую от parser/grammar границу внешних проекций;
+- структурный мост Anum L3→L4 без дублирования грамматики МТС внутри AVM;
+- отдельные адаптеры JSON-значений и JSON-программ;
+- сохранение идентичности после закрытия и повторного открытия persistent backend;
+- проверку установленного пакета на Linux, Windows и macOS;
+- warnings-as-errors, ASan/UBSan, архитектурные CI-guards и benchmark baselines.
+
+Исторические pointer-based `rel_t`, JSON semantic interpreter и временный protocol-only Anum bridge удалены после миграции потребителей. История остаётся в Git; в рабочей архитектуре существует один семантический путь.
+
+## AVM 1.1 — ассоциативные запросы только для чтения завершены
+
+AVM 1.1 добавил независимый от backend слой запросов к Модели Отношений:
 
 ```cpp
 avm::RelationQuery query{
@@ -62,51 +86,65 @@ avm::RelationQuery query{
 const auto matches = avm::query_relation_entities(store, query);
 ```
 
-At least one relation/subject/object field must be constrained. Queries use only the existing `LinkStore` `find/outgoing/incoming/get/contains` contract; they never call `intern` or `create_point`, and they do not introduce a second index universe.
+Хотя бы одно из полей `relation/subject/object` должно быть ограничено. Запросы используют только существующие операции `LinkStore`: `find`, `outgoing`, `incoming`, `get`, `contains`. Они не вызывают `intern` и `create_point` и не создают второй мир индексов.
 
-Relations Model querying is structural rather than registry-based. AVM does not track a hidden list of links "created as entities"; domain restrictions must themselves be represented through links/relations.
+Запросы структурны, а не registry-based. AVM не хранит скрытый список связей, которые «были созданы как сущности». Более узкие домены должны задаваться самими связями и отношениями.
 
-Fan-out benchmarks at 1/8/64/256 demonstrated the expected candidate-expansion cost but did not justify an additional persistent physical index without a concrete workload SLA. Extra indexes remain deferred until measured workloads require them.
+Измерения fan-out 1/8/64/256 показали ожидаемый рост стоимости расширения кандидатов, но не дали оснований добавлять дополнительный persistent physical index без реального workload/SLA.
 
-See [Relations Model query contract](docs/relations-query.md).
+См. [контракт запросов Модели Отношений](docs/relations-query.md).
 
-## AVM 1.2 — structural standard library — complete
+## AVM 1.2 — структурная стандартная библиотека завершена
 
-AVM 1.2 makes canonical dyad structure directly usable by link-native programs.
+AVM 1.2 сделал структуру дуплетов непосредственно доступной link-native программам.
 
-The minimal native structural kernel is:
+Минимальное нативное ядро:
 
 ```text
-link_begin(expr)       -> begin pole
-link_end(expr)         -> end pole
-identity_equal(a,b)    -> canonical Boolean
-link_exists(a,b)       -> canonical Boolean, observational
-pair_intern(a,b)       -> canonical LinkId(a,b), explicit effect
+link_begin(expr)       -> begin-полюс
+link_end(expr)         -> end-полюс
+identity_equal(a,b)    -> каноническое Boolean-значение
+link_exists(a,b)       -> каноническое Boolean-значение, только наблюдение
+pair_intern(a,b)       -> канонический LinkId(a,b), явный эффект
 ```
 
-`link_exists` does not use `nil` as a missing sentinel because `nil` is itself a valid self-link. `pair_intern` is the explicit materialization boundary and is idempotent through `LinkStore::intern`.
+`link_exists` не использует `nil` как признак отсутствия, потому что `nil` сам является допустимой self-link. `pair_intern` — явная граница материализации и идемпотентен благодаря `LinkStore::intern`.
 
-Operations reducible to this kernel are ordinary AVM functions rather than new C++ native handlers. For example:
+Операции, выражаемые через это ядро, реализуются обычными функциями AVM, а не новыми C++ handlers. Например:
 
 ```text
 is_self_link(x) = identity_equal(link_begin(x), link_end(x))
 ```
 
-Function definitions, bindings and call frames remain links. A first function call may therefore materialize canonical execution-state links even when the composed function body contains only observational primitives; this is existing call-frame semantics, not a hidden library effect.
+См. [структурную стандартную библиотеку](docs/structural-standard-library.md).
 
-See [Structural standard library](docs/structural-standard-library.md).
+## AVM 1.3 — наблюдаемость исполнения завершена
 
-## AVM 1.3 — execution observability
+AVM 1.3 добавил детерминированное наблюдение к существующему `Executor::execute` без возможности управлять исполнением.
 
-AVM 1.3 adds deterministic, non-controlling observation to the existing `Executor::execute` path. `ExecutionEvent` uses only canonical AVM data: `Enter`, `Return` and `Fail`, the decoded `ExecutionContext`, optional result `LinkId`, and a finite failure phase (`Dispatch`, `Handler`, `ResultValidation`).
+`ExecutionEvent` содержит только канонические данные AVM:
 
-Observers cannot replace handlers, skip execution or substitute results. Observer exceptions are isolated from program control flow, and observation itself does not materialize links. Nested calls and failure unwind are observed through the same executor recursion, including explicit parent/frame identities.
+```text
+Enter(ExecutionContext)
+Return(ExecutionContext, result LinkId)
+Fail(ExecutionContext, phase)
+```
 
-`BoundedExecutionTrace` is the reusable public host-memory collector. It reserves a configured event capacity before normal execution, exposes immutable events, reports truncation explicitly, and never becomes `Executor` or `LinkStore` semantic state.
+Для отказов используется конечная классификация фаз:
 
-Persistence conformance distinguishes two identity claims: the same `PersistentLinkStore` must produce exactly identical LinkId-based traces after reopen, while independently constructed backends are compared only modulo bijective renaming of opaque LinkIds. AVM never treats raw numeric LinkIds as globally comparable across stores.
+```text
+Dispatch
+Handler
+ResultValidation
+```
 
-The CLI is a real consumer of the same public observation boundary:
+Наблюдатель не может заменить handler, пропустить исполнение или подменить результат. Его исключения изолированы от программы. Наблюдение не материализует связи.
+
+`BoundedExecutionTrace` хранит ограниченный префикс событий в памяти host-среды и явно сообщает о truncation.
+
+Для одного и того же `PersistentLinkStore` после reopen требуется точное совпадение LinkId-based traces. Для независимо построенных backends сравнение выполняется с точностью до биективного переименования непрозрачных `LinkId`.
+
+CLI использует тот же executor:
 
 ```text
 avm program.json
@@ -114,19 +152,61 @@ avm --trace program.json
 avm --trace-limit 64 program.json
 ```
 
-Normal mode preserves the compatibility behavior. Trace mode uses the existing `JsonProgramImporter`, the same `BootstrapRuntime::execute(LinkId)` path and existing JSON result projection; it merely attaches `BoundedExecutionTrace` and renders the retained events. Text labels are tooling presentation, not string opcodes or canonical trace identity. Failing executions render retained `Fail(phase)` events before the normal host diagnostic, and trace truncation is never silent.
+См. [контракт наблюдаемости исполнения](docs/execution-observability.md).
 
-See [Execution observability contract](docs/execution-observability.md).
+## AVM 1.4 — инспекция и диагностический tooling завершены
 
-## Supported core library API
+AVM 1.4 построил слой инспекции поверх существующих публичных API, не создавая второго executor или отдельной семантики.
 
-The dependency-free C++ core surface is available through:
+`InspectionSession` объединяет:
+
+- наблюдение связей и сущностей;
+- запросы Модели Отношений;
+- запуск через существующий `BootstrapRuntime`;
+- сбор `BoundedExecutionTrace`;
+- persistent reopen scenarios.
+
+Текстовые inspection-команды являются только интерфейсом tooling: после parsing они превращаются в типизированные команды и используют тот же runtime.
+
+См. [сессию инспекции](docs/inspection-session.md), [команды инспекции](docs/inspection-commands.md) и [persistent inspection session](docs/persistent-inspection-session.md).
+
+## AVM 1.5 — перенос семантики Relations Model из jsonRVM
+
+Текущий этап развития отвечает на более сильный вопрос: может ли AVM быть не просто VM поверх дуплетов, а полноценным link-native исполнителем существенной семантики старого `jsonRVM`?
+
+Representation problem уже решён. Оставшаяся задача — execution semantics.
+
+В `jsonRVM` самостоятельный смысл имеют все роли:
+
+```text
+relation = controller
+subject  = view / receiver / manifestation
+object   = model / input
+```
+
+Кроме этого, старый runtime содержит:
+
+- текущий и родительские контексты `ent/rel/sub/obj`;
+- `$ent/$rel/$sub/$obj` и `$$...`;
+- абсолютные и относительные ссылки;
+- sequence/lambda/projection semantics;
+- `foreach` и дочерние контексты;
+- pure value vocabulary;
+- filesystem/HTTP/time/native эффекты.
+
+AVM 1.5 переносит эти свойства без возврата к JSON interpreter. Главный epic — #122, первый активный gate — #123.
+
+В `main` уже есть versioned semantic inventory и frozen golden corpus, привязанные к конкретному commit `jsonRVM`. См. [совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md).
+
+## Публичный API ядра
+
+Независимый от JSON C++ API доступен через:
 
 ```cpp
 #include <avm/avm.h>
 ```
 
-A minimal link-native execution looks like this:
+Минимальный пример link-native исполнения:
 
 ```cpp
 #include <avm/avm.h>
@@ -145,11 +225,9 @@ int main()
 }
 ```
 
-The umbrella header intentionally does not include JSON adapters. JSON remains optional and is not part of the dependency-free `avm::core` execution contract.
+Umbrella-header намеренно не включает JSON adapters. JSON не является зависимостью `avm::core`.
 
-## Install and consume with CMake
-
-Install AVM into a prefix:
+## Установка и использование через CMake
 
 ```bash
 cmake -S . -B build-install \
@@ -160,28 +238,30 @@ cmake -S . -B build-install \
 cmake --install build-install
 ```
 
-A consuming CMake project can require the current AVM 1.3 package:
+В consuming project:
 
 ```cmake
 find_package(avm 1.3 CONFIG REQUIRED)
 target_link_libraries(my_program PRIVATE avm::core)
 ```
 
-`avm::core` is a header-only C++20 target. Its installed interface points only at the install prefix and does not depend on repository-relative source or `3p` include paths.
+`avm::core` — header-only C++20 target. Установленный interface указывает только на install prefix и не зависит от repository-relative путей или `3p`.
 
-## Version and compatibility policy
+## Версионирование и совместимость
 
-AVM uses Semantic Versioning for documented public core contracts. CMake and `include/avm/version.h` must match exactly; CI also rejects tagged builds unless the tag is exactly `v<project-version>`.
+AVM использует Semantic Versioning для документированных публичных контрактов ядра. Версии в CMake и `include/avm/version.h` обязаны совпадать. CI отклоняет tagged build, если тег не равен `v<project-version>`.
 
-Compatibility within AVM 1.x applies to documented public contracts exposed through `<avm/avm.h>` and `avm::core`. Header-only implementation details, private layout and incidental helpers are not an ABI promise. See [AVM 1.x release policy](docs/release-policy.md).
+Совместимость внутри AVM 1.x относится к документированным контрактам через `<avm/avm.h>` и `avm::core`. Внутренняя структура header-only реализации не является ABI-обещанием.
+
+См. [политику релизов AVM 1.x](docs/release-policy.md).
 
 ## Backends
 
-`InMemoryLinkStore` is the reference backend. `PersistentLinkStore` proves reopen and identity semantics. Additional physical backends are replaceable implementations of the same `LinkStore` contract.
+`InMemoryLinkStore` — эталонный backend. `PersistentLinkStore` доказывает reopen/identity semantics. Другие физические backends должны реализовывать тот же контракт `LinkStore`.
 
-Backend code must not define VM relations, query semantics, JSON rules, protocol grammar or execution semantics.
+Backend не имеет права определять relations VM, query semantics, JSON rules, Anum grammar или execution semantics.
 
-## Reproducible repository validation
+## Воспроизводимая проверка репозитория
 
 ```bash
 git clone https://github.com/netkeep80/avm.git
@@ -191,37 +271,44 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-CI installs the package into a staging prefix and builds an external consumer on Linux, Windows and macOS using only `find_package` and `avm::core`. The full portable matrix also runs the trace-enabled CLI conformance cases.
+CI устанавливает пакет во временный prefix и собирает внешний consumer на Linux, Windows и macOS через `find_package` и `avm::core`. Полная portable matrix также выполняет conformance tests CLI и адаптеров.
 
-## Architecture documents
+## Основные документы
 
-- [AVM architecture contract](docs/architecture.md)
-- [Execution kernel](docs/execution-kernel.md)
-- [Execution observability contract](docs/execution-observability.md)
-- [External protocol adapter contract](docs/protocol-adapter-contract.md)
-- [Anum L3→L4 bridge](docs/anum-l3-l4-bridge.md)
-- [Relations Model query contract](docs/relations-query.md)
-- [Structural standard library](docs/structural-standard-library.md)
-- [Persistent LinkStore contract](docs/persistent-link-store.md)
-- [AVM 1.x release policy](docs/release-policy.md)
-- [Project analysis](analysis.md)
-- [Roadmap](plan.md)
+- [Архитектурный контракт AVM](docs/architecture.md)
+- [Ядро исполнения](docs/execution-kernel.md)
+- [Модель link-native программ](docs/program-model.md)
+- [Функции, bindings и call frames](docs/functions-and-frames.md)
+- [Структурная стандартная библиотека](docs/structural-standard-library.md)
+- [Запросы Модели Отношений](docs/relations-query.md)
+- [Наблюдаемость исполнения](docs/execution-observability.md)
+- [Сессия инспекции](docs/inspection-session.md)
+- [Контракт адаптера внешнего протокола](docs/protocol-adapter-contract.md)
+- [Граница проекции](docs/projection-boundary.md)
+- [Мост Anum L3→L4](docs/anum-l3-l4-bridge.md)
+- [Persistent LinkStore](docs/persistent-link-store.md)
+- [Совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md)
+- [Политика релизов](docs/release-policy.md)
+- [Анализ проекта](analysis.md)
+- [План развития](plan.md)
 
-## Project status
+## Язык документации
 
-AVM 1.0 foundation, AVM 1.1 read-only queries and AVM 1.2 structural standard-library gates are complete. AVM 1.3 provides deterministic observation, failure-phase classification, bounded trace collection, persistence/backend conformance and trace-enabled CLI tooling while preserving the single `LinkStore -> Relations Model -> Executor` execution path.
+Нормативный язык проектной документации AVM — русский. Имена публичного API, identifiers, форматы, команды, имена внешних проектов и кодовые примеры сохраняются в исходном техническом виде.
 
-## Dependencies
+Лицензия и документация вендорного кода не переводятся как часть документации AVM.
 
-Core library:
+## Зависимости
 
-- C++20 compiler
-- CMake 3.20+
+Ядро:
 
-Optional JSON boundary/CLI:
+- компилятор C++20;
+- CMake 3.20+.
 
-- bundled `nlohmann/json`
+Опциональная JSON boundary / CLI:
 
-## License
+- встроенный `nlohmann/json`.
+
+## Лицензия
 
 MIT License. Copyright © 2022 Vertushkin Roman Pavlovich.

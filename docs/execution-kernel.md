@@ -1,11 +1,11 @@
-# AVM execution kernel
+# Ядро исполнения AVM
 
-The AVM 1.0 execution kernel runs a Relations Model entity by its `LinkId`. It does not parse JSON and it does not dispatch operators by textual names.
+Ядро исполнения AVM запускает сущность Модели Отношений по её `LinkId`. Оно не разбирает JSON и не выполняет dispatch операторов по текстовым именам.
 
-## Execution path
+## Путь исполнения
 
 ```text
-entity LinkId
+LinkId сущности
     |
     v
 decode_relation_entity
@@ -14,49 +14,68 @@ decode_relation_entity
 ExecutionContext
     |
     v
-relation LinkId -> bootstrap/native handler or link-native program structure
+relation LinkId -> bootstrap/native handler или link-native program structure
     |
     v
-result LinkId
+LinkId результата
 ```
 
-## Execution context
+## Контекст исполнения
 
-The context is explicit and carries the instantiated Relations Model entity and call-state needed by execution. Hidden global C++ state is not an execution contract.
+Контекст явный и несёт инстанцированную сущность Модели Отношений и call-state, необходимые для исполнения. Скрытое глобальное состояние C++ не является частью execution contract.
 
-At minimum, relation dispatch is derived from the canonical decoded entity:
+Минимально relation dispatch выводится из канонически декодированной сущности:
 
 ```text
 entity
 relation
 subject
 object
-parent/context when applicable
+parent/context, когда применимо
 ```
 
-Program bindings and call frames belong to the associative model rather than a second external environment.
+Program bindings и call frames принадлежат ассоциативной модели, а не внешнему environment.
 
 ## Bootstrap boundary
 
-A native handler may be registered by a relation `LinkId`:
+Native handler может быть зарегистрирован по relation `LinkId`:
 
 ```text
-relation identity -> C++ handler
+identity отношения -> C++ handler
 ```
 
-This is a bootstrap mechanism, not a second program database. Native handlers provide the minimal bridge needed to execute the associative vocabulary. New language behavior must preserve relation-identity dispatch and must not create a parallel JSON/string-dispatch runtime.
+Это bootstrap-механизм, а не вторая база программ. Native handlers дают минимальный мост, необходимый для выполнения ассоциативного vocabulary. Новая семантика обязана сохранять dispatch по identity отношения и не создавать параллельный JSON/string-dispatch runtime.
 
-## Invariants
+## Результат и материализация
 
-1. `Executor::execute` accepts an entity `LinkId`, not a JSON expression.
-2. Relation dispatch uses relation identity, not strings such as `"Not"` or `"If"`.
-3. Entities are decoded through the canonical Relations Model codec.
-4. Unknown relations fail explicitly and observational operations do not mutate the store.
-5. A native handler returns an existing/canonical `LinkId` according to the operation contract.
-6. Execution context and call state are explicit or represented in links; they are not hidden singleton state.
-7. The executor depends on `LinkStore` semantics, not on a physical storage backend.
-8. JSON/program-session adapters remain outside the execution kernel.
+Handler возвращает `LinkId` согласно контракту конкретной relation. Возврат результата сам по себе не означает разрешение произвольной скрытой записи в `LinkStore`.
 
-## Removed historical path
+Наблюдающие relations должны оставаться read-only по смыслу. Relations с эффектом обязаны иметь явный effect/materialization contract.
 
-The historical `rel_t` universe and JSON-centric `eval()`/`interpret()` compatibility runtime were removed after their consumers migrated. They are not supported AVM 1.0 APIs and should not be reintroduced as a fallback path; Git history retains them for archaeology.
+Это особенно важно для AVM 1.5, где необходимо различить:
+
+```text
+identity исполняемой entity
+subject/view
+object/model
+result
+manifestation/projection
+effect/materialization
+```
+
+## Инварианты
+
+1. `Executor::execute` принимает entity `LinkId`, а не JSON expression.
+2. Relation dispatch использует identity отношения, а не строки вроде `"Not"` или `"If"`.
+3. Сущности декодируются через канонический Relations Model codec.
+4. Unknown relation приводит к явной ошибке; наблюдающие операции не изменяют store.
+5. Native handler возвращает существующий/канонический `LinkId` согласно контракту операции.
+6. Execution context и call state являются явными или представлены links; они не скрыты в singleton-state.
+7. Executor зависит от семантики `LinkStore`, а не от конкретного physical backend.
+8. JSON/program-session adapters находятся вне execution kernel.
+9. Observer/trace/inspection tooling не определяют альтернативную execution semantics.
+10. `subject = unit` является bootstrap-частным случаем, а не окончательным определением триединой сущности.
+
+## Удалённый исторический путь
+
+Исторические `rel_t` и JSON-centric `eval()`/`interpret()` runtime были удалены после миграции consumers. Они не являются поддерживаемыми API и не должны возвращаться как fallback path; для исследования старой реализации существует Git history.
