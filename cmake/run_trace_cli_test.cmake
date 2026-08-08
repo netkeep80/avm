@@ -2,7 +2,7 @@
 # Required:
 #   AVM_EXECUTABLE
 #   TEST_DIR
-#   CASE = usage | legacy | success | function | truncate | failure | nonexpression
+#   CASE = usage | legacy | success | function | truncate | failure | nonexpression | badlimit
 # TEST_FILE is required for all cases except usage.
 
 if(NOT DEFINED AVM_EXECUTABLE OR NOT DEFINED TEST_DIR OR NOT DEFINED CASE)
@@ -34,6 +34,13 @@ elseif(CASE STREQUAL "truncate")
         RESULT_VARIABLE RESULT
         OUTPUT_VARIABLE OUTPUT
         ERROR_VARIABLE ERROR_OUTPUT)
+elseif(CASE STREQUAL "badlimit")
+    execute_process(
+        COMMAND "${AVM_EXECUTABLE}" --trace-limit nope "${TEST_FILE}"
+        WORKING_DIRECTORY "${TEST_DIR}"
+        RESULT_VARIABLE RESULT
+        OUTPUT_VARIABLE OUTPUT
+        ERROR_VARIABLE ERROR_OUTPUT)
 else()
     execute_process(
         COMMAND "${AVM_EXECUTABLE}" --trace "${TEST_FILE}"
@@ -58,7 +65,7 @@ if(CASE STREQUAL "usage")
     return()
 endif()
 
-if(CASE STREQUAL "failure" OR CASE STREQUAL "nonexpression")
+if(CASE STREQUAL "failure" OR CASE STREQUAL "nonexpression" OR CASE STREQUAL "badlimit")
     if(RESULT EQUAL 0)
         message(FATAL_ERROR "${CASE} unexpectedly succeeded\nstdout:\n${OUTPUT}\nstderr:\n${ERROR_OUTPUT}")
     endif()
@@ -116,6 +123,12 @@ elseif(CASE STREQUAL "nonexpression")
     string(FIND "${ERROR_OUTPUT}" "--trace requires an executable JSON compatibility expression" ERROR_POS)
     if(NOT TRACE_POS EQUAL -1 OR ERROR_POS EQUAL -1)
         message(FATAL_ERROR "non-expression trace rejection mismatch:\nstdout:\n${OUTPUT}\nstderr:\n${ERROR_OUTPUT}")
+    endif()
+elseif(CASE STREQUAL "badlimit")
+    string(FIND "${OUTPUT}" "trace events=" TRACE_POS)
+    string(FIND "${ERROR_OUTPUT}" "trace limit must be a non-negative integer" ERROR_POS)
+    if(NOT TRACE_POS EQUAL -1 OR ERROR_POS EQUAL -1)
+        message(FATAL_ERROR "invalid trace-limit handling mismatch:\nstdout:\n${OUTPUT}\nstderr:\n${ERROR_OUTPUT}")
     endif()
 else()
     message(FATAL_ERROR "unknown trace CLI test CASE: ${CASE}")
