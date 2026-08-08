@@ -1,10 +1,10 @@
-# AVM 1.0 roadmap
+# AVM roadmap
 
-## Принцип планирования
+## Planning rule
 
-Текущий план — **Architecture Foundation 2.0 / AVM 1.0**. Работа идёт dependency-ordered gates: новый слой начинается только после того, как его зависимости имеют стабильный контракт и зелёные CI-gates.
+Work proceeds through dependency-ordered gates. A new layer starts only after its dependencies have a stable contract and green CI gates.
 
-Главный инвариант roadmap:
+The invariant remains:
 
 ```text
 external projection
@@ -15,116 +15,124 @@ external projection
   -> result LinkId
 ```
 
-Не допускаются второй semantic path, отдельное legacy-хранилище или JSON AST как альтернативное execution core.
+No second semantic path, hidden program database, legacy storage universe or backend-specific semantic index is allowed.
 
-## Gate 1 — архитектурный контракт ✅
+## AVM 1.0 foundation — complete ✅
 
-- один physical primitive: directed dyad;
+### Gate 1 — architecture contract ✅
+
+- one physical primitive: directed dyad;
 - opaque `LinkId` identity;
 - canonical pair identity;
-- read/query operations не материализуют данные;
-- backend semantics отделены от VM semantics.
+- reads do not materialize data;
+- backend semantics separated from VM semantics.
 
-Основной документ: `docs/architecture.md`.
-
-## Gate 2 — canonical LinkStore ✅
+### Gate 2 — canonical LinkStore ✅
 
 - reference `InMemoryLinkStore`;
-- явное разделение `find` и `intern`;
-- conformance coverage для canonical identity и query behavior;
-- semantic code не зависит от pointer identity или layout backend-а.
+- explicit `find` vs `intern` separation;
+- canonical identity/query conformance;
+- semantic code independent of pointer identity/layout.
 
-## Gate 3 — Relations Model codec ✅
-
-Единственное представление triplet:
+### Gate 3 — Relations Model codec ✅
 
 ```text
 (relation, subject, object) = (relation, (subject, object))
 ```
 
-Codec отделён от storage contract.
+### Gate 4 — execution kernel ✅
 
-## Gate 4 — execution kernel ✅
+- `Executor` consumes entity `LinkId`;
+- relation dispatch by `LinkId`;
+- explicit execution context;
+- bootstrap native handlers are not a second program database.
 
-- `Executor` принимает entity `LinkId`;
-- relation dispatch выполняется по `LinkId`;
-- execution context явный;
-- bootstrap native handlers не являются второй program database.
+### Gate 5 — program-as-links ✅
 
-Документ: `docs/execution-kernel.md`.
+- programs, bindings and frames represented by links;
+- link-native vertical slice;
+- legacy pointer-based `rel_t` semantic/storage universe removed.
 
-## Gate 5 — program-as-links ✅
+### Gate 6 — external protocol boundary ✅
 
-- program structures представлены ссылками;
-- bindings/call frames находятся в ассоциативной модели;
-- link-native vertical slice покрывает наблюдаемую семантику;
-- старый pointer-based `rel_t` semantic/storage universe удалён после миграции consumers.
+- parser/grammar/context remain external;
+- AVM consumes structural projection/denotation;
+- `raw(A)` separated from `den(A)`;
+- `find` observational, `realize` explicit.
 
-## Gate 6 — external protocol boundary ✅
+The canonical Anum/MTS semantics are maintained in `netkeep80/anum_docs`; AVM contains only the structural L3→L4 bridge.
 
-- parser/grammar/context принадлежат внешнему adapter-у;
-- AVM core получает structural projection над `LinkId` anchors;
-- `raw(A)` отделён от `den(A)`;
-- `find` остаётся non-mutating, `realize` — явной материализацией.
+### Gate 7 — integration hardening ✅
 
-Документ: `docs/protocol-adapter-contract.md`.
+- persistent reopen/identity conformance;
+- end-to-end link-native vertical slice;
+- benchmark baselines;
+- documentation alignment;
+- warnings-as-errors, sanitizers and architecture guards.
 
-## Gate 7 — integration hardening (текущий)
+### Gate 8 — AVM 1.0 release readiness ✅
 
-### 7.1 Persistent LinkStore contract
+Validated on the same public package/core contracts:
 
-Persistent implementation должна быть взаимозаменяемой с in-memory backend по observable semantics. Reopen/crash guarantees и backend-specific behavior проверяются отдельно от VM semantics.
+- Linux, Windows and macOS portable builds/tests;
+- installed-package consumer on Linux, Windows and macOS;
+- stable public `avm::core` package;
+- one documented execution path;
+- no legacy semantic path.
 
-Документ: `docs/persistent-link-store.md`.
+## AVM 1.1 — associative query facilities
 
-### 7.2 End-to-end vertical slice
+Current epic: #83.
 
-Поддерживать короткий воспроизводимый путь от projection до result `LinkId`, не добавляя обходных execution routes.
+### Gate 9 — constrained Relations Model queries (current)
 
-### 7.3 Performance baseline
+Child: #84.
 
-Benchmark gates защищают от регрессий в canonical link operations и link-native execution. Производительность не может оправдывать нарушение identity/query invariants.
+Goal: read-only query facilities over the existing Relations Model and `LinkStore` indexes, without a second storage/index universe.
 
-### 7.4 Documentation alignment
+Public query shape:
 
-README, analysis и roadmap должны описывать только фактическую link-native архитектуру. Hard-coded test counts и исторические target claims не используются.
+```text
+relation? / subject? / object?
+-> existing find/outgoing/incoming paths
+-> structural decode/filter
+-> deterministic RelationMatch list
+```
 
-### 7.5 CI/quality hardening
+Requirements:
 
-Продолжать усиливать:
+- at least one constraint;
+- no `intern` / `create_point` in queries;
+- no guessed full-store enumeration;
+- deterministic ordering/deduplication;
+- InMemory/Persistent/reopen equivalence;
+- benchmark baselines for each lookup strategy;
+- installed public package consumption.
 
-- Linux/Windows/macOS builds;
-- warnings-as-errors;
-- sanitizers;
-- architecture quality guards;
-- benchmark regression gates;
-- persistent backend conformance.
+### Gate 10 — measured query/index evolution
 
-## Gate 8 — AVM 1.0 release readiness
+Only after Gate 9 benchmarks and real workloads show a need:
 
-После завершения integration hardening:
+- evaluate explicit LinkStore enumeration contract;
+- evaluate additional secondary/index operations;
+- preserve backend replaceability and read-only semantics;
+- require conformance across in-memory/persistent backends.
 
-- один документированный public execution path;
-- стабильные core contracts;
-- persistent backend с conformance/reopen coverage;
-- воспроизводимый vertical slice;
-- отсутствие legacy semantic paths;
-- release/versioning policy и минимальный public API.
+No backend-specific map is promoted into semantic code merely for convenience.
 
-## После AVM 1.0
+## Later AVM 1.x directions
 
-Только после foundation gates приоритет получают feature-направления:
+After the query foundation:
 
-1. расширение link-native стандартной библиотеки;
-2. дополнительные protocol/front-end adapters;
-3. query/indexing facilities поверх canonical store contracts;
-4. debugger/REPL и observability;
-5. packaging и integration tooling;
-6. visualization/GUI;
-7. distributed/persistent backend experiments.
+1. link-native standard library expansion;
+2. additional thin protocol/front-end adapters;
+3. debugger/REPL and observability;
+4. packaging/integration tooling;
+5. visualization/GUI;
+6. production physical backends and persistence experiments.
 
-Каждое расширение обязано использовать существующий `LinkStore -> Relations Model -> Executor` path и не создавать альтернативное runtime ядро.
+Every extension must reuse the existing `LinkStore -> Relations Model -> Executor` architecture.
 
 ## Dependency rule
 
-Если gate зависит от незавершённого PR, можно готовить следующий **независимый** шаг, но нельзя мержить зависимую работу раньше зелёного dependency-gate. Legacy-код после миграции consumers удаляется; Git является хранилищем истории.
+If a gate depends on an unfinished PR, independent preparation may proceed, but dependent code is not merged before the dependency is green. Legacy code is deleted after consumer migration; Git stores history.

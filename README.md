@@ -4,9 +4,9 @@
 
 AVM is an experimental C++20 virtual machine built on the Relations Model and a canonical store of directed links.
 
-**Current public version: 1.0.0.**
+**Current public version: 1.1.0.**
 
-## AVM 1.0 semantic path
+## Semantic path
 
 There is one production semantic path:
 
@@ -20,7 +20,7 @@ external representation
   -> result LinkId
 ```
 
-JSON is an external projection and compatibility protocol. It is not the VM AST or the execution core. Execution dispatches by relation `LinkId`, not by textual operator names.
+JSON is an external projection and compatibility protocol. Anum/MTS grammar and contextual denotation remain canonical in `netkeep80/anum_docs`; AVM consumes only the storage-neutral structural denotation handoff. Neither format is the VM AST or execution core.
 
 The physical primitive is a canonical directed dyad:
 
@@ -30,25 +30,47 @@ LinkId -> (begin: LinkId, end: LinkId)
 
 `LinkId` is opaque. Reads do not materialize missing links, and `intern(a,b)` returns the canonical identity for an exact pair inside one logical store.
 
-## Current foundation
+## AVM 1.0 foundation — complete
 
-AVM 1.0 currently provides:
+AVM 1.0 established and validated:
 
 - `LinkStore` as the storage contract, with in-memory and persistent reference implementations;
-- Relations Model encoding `(relation, subject, object) = (relation, (subject, object))`;
+- canonical Relations Model encoding `(relation, subject, object) = (relation, (subject, object))`;
 - explicit bootstrap vocabulary identity;
 - link-native execution through `BootstrapRuntime` and `Executor`;
 - associative program structures, bindings and call frames represented by links;
-- a neutral protocol-adapter boundary that keeps parsing/context semantics outside the VM core;
-- separate JSON value and JSON program/session adapters at the projection boundary;
-- persistent reopen/identity conformance tests independent from VM semantics;
-- CI on Linux, Windows and macOS, warnings-as-errors lanes, sanitizers, quality guards and benchmark baselines.
+- parser-independent protocol projection boundary;
+- canonical structural Anum L3→L4 bridge with no grammar duplication in AVM;
+- separate JSON value and JSON program/session adapters;
+- persistent reopen/identity conformance independent from VM semantics;
+- installed-package consumer validation on Linux, Windows and macOS;
+- warnings-as-errors, sanitizers, architecture quality guards and benchmark baselines.
 
-The former pointer-based `rel_t` universe and its legacy execution/data-codec path have been removed. Git history preserves that implementation; AVM does not keep a second semantic path for compatibility.
+The former pointer-based `rel_t` universe, JSON semantic interpreter and temporary protocol-value-only Anum bridge have been removed. Git history preserves them; AVM keeps one semantic path.
+
+## AVM 1.1 — read-only associative queries
+
+AVM 1.1 begins with a dependency-free Relations Model query layer:
+
+```cpp
+avm::RelationQuery query{
+    .relation = relation,
+    .subject = std::nullopt,
+    .object = object,
+};
+
+const auto matches = avm::query_relation_entities(store, query);
+```
+
+At least one relation/subject/object field must be constrained. Queries use only the existing `LinkStore` `find/outgoing/incoming/get/contains` contract; they never call `intern` or `create_point`, and they do not introduce a second index universe.
+
+Relations Model querying is structural rather than registry-based. AVM does not track a hidden list of links "created as entities"; domain restrictions must themselves be represented through links/relations.
+
+See [Relations Model query contract](docs/relations-query.md).
 
 ## Supported core library API
 
-The supported dependency-free C++ core surface is available through:
+The dependency-free C++ core surface is available through:
 
 ```cpp
 #include <avm/avm.h>
@@ -73,7 +95,7 @@ int main()
 }
 ```
 
-The umbrella header intentionally does not include JSON adapters. JSON remains an optional projection layer and is not part of the dependency-free `avm::core` execution contract.
+The umbrella header intentionally does not include JSON adapters. JSON remains optional and is not part of the dependency-free `avm::core` execution contract.
 
 ## Install and consume with CMake
 
@@ -88,30 +110,28 @@ cmake -S . -B build-install \
 cmake --install build-install
 ```
 
-A consuming CMake project can require the AVM 1.x package:
+A consuming CMake project can require the current AVM 1.1 package:
 
 ```cmake
-find_package(avm 1.0 CONFIG REQUIRED)
+find_package(avm 1.1 CONFIG REQUIRED)
 target_link_libraries(my_program PRIVATE avm::core)
 ```
 
-`avm::core` is a header-only C++20 target. Its installed interface points only at the install prefix; it does not depend on repository-relative source or `3p` include paths.
+`avm::core` is a header-only C++20 target. Its installed interface points only at the install prefix and does not depend on repository-relative source or `3p` include paths.
 
 ## Version and compatibility policy
 
-AVM uses Semantic Versioning for the documented public core contracts. The project version in CMake and `include/avm/version.h` must match exactly; CI also rejects tagged builds unless the tag is exactly `v<project-version>`.
+AVM uses Semantic Versioning for documented public core contracts. CMake and `include/avm/version.h` must match exactly; CI also rejects tagged builds unless the tag is exactly `v<project-version>`.
 
-Compatibility within AVM 1.x applies to the documented public contracts exposed through `<avm/avm.h>` and `avm::core`. Header-only implementation details, private layout and incidental helpers are not an ABI promise. See [AVM 1.x release policy](docs/release-policy.md).
+Compatibility within AVM 1.x applies to documented public contracts exposed through `<avm/avm.h>` and `avm::core`. Header-only implementation details, private layout and incidental helpers are not an ABI promise. See [AVM 1.x release policy](docs/release-policy.md).
 
 ## Backends
 
-`InMemoryLinkStore` is the reference backend. `PersistentLinkStore` proves reopen and identity semantics. Additional physical backends are replaceable implementations of the same `LinkStore` contract. LinksPlatform/PMM integrations are follow-up backend work, not prerequisites for VM semantics.
+`InMemoryLinkStore` is the reference backend. `PersistentLinkStore` proves reopen and identity semantics. Additional physical backends are replaceable implementations of the same `LinkStore` contract.
 
-Backend code must not define VM relations, JSON rules, protocol grammar or execution semantics.
+Backend code must not define VM relations, query semantics, JSON rules, protocol grammar or execution semantics.
 
 ## Reproducible repository validation
-
-Build and run the test suite:
 
 ```bash
 git clone https://github.com/netkeep80/avm.git
@@ -121,28 +141,30 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-The link-native vertical-slice tests exercise the intended flow: bootstrap a canonical store, encode program entities as Relations Model links, execute them by `LinkId`, and verify the resulting canonical identities. JSON/CLI tests exercise projection compatibility separately. CI also installs the public package into a staging prefix and builds an external consumer using only `find_package(avm 1.0 CONFIG REQUIRED)` and `avm::core`.
+CI installs the package into a staging prefix and builds an external consumer on Linux, Windows and macOS using only `find_package` and `avm::core`.
 
 ## Architecture documents
 
-- [AVM 1.0 architecture contract](docs/architecture.md)
+- [AVM architecture contract](docs/architecture.md)
 - [Execution kernel](docs/execution-kernel.md)
 - [External protocol adapter contract](docs/protocol-adapter-contract.md)
+- [Anum L3→L4 bridge](docs/anum-l3-l4-bridge.md)
+- [Relations Model query contract](docs/relations-query.md)
 - [Persistent LinkStore contract](docs/persistent-link-store.md)
 - [AVM 1.x release policy](docs/release-policy.md)
 - [Project analysis](analysis.md)
-- [AVM 1.0 roadmap](plan.md)
+- [Roadmap](plan.md)
 
 ## Project status
 
-Architecture Foundation gates 1–7 are complete. The public/install contract and AVM 1.0.0 version policy are defined. The remaining release-readiness gate is portable installed-package validation on Linux, Windows and macOS before post-1.0 feature work takes priority.
+Architecture Foundation / AVM 1.0 gates are complete. AVM 1.1 now develops read-only associative query facilities while preserving the same canonical `LinkStore -> Relations Model -> Executor` foundation. New physical indexes are considered only after the existing-index query baselines demonstrate a measured need.
 
 ## Dependencies
 
 Core library:
 
 - C++20 compiler
-- CMake 3.20+ for the provided package/build system
+- CMake 3.20+
 
 Optional JSON boundary/CLI:
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 message("Configuring: ${CMAKE_CURRENT_SOURCE_DIR}")
 
-set(CMAKE_PROJECT_VERSION 1.0.0)
+set(CMAKE_PROJECT_VERSION 1.1.0)
 
 project(avm
     VERSION ${CMAKE_PROJECT_VERSION}
@@ -35,6 +35,7 @@ set(AVM_CORE_PUBLIC_HEADERS
     include/avm/projection.h
     include/avm/raw_carrier.h
     include/avm/relations_model.h
+    include/avm/relations_query.h
     include/avm/version.h)
 
 install(TARGETS avm_core EXPORT avmTargets)
@@ -58,7 +59,7 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avm)
 
 option(AVM_BUILD_CLI "Build the AVM JSON CLI" ON)
-option(AVM_BUILD_CORE_TESTS "Build AVM 1.0 core tests" ON)
+option(AVM_BUILD_CORE_TESTS "Build AVM core tests" ON)
 option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection/session tests" ON)
 option(AVM_BUILD_ANUM_ADAPTER_TESTS "Build canonical Anum denotation adapter tests" ON)
 option(AVM_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
@@ -146,6 +147,7 @@ if(AVM_BUILD_CORE_TESTS)
     avm_add_core_test(avm_assertions_enabled_test test/assertions_enabled_test.cpp assertions_enabled_tests)
     avm_add_core_test(avm_link_store_test test/link_store_test.cpp link_store_tests)
     avm_add_core_test(avm_relations_model_test test/relations_model_test.cpp relations_model_tests)
+    avm_add_core_test(avm_relations_query_test test/relations_query_test.cpp relations_query_tests)
     avm_add_core_test(avm_executor_test test/executor_test.cpp executor_tests)
     avm_add_core_test(avm_program_model_test test/program_model_test.cpp program_model_tests)
     avm_add_core_test(avm_boolean_runtime_test test/boolean_runtime_test.cpp boolean_runtime_tests)
@@ -176,6 +178,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_assertions_enabled_test
         avm_link_store_test
         avm_relations_model_test
+        avm_relations_query_test
         avm_executor_test
         avm_program_model_test
         avm_boolean_runtime_test

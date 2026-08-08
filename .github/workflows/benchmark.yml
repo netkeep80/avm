@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           head -n 1 avm-benchmark.tsv | grep -F $'name\toperations\telapsed_ns\tns_per_op'
-          for name in intern_new_pair intern_existing_pair find_hit find_miss outgoing_query incoming_query relations_model_encode relations_model_decode execute_minimal_relation persistent_reopen_index_rebuild; do
+          for name in intern_new_pair intern_existing_pair find_hit find_miss outgoing_query incoming_query relations_model_encode relations_model_decode relations_query_relation relations_query_subject relations_query_object relations_query_subject_object execute_minimal_relation persistent_reopen_index_rebuild; do
             grep -F "${name}" avm-benchmark.tsv >/dev/null
           done
 
