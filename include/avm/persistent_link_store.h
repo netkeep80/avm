@@ -28,14 +28,15 @@ public:
 
 	LinkId create_point() override
 	{
+		require_healthy();
 		const LinkId id = allocate_id();
-		insert_link(id, Link{id, id});
-		persist();
+		commit_new_link(id, Link{id, id});
 		return id;
 	}
 
 	LinkId intern(LinkId begin, LinkId end) override
 	{
+		require_healthy();
 		require_existing_endpoint(begin, "begin");
 		require_existing_endpoint(end, "end");
 
@@ -43,13 +44,13 @@ public:
 			return *existing;
 
 		const LinkId id = allocate_id();
-		insert_link(id, Link{begin, end});
-		persist();
+		commit_new_link(id, Link{begin, end});
 		return id;
 	}
 
 	std::optional<LinkId> find(LinkId begin, LinkId end) const override
 	{
+		require_healthy();
 		const auto it = exact_.find({begin, end});
 		if (it == exact_.end())
 			return std::nullopt;
@@ -58,6 +59,7 @@ public:
 
 	Link get(LinkId id) const override
 	{
+		require_healthy();
 		const auto it = links_.find(id);
 		if (it == links_.end())
 			throw std::out_of_range("unknown LinkId");
@@ -66,6 +68,7 @@ public:
 
 	std::vector<LinkId> outgoing(LinkId begin) const override
 	{
+		require_healthy();
 		const auto it = outgoing_.find(begin);
 		if (it == outgoing_.end())
 			return {};
@@ -74,17 +77,28 @@ public:
 
 	std::vector<LinkId> incoming(LinkId end) const override
 	{
+		require_healthy();
 		const auto it = incoming_.find(end);
 		if (it == incoming_.end())
 			return {};
 		return it->second;
 	}
 
-	bool contains(LinkId id) const override { return links_.contains(id); }
+	bool contains(LinkId id) const override
+	{
+		require_healthy();
+		return links_.contains(id);
+	}
 
-	std::size_t size() const override { return links_.size(); }
+	std::size_t size() const override
+	{
+		require_healthy();
+		return links_.size();
+	}
 
-	const std::filesystem::path &path() const { return path_; }
+	const std::filesystem::path &path() const noexcept { return path_; }
+
+	bool faulted() const noexcept { return faulted_; }
 
 private:
 	using Pair = std::pair<LinkId, LinkId>;
@@ -130,6 +144,12 @@ private:
 		return value;
 	}
 
+	void require_healthy() const
+	{
+		if (faulted_)
+			throw std::runtime_error("persistent LinkStore is faulted after a failed mutation commit");
+	}
+
 	LinkId allocate_id()
 	{
 		if (next_id_ == invalid_link_id || next_id_ == std::numeric_limits<LinkId>::max())
@@ -155,6 +175,20 @@ private:
 		exact_.emplace(pair, id);
 		outgoing_[link.begin].push_back(id);
 		incoming_[link.end].push_back(id);
+	}
+
+	void commit_new_link(LinkId id, Link link)
+	{
+		try
+		{
+			insert_link(id, link);
+			persist();
+		}
+		catch (...)
+		{
+			faulted_ = true;
+			throw;
+		}
 	}
 
 	void persist() const
@@ -234,6 +268,7 @@ private:
 	std::map<Pair, LinkId> exact_;
 	std::map<LinkId, std::vector<LinkId>> outgoing_;
 	std::map<LinkId, std::vector<LinkId>> incoming_;
+	bool faulted_ = false;
 };
 
 } // namespace avm

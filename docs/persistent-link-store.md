@@ -63,7 +63,21 @@ This strictness prevents a corrupt file from being silently accepted as a differ
 
 For v1 every successful new point or new canonical pair rewrites the complete snapshot. Reusing an existing pair performs no write.
 
-This gives simple deterministic persistence semantics suitable for conformance tests, but it is **not** a crash-consistency guarantee. In particular v1 has no WAL, fsync protocol, atomic snapshot swap, locking or concurrent-writer support. Those concerns belong to a production backend such as a later PMM adapter.
+A new mutation can fail while updating in-memory indexes or while opening/writing/flushing the snapshot. Once a LinkId has been allocated, AVM treats `insert_link + persist` as one guarded mutation commit. If any part of that region throws, the live `PersistentLinkStore` object enters an explicit **faulted state** rather than continuing to expose a potentially partial or uncommitted in-memory view.
+
+After faulting:
+
+- `faulted()` returns `true` without touching the backend;
+- `path()` remains available for diagnostics;
+- all `LinkStore` reads and mutations reject access instead of exposing possibly uncommitted in-memory state;
+- the original exception is still propagated by the mutation that failed;
+- the object is not silently retried or repaired.
+
+An existing-pair `intern(a,b)` is read-like: it returns the already canonical LinkId without rewriting the snapshot, so an unavailable output path does not by itself fault a healthy object until a genuinely new mutation requires persistence.
+
+The correct recovery boundary is to discard the faulted object and explicitly reopen/repair the backing store according to the caller's policy. If a failed direct snapshot write damaged the file, reopen may reject it through the ordinary corruption checks.
+
+This fault-state rule is ordinary **in-process exception safety**, not a crash-consistency guarantee. V1 still has no WAL, fsync protocol, atomic snapshot swap, locking or concurrent-writer support. A process crash or power loss during the direct snapshot rewrite may leave the file incomplete; those durability concerns belong to a production backend such as a later PMM adapter.
 
 ## Why this backend exists
 
