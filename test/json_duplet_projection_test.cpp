@@ -1,4 +1,5 @@
 #include "json_duplet_projection.h"
+#include "json_duplet_text.h"
 
 #include "avm/persistent_link_store.h"
 #include "avm/relations_model.h"
@@ -9,6 +10,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace
@@ -44,6 +46,26 @@ Json document(Json root)
 	return value;
 }
 
+std::string anchor_text(avm::LinkId id)
+{
+	return "{\"$link\":" + std::to_string(id) + "}";
+}
+
+std::string duplet_text(const std::string &begin, const std::string &end)
+{
+	return "{\"<<\":" + begin + ",\">>\":" + end + "}";
+}
+
+std::string relation_text(avm::LinkId relation, avm::LinkId subject, avm::LinkId object)
+{
+	return duplet_text(anchor_text(relation), duplet_text(anchor_text(subject), anchor_text(object)));
+}
+
+std::string document_text(const std::string &root)
+{
+	return "{\"$avm\":\"duplet-json/1\",\"$root\":" + root + "}";
+}
+
 bool projection_rejected(const Json &value, bool as_document = false)
 {
 	try
@@ -52,6 +74,22 @@ bool projection_rejected(const Json &value, bool as_document = false)
 			static_cast<void>(avm::json_duplet::project_duplet_document(value));
 		else
 			static_cast<void>(avm::json_duplet::project_duplet_term(value));
+		return false;
+	}
+	catch (const avm::json_duplet::ProjectionError &)
+	{
+		return true;
+	}
+}
+
+bool text_projection_rejected(const std::string &text, bool as_document = false)
+{
+	try
+	{
+		if (as_document)
+			static_cast<void>(avm::json_duplet::project_duplet_document_text<Json>(text));
+		else
+			static_cast<void>(avm::json_duplet::project_duplet_term_text<Json>(text));
 		return false;
 	}
 	catch (const avm::json_duplet::ProjectionError &)
@@ -108,6 +146,17 @@ int main()
 	const avm::ProjectionDescription documented = avm::json_duplet::project_duplet_document(document(term));
 	assert(documented.nodes == description.nodes);
 	assert(documented.root == description.root);
+
+	const std::string raw_term = relation_text(relation, subject, object);
+	const std::string raw_document = document_text(raw_term);
+	const std::size_t before_text_projection = store.size();
+	const avm::ProjectionDescription text_term = avm::json_duplet::project_duplet_term_text<Json>(raw_term);
+	const avm::ProjectionDescription text_document = avm::json_duplet::project_duplet_document_text<Json>(raw_document);
+	assert(text_term.nodes == description.nodes);
+	assert(text_term.root == description.root);
+	assert(text_document.nodes == description.nodes);
+	assert(text_document.root == description.root);
+	assert(store.size() == before_text_projection);
 
 	const avm::ProjectionDescription anchor_only = avm::json_duplet::project_duplet_term(anchor(subject));
 	assert(anchor_only.nodes.empty());
@@ -171,6 +220,48 @@ int main()
 	Json extra_document = document(term);
 	extra_document["extra"] = true;
 	assert(projection_rejected(extra_document, true));
+
+	std::string duplicate_avm = "{\"$avm\":\"duplet-json/1\",\"$avm\":\"duplet-json/1\",\"$root\":";
+	duplicate_avm += raw_term;
+	duplicate_avm += "}";
+	assert(text_projection_rejected(duplicate_avm, true));
+
+	std::string duplicate_root = "{\"$avm\":\"duplet-json/1\",\"$root\":";
+	duplicate_root += raw_term;
+	duplicate_root += ",\"$root\":";
+	duplicate_root += raw_term;
+	duplicate_root += "}";
+	assert(text_projection_rejected(duplicate_root, true));
+
+	std::string duplicate_begin = "{\"<<\":";
+	duplicate_begin += anchor_text(relation);
+	duplicate_begin += ",\"<<\":";
+	duplicate_begin += anchor_text(subject);
+	duplicate_begin += ",\">>\":";
+	duplicate_begin += anchor_text(object);
+	duplicate_begin += "}";
+	assert(text_projection_rejected(duplicate_begin));
+
+	std::string duplicate_end = "{\"<<\":";
+	duplicate_end += anchor_text(relation);
+	duplicate_end += ",\">>\":";
+	duplicate_end += anchor_text(subject);
+	duplicate_end += ",\">>\":";
+	duplicate_end += anchor_text(object);
+	duplicate_end += "}";
+	assert(text_projection_rejected(duplicate_end));
+
+	std::string duplicate_link = "{\"$link\":";
+	duplicate_link += std::to_string(subject);
+	duplicate_link += ",\"$link\":";
+	duplicate_link += std::to_string(object);
+	duplicate_link += "}";
+	assert(text_projection_rejected(duplicate_link));
+
+	const std::string sibling_anchor_pair = duplet_text(anchor_text(subject), anchor_text(object));
+	assert(!text_projection_rejected(sibling_anchor_pair));
+	assert(text_projection_rejected("{"));
+	assert(text_projection_rejected("{\"$avm\":\"duplet-json/1\",\"$root\":}", true));
 
 	const std::filesystem::path persistent_path =
 	    std::filesystem::temp_directory_path() / "avm_duplet_json_projection_test.links";
