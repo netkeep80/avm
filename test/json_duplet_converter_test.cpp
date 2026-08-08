@@ -1,4 +1,5 @@
 #include "json_duplet_converter.h"
+#include "nlohmann/json.hpp"
 
 #include <cassert>
 #include <string>
@@ -6,7 +7,7 @@
 namespace
 {
 
-using Json = avm::json_duplet::Json;
+using Json = nlohmann::ordered_json;
 
 bool conversion_rejected(const Json &value, bool forward)
 {
