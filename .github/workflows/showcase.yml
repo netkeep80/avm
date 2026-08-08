@@ -88,13 +88,17 @@ jobs:
             import -display "$DISPLAY" -window root "$output_dir/avm-showcase-initial.png"
             test -s "$output_dir/avm-showcase-initial.png"
 
-            # The GLFW window is fixed at (0,0), so the calibrated screenshot
-            # coordinates are also deterministic root coordinates.
-            xdotool mousemove 150 285 click 1
+            # y=315 was confirmed to hit pair_realize in the first smoke run.
+            # pair_find is the immediately preceding ImGui row.
+            xdotool mousemove --window "$window" 150 292
+            xdotool getmouselocation
+            xdotool click 1
             sleep 0.6
             import -display "$DISPLAY" -window root "$output_dir/avm-showcase-after-find.png"
 
-            xdotool mousemove 150 309 click 1
+            xdotool mousemove --window "$window" 150 315
+            xdotool getmouselocation
+            xdotool click 1
             sleep 0.8
             import -display "$DISPLAY" -window root "$output_dir/avm-showcase-after-realize.png"
 
