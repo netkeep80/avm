@@ -1,76 +1,76 @@
-# AVM 1.2 structural standard library
+# Структурная стандартная библиотека AVM 1.2
 
-AVM 1.2 separates the structural surface into a small native kernel and an open-ended link-native library.
+AVM 1.2 разделяет structural surface на небольшое native kernel и расширяемую link-native библиотеку.
 
-## Native structural kernel
+## Нативное структурное ядро
 
-The bootstrap runtime owns only the primitive relations that cannot be reduced further without already having structural observation/effect semantics:
+Bootstrap runtime содержит только primitive relations, которые нельзя выразить через уже существующие structural observation/effect semantics:
 
 ```text
-link_begin(expr)       -> begin pole of evaluated LinkId
-link_end(expr)         -> end pole of evaluated LinkId
-identity_equal(a,b)    -> canonical Boolean
-link_exists(a,b)       -> canonical Boolean, observational
-pair_intern(a,b)       -> canonical LinkId(a,b), explicit effect
+link_begin(expr)       -> begin-полюс вычисленного LinkId
+link_end(expr)         -> end-полюс вычисленного LinkId
+identity_equal(a,b)    -> каноническое Boolean-значение
+link_exists(a,b)       -> каноническое Boolean-значение, observation
+pair_intern(a,b)       -> канонический LinkId(a,b), явный эффект
 ```
 
-`link_begin`, `link_end`, `identity_equal` and `link_exists` do not materialize the queried structure. `pair_intern` is the explicit canonical structural mutation boundary and delegates to `LinkStore::intern`.
+`link_begin`, `link_end`, `identity_equal` и `link_exists` не материализуют наблюдаемую структуру. `pair_intern` — явная граница canonical structural mutation и делегирует `LinkStore::intern`.
 
-## Derived operations are programs, not opcodes
+## Производные операции являются программами, а не opcode
 
-A standard-library operation that can be expressed with the existing kernel must be represented as an ordinary AVM function definition rather than as another native handler.
+Если standard-library operation можно выразить существующим kernel, она должна быть обычным definition функции AVM, а не ещё одним native handler.
 
-For example:
+Например:
 
 ```text
 is_self_link(x) = identity_equal(link_begin(x), link_end(x))
 ```
 
-and:
+и:
 
 ```text
 pair_matches(x,b,e) = AND(identity_equal(link_begin(x), b),
                           identity_equal(link_end(x), e))
 ```
 
-Both bodies are ordinary Relations Model expression entities created by `ProgramBuilder`. Their function handles are normal `LinkId` values and `Executor::has_native(handle)` is false.
+Оба body являются обычными Relations Model expression entities, построенными `ProgramBuilder`. Function handles — обычные `LinkId`, а `Executor::has_native(handle)` для них возвращает false.
 
-This keeps the semantic direction:
+Направление расширения:
 
 ```text
-small native kernel
+малое native kernel
     -> link-native function definitions
-    -> further functions may call those functions
+    -> новые функции могут вызывать эти функции
 ```
 
-rather than:
+а не:
 
 ```text
-ever-growing C++ opcode/native-handler registry
+постоянно растущий C++ registry opcode/native-handler
 ```
 
-## Function calls and effect accounting
+## Function calls и учёт эффектов
 
-A composed function whose body contains only observational primitives is not necessarily a zero-write operation at the physical `LinkStore` level.
+Composed function, body которой содержит только observational primitives, не обязана быть zero-write на физическом уровне `LinkStore`.
 
-AVM intentionally represents function execution state as links. The existing call runtime materializes canonical binding and call-frame structures. Therefore the first execution of a particular structural call may increase the store even though the function body itself contains no structural mutation primitive.
+AVM намеренно представляет execution state функций как links. Существующий call runtime materialize-ит canonical bindings и call frames. Поэтому первый вызов конкретной structural function может увеличить store, даже если body не содержит structural mutation primitive.
 
-The correct distinction is:
+Следует различать:
 
-- **library semantics:** `is_self_link` and `pair_matches` contain no `pair_intern` and introduce no native handler;
-- **execution-state semantics:** the existing function machinery may intern bindings, binding lists, frame payloads and frame entities;
-- **canonical convergence:** repeating the same structurally identical call reuses those structures where their identities are the same.
+- **семантику библиотеки:** `is_self_link` и `pair_matches` не содержат `pair_intern` и не вводят native handler;
+- **семантику execution state:** function machinery может intern-ить bindings, binding lists, frame payloads и frame entities;
+- **canonical convergence:** повтор structurally identical call переиспользует структуры там, где их identities совпадают.
 
-Replacing link-native call frames with an ephemeral C++ stack merely to label composed functions “pure” would create a second execution-state model and is intentionally rejected.
+Замена link-native call frames на ephemeral C++ stack только ради слова «pure» создала бы второй execution-state model и потому запрещена.
 
 ## Persistence
 
-Function definitions are already link-native and therefore persist with the store. To use a composed library after reopen, a caller retains the explicit function handles together with the bootstrap vocabulary it already needs to restore the runtime.
+Function definitions уже link-native и сохраняются вместе со store. После reopen caller использует явные function handles вместе с bootstrap vocabulary, необходимым для восстановления runtime.
 
-There is no hidden standard-library registry and no string-name lookup table. A handle is the identity of the function.
+Скрытого standard-library registry и string-name lookup table нет. Handle является identity функции.
 
-## Extension rule
+## Правило расширения
 
-Before adding any future native relation, ask whether its behavior can be expressed as a function over existing primitives.
+Перед добавлением native relation нужно проверить, выражается ли её поведение функцией над существующими primitives.
 
-If yes, implement it as links. A new native relation is justified only when it introduces a genuinely irreducible observation/effect boundary or when measured requirements demonstrate that the composition cannot satisfy the contract without violating AVM invariants.
+Если да — реализация должна быть в links. Новый native relation оправдан только для действительно неразложимой observation/effect boundary либо когда измеряемые требования доказывают невозможность соблюсти контракт через композицию.
