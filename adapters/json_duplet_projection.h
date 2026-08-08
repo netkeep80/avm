@@ -56,11 +56,9 @@ template <typename Json> class ProjectionBuilder
 public:
 	ProjectionDescription build_term(const Json &term)
 	{
-		ProjectionDescription description;
-		description_ = &description;
-		description.root = project_term(term, "$ ");
-		description_ = nullptr;
-		return description;
+		description_ = ProjectionDescription{};
+		description_.root = project_term(term, "$");
+		return description_;
 	}
 
 private:
@@ -80,15 +78,15 @@ private:
 
 			const ProjectionRef begin = project_term(term.at("<<"), projection_object_path(path, "<<"));
 			const ProjectionRef end = project_term(term.at(">>"), projection_object_path(path, ">>"));
-			const ProjectionNodeId node_id = description_->nodes.size();
-			description_->nodes.push_back(ProjectionNode{begin, end});
+			const ProjectionNodeId node_id = description_.nodes.size();
+			description_.nodes.push_back(ProjectionNode{begin, end});
 			return ProjectionRef::node(node_id);
 		}
 
 		return ProjectionRef::anchor(decode_link_anchor(term, path));
 	}
 
-	ProjectionDescription *description_ = nullptr;
+	ProjectionDescription description_{};
 };
 
 } // namespace detail
