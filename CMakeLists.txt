@@ -65,6 +65,7 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avm)
 
 option(AVM_BUILD_CLI "Build the AVM JSON CLI" ON)
+option(AVM_BUILD_JSON_TOOLS "Build AVM JSON conversion tools" ON)
 option(AVM_BUILD_CORE_TESTS "Build AVM core tests" ON)
 option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection/session tests" ON)
 option(AVM_BUILD_ANUM_ADAPTER_TESTS "Build canonical Anum denotation adapter tests" ON)
@@ -105,6 +106,11 @@ endfunction()
 function(avm_add_json_includes target)
     target_link_libraries(${target} PRIVATE avm_core)
     target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/3p")
+endfunction()
+
+function(avm_add_json_adapter_includes target)
+    avm_add_json_includes(${target})
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/adapters")
 endfunction()
 
 if(AVM_BUILD_CLI)
@@ -160,6 +166,13 @@ if(AVM_BUILD_CLI)
     avm_add_trace_cli_test(cli_trace_failure failure "${TEST_DIR}/trace_failure.json")
     avm_add_trace_cli_test(cli_trace_nonexpression nonexpression "${TEST_DIR}/true.json")
     avm_add_trace_cli_test(cli_trace_badlimit badlimit "${TEST_DIR}/trace_boolean.json")
+endif()
+
+if(AVM_BUILD_JSON_TOOLS)
+    add_executable(avm_json_convert "${CMAKE_CURRENT_SOURCE_DIR}/src/json_convert.cpp")
+    set_target_properties(avm_json_convert PROPERTIES OUTPUT_NAME "avm-json-convert")
+    avm_add_json_adapter_includes(avm_json_convert)
+    avm_apply_quality(avm_json_convert)
 endif()
 
 if(AVM_BUILD_CORE_TESTS)
@@ -231,6 +244,12 @@ if(AVM_BUILD_CORE_TESTS)
     avm_enable_test_assertions(avm_json_value_codec_test)
     add_test(NAME json_value_codec_tests COMMAND avm_json_value_codec_test)
 
+    add_executable(avm_json_duplet_converter_test "${CMAKE_CURRENT_SOURCE_DIR}/test/json_duplet_converter_test.cpp")
+    avm_add_json_adapter_includes(avm_json_duplet_converter_test)
+    avm_apply_quality(avm_json_duplet_converter_test)
+    avm_enable_test_assertions(avm_json_duplet_converter_test)
+    add_test(NAME json_duplet_converter_tests COMMAND avm_json_duplet_converter_test)
+
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
         avm_link_store_test
@@ -257,7 +276,8 @@ if(AVM_BUILD_CORE_TESTS)
         avm_inspection_session_test
         avm_persistent_inspection_session_test
         avm_vertical_slice_test
-        avm_json_value_codec_test)
+        avm_json_value_codec_test
+        avm_json_duplet_converter_test)
 endif()
 
 if(AVM_BUILD_ANUM_ADAPTER_TESTS)
