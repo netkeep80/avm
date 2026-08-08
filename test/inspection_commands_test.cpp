@@ -74,8 +74,8 @@ void verify_parser_produces_typed_commands()
 	assert(!parsed.subject);
 	assert(parsed.object == 12);
 
-	assert(std::holds_alternative<avm::tooling::TraceResetCommand>(
-	    avm::tooling::parse_inspection_command("trace-reset")));
+	const auto reset = avm::tooling::parse_inspection_command("trace-reset");
+	assert(std::holds_alternative<avm::tooling::TraceResetCommand>(reset));
 }
 
 void verify_parse_errors_are_pre_execution_and_non_mutating()
@@ -104,8 +104,10 @@ void verify_read_only_commands_match_canonical_apis()
 	const std::size_t size_before = fixture.store.size();
 
 	const std::string link_text = avm::tooling::run_inspection_command(session, command("link", fixture.point_a));
-	assert(link_text == "link id=" + std::to_string(fixture.point_a) + " begin=" + std::to_string(fixture.point_a) +
-	                        " end=" + std::to_string(fixture.point_a));
+	const std::string expected_link = "link id=" + std::to_string(fixture.point_a) +
+	                                  " begin=" + std::to_string(fixture.point_a) +
+	                                  " end=" + std::to_string(fixture.point_a);
+	assert(link_text == expected_link);
 
 	const std::string find_text =
 	    avm::tooling::run_inspection_command(session, command("find", fixture.point_a, fixture.point_b));
@@ -136,8 +138,8 @@ void verify_read_only_commands_match_canonical_apis()
 
 	const std::string query_line = "query " + std::to_string(fixture.relation) + " " +
 	                               std::to_string(fixture.point_a) + " " + std::to_string(fixture.point_c);
-	const auto query_result = avm::tooling::execute_inspection_command(
-	    session, avm::tooling::parse_inspection_command(query_line));
+	const auto query_command = avm::tooling::parse_inspection_command(query_line);
+	const auto query_result = avm::tooling::execute_inspection_command(session, query_command);
 	const auto &matches = std::get<avm::tooling::QueryRelationsResult>(query_result).matches;
 	assert(matches.size() == 1);
 	assert(matches.front().entity_id == fixture.relation_entity);
@@ -205,12 +207,12 @@ void verify_trace_truncation_and_failure_state()
 	const avm::LinkId failure_root =
 	    avm::encode_relation_entity(fixture.store, {unknown_relation, failure_subject, failure_object});
 	avm::tooling::InspectionSession failure_session(fixture.store, fixture.vocabulary, 16);
+	const auto failure_command = avm::tooling::parse_inspection_command(command("trace", failure_root));
 
 	bool rejected = false;
 	try
 	{
-		static_cast<void>(
-		    avm::tooling::run_inspection_command(failure_session, command("trace", failure_root)));
+		static_cast<void>(avm::tooling::execute_inspection_command(failure_session, failure_command));
 	}
 	catch (const std::runtime_error &)
 	{
