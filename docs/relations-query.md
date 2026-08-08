@@ -143,7 +143,7 @@ JSON или Anum query semantics
 
 Будущий индекс сначала должен быть оправдан измеряемой потребностью относительно benchmark baseline, а затем явно расширить `LinkStore` contract, а не читать backend internals.
 
-## Quality gates
+## Проверки качества
 
 CI не позволяет production `relations_query.h` вводить:
 
