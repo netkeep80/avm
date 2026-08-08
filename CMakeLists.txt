@@ -199,6 +199,15 @@ if(AVM_BUILD_CORE_TESTS)
     avm_enable_test_assertions(avm_inspection_session_test)
     add_test(NAME inspection_session_tests COMMAND avm_inspection_session_test)
 
+    add_executable(
+        avm_persistent_inspection_session_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/persistent_inspection_session_test.cpp")
+    target_link_libraries(avm_persistent_inspection_session_test PRIVATE avm_core)
+    target_include_directories(avm_persistent_inspection_session_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+    avm_apply_quality(avm_persistent_inspection_session_test)
+    avm_enable_test_assertions(avm_persistent_inspection_session_test)
+    add_test(NAME persistent_inspection_session_tests COMMAND avm_persistent_inspection_session_test)
+
     add_executable(avm_vertical_slice_test "${CMAKE_CURRENT_SOURCE_DIR}/test/vertical_slice_test.cpp")
     avm_add_json_includes(avm_vertical_slice_test)
     avm_apply_quality(avm_vertical_slice_test)
@@ -232,6 +241,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_protocol_adapter_boundary_test
         avm_persistent_link_store_test
         avm_inspection_session_test
+        avm_persistent_inspection_session_test
         avm_vertical_slice_test
         avm_json_value_codec_test)
 endif()
