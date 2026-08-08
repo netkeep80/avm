@@ -39,9 +39,18 @@ jobs:
         run: |
           set -euo pipefail
           head -n 1 avm-benchmark.tsv | grep -F $'name\toperations\telapsed_ns\tns_per_op'
-          for name in intern_new_pair intern_existing_pair find_hit find_miss outgoing_query incoming_query relations_model_encode relations_model_decode relations_query_relation relations_query_subject relations_query_object relations_query_subject_object execute_minimal_relation persistent_reopen_index_rebuild; do
+          for name in intern_new_pair intern_existing_pair find_hit find_miss outgoing_query incoming_query relations_model_encode relations_model_decode execute_minimal_relation persistent_reopen_index_rebuild; do
             grep -F "${name}" avm-benchmark.tsv >/dev/null
           done
+          for fanout in 1 8 64 256; do
+            for kind in relation subject object subject_object; do
+              grep -F "relations_query_${kind}_fanout_${fanout}" avm-benchmark.tsv >/dev/null
+            done
+          done
+          grep -F $'# query_scale\t1\t10000\t2\t3\t5\t1' avm-benchmark.tsv >/dev/null
+          grep -F $'# query_scale\t8\t5000\t9\t17\t26\t8' avm-benchmark.tsv >/dev/null
+          grep -F $'# query_scale\t64\t2000\t65\t129\t194\t64' avm-benchmark.tsv >/dev/null
+          grep -F $'# query_scale\t256\t500\t257\t513\t770\t256' avm-benchmark.tsv >/dev/null
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
