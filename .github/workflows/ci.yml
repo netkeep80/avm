@@ -115,7 +115,8 @@ jobs:
             test/vertical_slice_test.cpp \
             test/json_value_codec_test.cpp \
             test/json_projection_test.cpp \
-            test/json_session_test.cpp
+            test/json_session_test.cpp \
+            test/package_consumer/main.cpp
 
   core:
     name: Core C++20 / warnings-as-errors
@@ -140,6 +141,40 @@ jobs:
 
       - name: Run core tests
         run: ctest --test-dir build-core --output-on-failure
+
+  package-consumer:
+    name: Installed package consumer / Linux
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure install tree
+        run: >-
+          cmake -S . -B build-install
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/stage
+          -DAVM_BUILD_CLI=OFF
+          -DAVM_BUILD_CORE_TESTS=OFF
+          -DAVM_BUILD_JSON_COMPAT_TESTS=OFF
+
+      - name: Install public package
+        run: cmake --install build-install
+
+      - name: Configure external consumer
+        run: >-
+          cmake -S test/package_consumer -B build-consumer
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH=${{ github.workspace }}/stage
+          -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF
+
+      - name: Build external consumer
+        run: cmake --build build-consumer --parallel
+
+      - name: Run external consumer
+        run: ./build-consumer/avm_package_consumer
 
   json-compat:
     name: JSON projection + session / warnings-as-errors
@@ -247,7 +282,7 @@ jobs:
   release-artifact:
     name: Tagged Linux artifact
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [core, json-compat, cli-roundtrip, sanitizers]
+    needs: [core, package-consumer, json-compat, cli-roundtrip, sanitizers]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
