@@ -264,9 +264,9 @@ void verify_nested_unwind_is_stack_shaped()
 	avm::Executor executor(store, &observer);
 	executor.register_native(child_relation, [](const avm::ExecutionContext &, avm::Executor &) -> avm::LinkId
 	                         { throw std::logic_error("child failure"); });
-	executor.register_native(parent_relation,
-	                         [](const avm::ExecutionContext &context, avm::Executor &nested)
-	                         { return nested.execute(context.object, context.entity, context.frame); });
+	executor.register_native(
+	    parent_relation, [](const avm::ExecutionContext &context, avm::Executor &nested)
+	    { return nested.execute(context.object, context.entity, context.frame); });
 
 	const std::size_t size_before = store.size();
 	bool rejected = false;
