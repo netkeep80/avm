@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <functional>
+#include <iterator>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -34,15 +35,9 @@ struct AnumDenotationRef
 	std::string anchor;
 	ProjectionNodeId node_id;
 
-	static AnumDenotationRef anchor_ref(std::string key)
-	{
-		return AnumDenotationRef{Kind::Anchor, std::move(key), 0};
-	}
+	static AnumDenotationRef anchor_ref(std::string key) { return AnumDenotationRef{Kind::Anchor, std::move(key), 0}; }
 
-	static AnumDenotationRef node_ref(ProjectionNodeId id)
-	{
-		return AnumDenotationRef{Kind::Node, {}, id};
-	}
+	static AnumDenotationRef node_ref(ProjectionNodeId id) { return AnumDenotationRef{Kind::Node, {}, id}; }
 
 	bool operator==(const AnumDenotationRef &) const = default;
 };
@@ -114,7 +109,8 @@ inline void validate_anum_structural_denotation(const AnumStructuralDenotation &
 		throw std::invalid_argument("Anum denotation anchors must be sorted");
 	if (std::adjacent_find(value.anchors.begin(), value.anchors.end()) != value.anchors.end())
 		throw std::invalid_argument("Anum denotation anchors must be unique");
-	if (std::any_of(value.anchors.begin(), value.anchors.end(), [](const std::string &anchor) { return anchor.empty(); }))
+	if (std::any_of(value.anchors.begin(), value.anchors.end(),
+	                [](const std::string &anchor) { return anchor.empty(); }))
 		throw std::invalid_argument("Anum denotation anchor keys must be non-empty");
 
 	for (ProjectionNodeId index = 0; index < value.nodes.size(); ++index)
@@ -199,8 +195,8 @@ inline std::optional<ProjectionDescription> bridge_anum_denotation(const Canonic
 	for (const AnumDenotationNode &node : structural.nodes)
 	{
 		result.nodes.push_back(ProjectionNode{
-			detail::translate_anum_ref(node.start, structural.anchors, resolved_anchors),
-			detail::translate_anum_ref(node.end, structural.anchors, resolved_anchors),
+		    detail::translate_anum_ref(node.start, structural.anchors, resolved_anchors),
+		    detail::translate_anum_ref(node.end, structural.anchors, resolved_anchors),
 		});
 	}
 	result.root = detail::translate_anum_ref(structural.root, structural.anchors, resolved_anchors);

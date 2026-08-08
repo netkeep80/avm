@@ -76,9 +76,9 @@ avm::CanonicalAnumDenotation parse_denotation(const json &value)
 		    !node.contains("end") || !node["id"].is_number_unsigned())
 			throw std::invalid_argument("structural node has invalid shape");
 		structural.nodes.push_back(avm::AnumDenotationNode{
-			node["id"].get<avm::ProjectionNodeId>(),
-			parse_ref(node["start"]),
-			parse_ref(node["end"]),
+		    node["id"].get<avm::ProjectionNodeId>(),
+		    parse_ref(node["start"]),
+		    parse_ref(node["end"]),
 		});
 	}
 	structural.root = parse_ref(value["root"]);
@@ -86,7 +86,7 @@ avm::CanonicalAnumDenotation parse_denotation(const json &value)
 }
 
 std::map<std::string, avm::LinkId> create_anchor_points(avm::InMemoryLinkStore &store,
-                                                       const avm::AnumStructuralDenotation &structural)
+                                                        const avm::AnumStructuralDenotation &structural)
 {
 	std::map<std::string, avm::LinkId> result;
 	for (const std::string &key : structural.anchors)
@@ -227,9 +227,9 @@ void verify_missing_physical_anchor_is_non_mutating_until_realize()
 	assert(!store.contains(missing));
 
 	const avm::CanonicalAnumDenotation value = avm::CanonicalAnumDenotation::structural_result(
-		avm::AnumStructuralDenotation{{"missing"}, {}, avm::AnumDenotationRef::anchor_ref("missing")});
-	const auto projection = avm::bridge_anum_denotation(
-		value, [missing](std::string_view) -> std::optional<avm::LinkId> { return missing; });
+	    avm::AnumStructuralDenotation{{"missing"}, {}, avm::AnumDenotationRef::anchor_ref("missing")});
+	const auto projection = avm::bridge_anum_denotation(value, [missing](std::string_view) -> std::optional<avm::LinkId>
+	                                                    { return missing; });
 	assert(projection.has_value());
 
 	const std::size_t before_find = store.size();
@@ -245,119 +245,119 @@ void verify_malformed_handoff_rejection()
 	const avm::AnumAnchorResolver resolver = [](std::string_view) -> std::optional<avm::LinkId> { return 1; };
 
 	assert_throws_invalid(
-		[&]
-		{
-			(void)avm::bridge_anum_denotation(
-				avm::CanonicalAnumDenotation::structural_result(
-					avm::AnumStructuralDenotation{{"b", "a"}, {}, avm::AnumDenotationRef::anchor_ref("a")}),
-				resolver);
-		},
-		"sorted");
+	    [&]
+	    {
+		    (void)avm::bridge_anum_denotation(
+		        avm::CanonicalAnumDenotation::structural_result(
+		            avm::AnumStructuralDenotation{{"b", "a"}, {}, avm::AnumDenotationRef::anchor_ref("a")}),
+		        resolver);
+	    },
+	    "sorted");
 
 	assert_throws_invalid(
-		[&]
-		{
-			(void)avm::bridge_anum_denotation(
-				avm::CanonicalAnumDenotation::structural_result(
-					avm::AnumStructuralDenotation{{"a", "a"}, {}, avm::AnumDenotationRef::anchor_ref("a")}),
-				resolver);
-		},
-		"unique");
+	    [&]
+	    {
+		    (void)avm::bridge_anum_denotation(
+		        avm::CanonicalAnumDenotation::structural_result(
+		            avm::AnumStructuralDenotation{{"a", "a"}, {}, avm::AnumDenotationRef::anchor_ref("a")}),
+		        resolver);
+	    },
+	    "unique");
 
 	assert_throws_invalid(
-		[&]
-		{
-			(void)avm::bridge_anum_denotation(
-				avm::CanonicalAnumDenotation::structural_result(
-					avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("missing")}),
-				resolver);
-		},
-		"undeclared anchor");
+	    [&]
+	    {
+		    (void)avm::bridge_anum_denotation(
+		        avm::CanonicalAnumDenotation::structural_result(
+		            avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("missing")}),
+		        resolver);
+	    },
+	    "undeclared anchor");
 
 	assert_throws_invalid(
-		[&]
-		{
-			avm::AnumStructuralDenotation structural;
-			structural.anchors = {"a"};
-			structural.nodes.push_back(avm::AnumDenotationNode{
-				0,
-				avm::AnumDenotationRef::node_ref(0),
-				avm::AnumDenotationRef::anchor_ref("a"),
-			});
-			structural.root = avm::AnumDenotationRef::node_ref(0);
-			(void)avm::bridge_anum_denotation(avm::CanonicalAnumDenotation::structural_result(std::move(structural)),
-			                                    resolver);
-		},
-		"earlier node");
+	    [&]
+	    {
+		    avm::AnumStructuralDenotation structural;
+		    structural.anchors = {"a"};
+		    structural.nodes.push_back(avm::AnumDenotationNode{
+		        0,
+		        avm::AnumDenotationRef::node_ref(0),
+		        avm::AnumDenotationRef::anchor_ref("a"),
+		    });
+		    structural.root = avm::AnumDenotationRef::node_ref(0);
+		    (void)avm::bridge_anum_denotation(avm::CanonicalAnumDenotation::structural_result(std::move(structural)),
+		                                      resolver);
+	    },
+	    "earlier node");
 
 	assert_throws_invalid(
-		[&]
-		{
-			avm::AnumStructuralDenotation structural;
-			structural.anchors = {"a"};
-			structural.nodes.push_back(avm::AnumDenotationNode{
-				1,
-				avm::AnumDenotationRef::anchor_ref("a"),
-				avm::AnumDenotationRef::anchor_ref("a"),
-			});
-			structural.root = avm::AnumDenotationRef::node_ref(0);
-			(void)avm::bridge_anum_denotation(avm::CanonicalAnumDenotation::structural_result(std::move(structural)),
-			                                    resolver);
-		},
-		"contiguous");
+	    [&]
+	    {
+		    avm::AnumStructuralDenotation structural;
+		    structural.anchors = {"a"};
+		    structural.nodes.push_back(avm::AnumDenotationNode{
+		        1,
+		        avm::AnumDenotationRef::anchor_ref("a"),
+		        avm::AnumDenotationRef::anchor_ref("a"),
+		    });
+		    structural.root = avm::AnumDenotationRef::node_ref(0);
+		    (void)avm::bridge_anum_denotation(avm::CanonicalAnumDenotation::structural_result(std::move(structural)),
+		                                      resolver);
+	    },
+	    "contiguous");
 
 	assert_throws_invalid(
-		[&]
-		{
-			const avm::CanonicalAnumDenotation value = avm::CanonicalAnumDenotation::structural_result(
-				avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")});
-			(void)avm::bridge_anum_denotation(value, {});
-		},
-		"resolver");
+	    [&]
+	    {
+		    const avm::CanonicalAnumDenotation value = avm::CanonicalAnumDenotation::structural_result(
+		        avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")});
+		    (void)avm::bridge_anum_denotation(value, {});
+	    },
+	    "resolver");
 
 	assert_throws_invalid(
-		[&]
-		{
-			const avm::CanonicalAnumDenotation value = avm::CanonicalAnumDenotation::structural_result(
-				avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")});
-			(void)avm::bridge_anum_denotation(
-				value, [](std::string_view) -> std::optional<avm::LinkId> { return std::nullopt; });
-		},
-		"could not be resolved");
+	    [&]
+	    {
+		    const avm::CanonicalAnumDenotation value = avm::CanonicalAnumDenotation::structural_result(
+		        avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")});
+		    (void)avm::bridge_anum_denotation(value, [](std::string_view) -> std::optional<avm::LinkId>
+		                                      { return std::nullopt; });
+	    },
+	    "could not be resolved");
 
 	assert_throws_invalid(
-		[&]
-		{
-			const avm::CanonicalAnumDenotation value = avm::CanonicalAnumDenotation::structural_result(
-				avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")});
-			(void)avm::bridge_anum_denotation(
-				value, [](std::string_view) -> std::optional<avm::LinkId> { return avm::invalid_link_id; });
-		},
-		"invalid LinkId");
+	    [&]
+	    {
+		    const avm::CanonicalAnumDenotation value = avm::CanonicalAnumDenotation::structural_result(
+		        avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")});
+		    (void)avm::bridge_anum_denotation(value, [](std::string_view) -> std::optional<avm::LinkId>
+		                                      { return avm::invalid_link_id; });
+	    },
+	    "invalid LinkId");
 
 	assert_throws_invalid(
-		[&]
-		{
-			avm::CanonicalAnumDenotation mixed{
-				avm::AnumDenotationKind::Structural,
-				avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")},
-				std::string("raw"),
-			};
-			(void)avm::bridge_anum_denotation(mixed, resolver);
-		},
-		"only structural payload");
+	    [&]
+	    {
+		    avm::CanonicalAnumDenotation mixed{
+		        avm::AnumDenotationKind::Structural,
+		        avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")},
+		        std::string("raw"),
+		    };
+		    (void)avm::bridge_anum_denotation(mixed, resolver);
+	    },
+	    "only structural payload");
 
 	assert_throws_invalid(
-		[&]
-		{
-			avm::CanonicalAnumDenotation mixed{
-				avm::AnumDenotationKind::Raw,
-				avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")},
-				std::string("raw"),
-			};
-			(void)avm::bridge_anum_denotation(mixed, resolver);
-		},
-		"only raw payload");
+	    [&]
+	    {
+		    avm::CanonicalAnumDenotation mixed{
+		        avm::AnumDenotationKind::Raw,
+		        avm::AnumStructuralDenotation{{"a"}, {}, avm::AnumDenotationRef::anchor_ref("a")},
+		        std::string("raw"),
+		    };
+		    (void)avm::bridge_anum_denotation(mixed, resolver);
+	    },
+	    "only raw payload");
 }
 
 void verify_provenance(const json &provenance)
