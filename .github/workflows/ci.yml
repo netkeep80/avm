@@ -104,6 +104,7 @@ jobs:
             test/raw_carrier_test.cpp \
             test/protocol_adapter_boundary_test.cpp \
             test/persistent_link_store_test.cpp \
+            test/vertical_slice_test.cpp \
             test/json_projection_test.cpp \
             test/legacy_facade_test.cpp
 
