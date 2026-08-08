@@ -93,6 +93,41 @@ For the same canonical store/program/vocabulary state, an observer sees the same
 
 Observation itself never materializes links. Attaching or detaching an observer does not change `LinkStore` semantics.
 
+## Bounded tooling collector
+
+`BoundedExecutionTrace` is a reusable host-memory consumer of `ExecutionObserver`. It is a tooling utility, not part of AVM semantic state:
+
+```cpp
+avm::BoundedExecutionTrace trace(128);
+runtime.executor().set_observer(&trace);
+const avm::LinkId result = runtime.execute(root);
+
+for (const avm::ExecutionEvent &event : trace.events())
+{
+    // inspect deterministic AVM events
+}
+
+if (trace.truncated())
+{
+    // configured capacity was insufficient
+}
+```
+
+The event capacity is fixed when the collector is constructed. Its `std::vector` storage is reserved in the constructor, before the collector is normally attached to an executor. Construction/reservation may therefore report normal host allocation failures to the caller before execution starts.
+
+During observation, configured capacity exhaustion does not allocate, throw or fabricate an event. The collector retains the exact event prefix that fits and sets `truncated()==true`. A zero-capacity collector stores no events and becomes truncated as soon as any event arrives.
+
+`reset()` clears retained events and truncation state while preserving the configured `max_events()` and reserved storage policy. Event access is exposed as an immutable `std::span<const ExecutionEvent>`.
+
+This bounded policy distinguishes two concepts that must not be conflated:
+
+```text
+ExecutionEvent semantics  = canonical AVM observation contract
+BoundedExecutionTrace     = optional host-memory tooling storage
+```
+
+The collector does not own an `Executor`, `LinkStore`, backend, protocol adapter or persistence target. It never writes traces into links or files implicitly.
+
 ## Diagnostics policy
 
 The deterministic trace contract intentionally stops at AVM-owned failure phase. Human-readable exception text remains runtime diagnostic information, not stable event identity. C++ exception type names, `std::exception_ptr`, stack addresses and backend/protocol errors are not stored in `ExecutionEvent`.
@@ -106,8 +141,8 @@ AVM 1.3 observability does not provide:
 - breakpoints or step control;
 - handler replacement or result substitution;
 - a global trace singleton;
-- implicit trace persistence in `LinkStore`;
-- a core `std::vector` trace collector;
+- implicit trace persistence in `LinkStore` or files;
+- an unbounded/implicitly complete trace guarantee;
 - profiler timestamps;
 - exception objects or exception strings inside deterministic events;
 - JSON/Anum-specific trace events;
