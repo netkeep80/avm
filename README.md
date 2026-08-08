@@ -1,6 +1,6 @@
 <p align="center"><img src="EOSR.jpg"></p>
 
-# AVM - Associative Virtual Machine
+# AVM — Associative Virtual Machine
 
 [English](#english) | [Русский](#russian)
 
@@ -9,292 +9,235 @@
 <a name="english"></a>
 ## English
 
-### Description
+AVM is an experimental associative virtual machine whose runtime state, program structures and Relations Model entities are represented by canonical links.
 
-AVM (Associative Virtual Machine) is a project implementing a virtual machine based on the **Associative Relations Model (ARM)**. The project provides tools for working with ARM, including data representation, JSON serialization/deserialization, and logical operations.
+The AVM 1.0 foundation is built around one physical primitive:
 
-```
-      Associative Virtual Machine
-
-                  E
-                  ^
-                  |
-                  E
-                  |
-                  +
-           E+-----R----->E
-
+```text
+LinkId -> (begin: LinkId, end: LinkId)
 ```
 
-### Core Concepts
+A Relations Model entity `(relation, subject, object)` is encoded without a separate physical triplet type:
 
-The Associative Relations Model (ARM) is a mathematical model for storing and processing information based on:
+```text
+entity = Link(relation, Link(subject, object))
+```
 
-- **Associations** — ordered pairs of elements (tuples of length 2)
-- **Entities (E)** — interpretation of associations as correspondence (R, E)
-- **Relations (R)** — interpretation of associations as mapping (E, E)
-- Two root associations define the base structure:
-  - `Rel = (Ent, Ent)` — set of relations
-  - `Ent = (Rel, Ent)` — set of entities
+### Current architecture
 
-### Features
+```text
+external projection (JSON; later Anum adapter)
+        |
+        v
+projection / importer
+        |
+        v
+LinkStore: canonical L -> L^2
+        |
+        v
+Relations Model entities + program links
+        |
+        v
+BootstrapRuntime / Executor
+        |
+        v
+result LinkId
+```
 
-- Implementation of a virtual machine for executing ARM-based code
-- Support for structured data (arrays and associative arrays)
-- JSON serialization/deserialization (null, boolean, array, number, string, object)
-- Logical operations (NOT, AND, OR) defined as truth tables in entity maps
-- Conditional construct `If` with lazy evaluation of then/else branches
-- Recursive functions via `Def`/`Call` with named parameters and recursion depth protection
-- Relative addressing operator `[]` for evaluating functions via `eval()`
-- Multi-dimensional relative addressing for passing arguments
-- Expression interpreter `interpret()` for evaluating logical, conditional and recursive expressions from JSON
-- Sequential expression execution via JSON arrays for function definition and invocation
+The executor receives link identities, not a JSON AST. JSON is an external projection and compatibility surface, not the VM's internal instruction representation.
 
-### Current Status
+### Foundation implemented
 
-**Version: 0.0.5** (Alpha)
+- canonical `LinkStore` with exact, outgoing and incoming indexes;
+- non-mutating `find` and explicit materialization through `intern` / projection realization;
+- Relations Model triplet-to-dyads codec;
+- relation dispatch by `LinkId`;
+- NOT / AND / OR represented by associative truth-table entities;
+- lazy `If`;
+- functions, formal parameters, calls, bindings and call frames represented in links;
+- recursive `Def` / `Call` execution with call-depth protection;
+- JSON importer that materializes executable structures into links;
+- separate raw carrier and neutral `ProjectionDescription` boundary for future Anum/MTS integration;
+- `InMemoryLinkStore` reference backend;
+- versioned `PersistentLinkStore` reference backend with stable `LinkId` values across reopen and deterministic index rebuild;
+- C++20 warnings-as-errors, ASan/UBSan, and portable Linux/Windows/macOS CI.
 
-Implemented:
-- JSON null, boolean, array, number (unsigned, integer, float), string, object serialization/deserialization
-- Base vocabulary initialization (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call)
-- Logical operations NOT, AND, OR with truth tables via entity map
-- Conditional construct If with lazy evaluation (e.g. `{"If": [true, "yes", "no"]}` → `"yes"`)
-- Recursive functions via Def/Call (e.g. `[{"Def": ["f", ["x"], body]}, {"Call": ["f", arg]}]`)
-- Relative addressing operator `[]` via `eval()` function for computing logical functions
-- Expression interpreter for evaluating logical, conditional and recursive expressions from JSON
-- 179 unit tests + 16 JSON roundtrip tests
-- CI/CD pipeline (GitHub Actions) for Linux, macOS, Windows
+The historical recursive JSON interpreter has been removed. The remaining historical `rel_t` JSON data-codec/storage compatibility layer is scheduled for removal after its consumers are migrated to the canonical `LinkStore` path (issue #68).
 
-In Progress:
-- Persistent storage integration with LinksPlatform
-- CRUD API for programmatic use
+### Persistence
 
-### Documentation
+`PersistentLinkStore` is a conformance/reference backend. It proves stable identity, canonical pair reuse and reopen semantics. It is intentionally not presented as a production durability implementation: WAL, crash-atomic commits, concurrent writers and PMM/LinksPlatform adapters are separate concerns.
 
-- [JSON Serialization Algorithm (serialization.md)](serialization.md) — detailed description of JSON ↔ ARM conversion
-- [Project Analysis (analysis.md)](analysis.md) — detailed analysis of strengths and weaknesses
-- [Development Plan (plan.md)](plan.md) — roadmap and future directions
+### Anum / MTS boundary
 
-### Installation
+AVM does not contain a second Anum parser. The intended boundary is:
 
-Clone the repository:
+```text
+raw source (optional)
+    -> external parse / validate / project(context)
+    -> ProjectionDescription
+    -> find_projection(...) | realize_projection(...)
+    -> LinkStore
+```
+
+`find` remains observational; `realize` is the explicit write operation. Grammar, abits, quotation rules and protocol context belong to the external Anum/MTS implementation.
+
+### Build and test
+
 ```bash
 git clone https://github.com/netkeep80/avm.git
 cd avm
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
-Create build directory:
-```bash
-mkdir build && cd build
-```
-
-Generate build files with CMake:
-```bash
-cmake ..
-```
-
-Build the project:
-```bash
-cmake --build .
-```
-
-### Usage
+For the strict core-only lane:
 
 ```bash
-./avm [entry_point.json]
+cmake -S . -B build-core \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DAVM_BUILD_LEGACY=OFF \
+  -DAVM_BUILD_CORE_TESTS=ON \
+  -DAVM_BUILD_JSON_COMPAT_TESTS=OFF \
+  -DAVM_WARNINGS_AS_ERRORS=ON
+cmake --build build-core --target avm_core_tests --parallel
+ctest --test-dir build-core --output-on-failure
 ```
 
-The application reads a JSON file, converts it to ARM representation, and saves the result to `res.json`.
+### Documentation
 
-If the input JSON is a logical expression (e.g. `{"Not": [true]}`), the expression interpreter evaluates it and saves the result:
-```bash
-echo '{"Not": [{"And": [true, false]}]}' > expr.json
-./avm expr.json
-cat res.json  # true
-```
+- [`docs/architecture.md`](docs/architecture.md) — normative AVM 1.0 layering and invariants;
+- [`docs/execution-kernel.md`](docs/execution-kernel.md) — link-native execution kernel;
+- [`docs/jsonrvm-compatibility.md`](docs/jsonrvm-compatibility.md) — Relations Model compatibility;
+- [`docs/protocol-adapter-contract.md`](docs/protocol-adapter-contract.md) — AVM ↔ external Anum/MTS boundary;
+- [`docs/persistent-link-store.md`](docs/persistent-link-store.md) — reference persistent format and reopen contract;
+- [`docs/ci.md`](docs/ci.md) — CI/CD policy and test lanes;
+- [`analysis.md`](analysis.md) — current architectural assessment;
+- [`plan.md`](plan.md) — current roadmap.
 
-Conditional expressions with lazy evaluation:
-```bash
-echo '{"If": [true, true, false]}' > cond.json
-./avm cond.json
-cat res.json  # true
-```
-
-Recursive functions with Def/Call:
-```bash
-echo '[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]' > rec.json
-./avm rec.json
-cat res.json  # false
-```
-
-### Dependencies
-
-- C++20 compatible compiler
-- CMake 3.20+
-- [nlohmann/json](https://github.com/nlohmann/json) — JSON library for Modern C++
-- [LinksPlatform](https://github.com/linksplatform) — associative data storage (optional)
+`docs/avm-1.0-vertical-slice.md` and `docs/performance-baseline.md` are added by the corresponding final AVM 1.0 integration gates.
 
 ---
 
 <a name="russian"></a>
 ## Русский
 
-### Описание
+AVM — экспериментальная ассоциативная виртуальная машина, в которой состояние runtime, структуры программы и сущности Модели Отношений представлены каноническими связями.
 
-AVM (Associative Virtual Machine) — проект, реализующий виртуальную машину на основе **Модели Ассоциативных Отношений (МАО)**. Проект предоставляет инструменты для работы с МАО, включая представление данных, сериализацию/десериализацию JSON и логические операции.
+Фундамент AVM 1.0 строится вокруг одного физического примитива:
 
-```
-      Ассоциативная Виртуальная Машина
-
-                  E
-                  ^
-                  |
-                  E
-                  |
-                  +
-           E+-----R----->E
-
+```text
+LinkId -> (begin: LinkId, end: LinkId)
 ```
 
-### Основные концепции
+Сущность Модели Отношений `(отношение, субъект, объект)` кодируется без отдельного физического типа triplet:
 
-Модель Ассоциативных Отношений (МАО) — математическая модель для хранения и обработки информации, основанная на:
+```text
+entity = Link(отношение, Link(субъект, объект))
+```
 
-- **Ассоциации** — упорядоченные пары элементов (кортежи длины 2)
-- **Сущности (E)** — интерпретация ассоциаций как соответствие (R, E)
-- **Отношения (R)** — интерпретация ассоциаций как отображение (E, E)
-- Две корневые ассоциации определяют базовую структуру:
-  - `Rel = (Ent, Ent)` — множество отношений
-  - `Ent = (Rel, Ent)` — множество сущностей
+### Текущая архитектура
 
-### Возможности
+```text
+внешняя проекция (JSON; позже Anum adapter)
+        |
+        v
+projection / importer
+        |
+        v
+LinkStore: каноническое L -> L^2
+        |
+        v
+Relations Model entities + программа в связях
+        |
+        v
+BootstrapRuntime / Executor
+        |
+        v
+result LinkId
+```
 
-- Реализация виртуальной машины для исполнения кода на основе МАО
-- Поддержка структурированных данных (массивы и ассоциативные массивы)
-- Сериализация/десериализация JSON (null, boolean, array, number, string, object)
-- Логические операции (NOT, AND, OR), определённые как таблицы истинности в entity map
-- Условная конструкция `If` с ленивым вычислением веток then/else
-- Рекурсивные функции через `Def`/`Call` с именованными параметрами и защитой от бесконечной рекурсии
-- Оператор относительной адресации `[]` для вычисления функций через `eval()`
-- Многомерная относительная адресация для передачи аргументов
-- Интерпретатор выражений `interpret()` для вычисления логических, условных и рекурсивных выражений из JSON
-- Последовательное выполнение выражений через JSON-массивы для определения и вызова функций
+Executor получает идентификаторы связей, а не JSON AST. JSON является внешней проекцией и compatibility surface, но не внутренней системой команд VM.
 
-### Текущее состояние
+### Реализованный фундамент
 
-**Версия: 0.0.5** (Альфа)
+- канонический `LinkStore` с exact/outgoing/incoming индексами;
+- немутирующий `find` и явная материализация через `intern` / realization проекции;
+- кодек сущности Relations Model из triplet в два вложенных dyad;
+- dispatch исполнения по relation `LinkId`;
+- NOT / AND / OR как ассоциативные таблицы истинности;
+- ленивый `If`;
+- функции, формальные параметры, вызовы, bindings и call frames в самих связях;
+- рекурсивный `Def` / `Call` с ограничением глубины;
+- JSON importer, материализующий исполняемую структуру в `LinkStore`;
+- отдельный raw carrier и нейтральный `ProjectionDescription` для будущей интеграции Anum/MTS;
+- эталонный `InMemoryLinkStore`;
+- versioned `PersistentLinkStore` со стабильными `LinkId` после reopen и восстановлением индексов;
+- CI с C++20 warnings-as-errors, ASan/UBSan и Linux/Windows/macOS.
 
-Реализовано:
-- Сериализация/десериализация JSON null, boolean, array, number (unsigned, integer, float), string, object
-- Инициализация базового словаря (R, E, True, False, Unsigned, Integer, Float, String, Object, Not, And, Or, If, Def, Call)
-- Логические операции NOT, AND, OR с таблицами истинности через entity map
-- Условная конструкция If с ленивым вычислением (например `{"If": [true, "да", "нет"]}` → `"да"`)
-- Рекурсивные функции через Def/Call (например `[{"Def": ["f", ["x"], тело]}, {"Call": ["f", арг]}]`)
-- Оператор относительной адресации `[]` через функцию `eval()` для вычисления логических функций
-- Интерпретатор выражений для вычисления логических, условных и рекурсивных выражений из JSON
-- 179 модульных тестов + 16 JSON roundtrip тестов
-- CI/CD пайплайн (GitHub Actions) для Linux, macOS, Windows
+Старый рекурсивный JSON-интерпретатор уже удалён. Исторический `rel_t` сейчас остаётся только как отдельный JSON data-codec/storage compatibility layer; после миграции его consumers он должен быть удалён, чтобы в production остался один canonical `LinkStore` identity universe (issue #68).
 
-В разработке:
-- Персистентное хранение — интеграция с LinksPlatform
-- CRUD API для программного использования
+### Персистентность
 
-### Документация
+`PersistentLinkStore` — reference/conformance backend. Он доказывает стабильность identity, каноническое переиспользование пары и reopen semantics. Это не заявление о production durability: WAL, crash-atomic commits, concurrent writers и адаптеры PMM/LinksPlatform являются отдельными задачами.
 
-- [Алгоритм сериализации JSON (serialization.md)](serialization.md) — подробное описание преобразования JSON ↔ МАО
-- [Анализ проекта (analysis.md)](analysis.md) — подробный анализ сильных и слабых сторон
-- [План развития (plan.md)](plan.md) — дорожная карта и направления развития
+### Граница с Anum / МТС
 
-### Установка
+В AVM не создаётся второй parser ачисел. Граница выглядит так:
 
-Клонируйте репозиторий:
+```text
+raw source (опционально)
+    -> внешний parse / validate / project(context)
+    -> ProjectionDescription
+    -> find_projection(...) | realize_projection(...)
+    -> LinkStore
+```
+
+`find` только наблюдает и не создаёт связи; `realize` является явной операцией записи. Грамматика, абиты, quotation и protocol context принадлежат внешней реализации Anum/MTS.
+
+### Сборка и тесты
+
 ```bash
 git clone https://github.com/netkeep80/avm.git
 cd avm
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
-Создайте директорию сборки:
-```bash
-mkdir build && cd build
-```
-
-Сгенерируйте файлы сборки с помощью CMake:
-```bash
-cmake ..
-```
-
-Скомпилируйте проект:
-```bash
-cmake --build .
-```
-
-### Использование
+Строгая core-only проверка:
 
 ```bash
-./avm [entry_point.json]
+cmake -S . -B build-core \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DAVM_BUILD_LEGACY=OFF \
+  -DAVM_BUILD_CORE_TESTS=ON \
+  -DAVM_BUILD_JSON_COMPAT_TESTS=OFF \
+  -DAVM_WARNINGS_AS_ERRORS=ON
+cmake --build build-core --target avm_core_tests --parallel
+ctest --test-dir build-core --output-on-failure
 ```
 
-Приложение читает JSON файл, преобразует его в представление МАО и сохраняет результат в `res.json`.
+### Документация
 
-Если входной JSON является логическим выражением (например `{"Not": [true]}`), интерпретатор вычисляет его и сохраняет результат:
-```bash
-echo '{"Not": [{"And": [true, false]}]}' > expr.json
-./avm expr.json
-cat res.json  # true
-```
+- [`docs/architecture.md`](docs/architecture.md) — нормативные слои и инварианты AVM 1.0;
+- [`docs/execution-kernel.md`](docs/execution-kernel.md) — link-native execution kernel;
+- [`docs/jsonrvm-compatibility.md`](docs/jsonrvm-compatibility.md) — совместимость с Relations Model;
+- [`docs/protocol-adapter-contract.md`](docs/protocol-adapter-contract.md) — граница AVM ↔ внешний Anum/MTS protocol;
+- [`docs/persistent-link-store.md`](docs/persistent-link-store.md) — reference persistence format и reopen contract;
+- [`docs/ci.md`](docs/ci.md) — CI/CD и test lanes;
+- [`analysis.md`](analysis.md) — актуальный архитектурный анализ;
+- [`plan.md`](plan.md) — актуальный roadmap.
 
-Условные выражения с ленивым вычислением:
-```bash
-echo '{"If": [true, true, false]}' > cond.json
-./avm cond.json
-cat res.json  # true
-```
-
-Рекурсивные функции через Def/Call:
-```bash
-echo '[{"Def": ["myNot", ["x"], {"Not": ["x"]}]}, {"Call": ["myNot", true]}]' > rec.json
-./avm rec.json
-cat res.json  # false
-```
-
-### Зависимости
-
-- Компилятор с поддержкой C++20
-- CMake 3.20+
-- [nlohmann/json](https://github.com/nlohmann/json) — JSON библиотека для C++
-- [LinksPlatform](https://github.com/linksplatform) — ассоциативное хранилище данных (опционально)
+`docs/avm-1.0-vertical-slice.md` и `docs/performance-baseline.md` добавляются соответствующими финальными integration gates AVM 1.0.
 
 ---
 
 ## License / Лицензия
 
-<img align="right" src="https://opensource.org/trademarks/opensource/OSI-Approved-License-100x137.png">
-
-[MIT License](https://opensource.org/licenses/MIT)
-
-Copyright &copy; 2022 [Vertushkin Roman Pavlovich](https://vk.com/earthbirthbook)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
----
-
-## Thanks / Благодарности
-
-- [Vladimir Muravyev](https://github.com/vmuravyev) — helped develop the terminological apparatus of the Relations Model / помог в разработке терминологического аппарата Модели Отношений
-
-## Used third-party tools / Используемые сторонние инструменты
-
-- [**JSON for Modern C++**](https://github.com/nlohmann/json) — for load/unload JSON view of Relations Model / для загрузки/выгрузки JSON представления Модели Отношений
-- [**LinksPlatform**](https://github.com/linksplatform) — for storing associative model / для хранения ассоциативной модели
-- [**ChatGPT 4.0**](https://chat.openai.com/chat) — for documentation generation / для генерации документации
-
----
+MIT License. See [`LICENSE`](LICENSE).
 
 ## Contact / Контакты
 
-- Email: netkeep80@gmail.com
 - GitHub: [netkeep80/avm](https://github.com/netkeep80/avm)
