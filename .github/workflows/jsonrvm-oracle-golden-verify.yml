@@ -4,7 +4,9 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'compat/jsonrvm-legacy-fixtures/**'
       - 'compat/jsonrvm-oracle-golden.json'
+      - 'tools/run_jsonrvm_legacy_oracle.py'
       - '.github/workflows/jsonrvm-oracle-golden-verify.yml'
   workflow_dispatch:
 
