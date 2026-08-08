@@ -126,7 +126,7 @@ ScenarioProgram build_scenario(avm::LinkStore &store, avm::BootstrapRuntime &run
 }
 
 std::vector<avm::ExecutionEvent> capture_success(avm::BootstrapRuntime &runtime, avm::LinkStore &store,
-                                                avm::LinkId root, avm::LinkId expected)
+                                                 avm::LinkId root, avm::LinkId expected)
 {
 	avm::BoundedExecutionTrace trace(128);
 	runtime.executor().set_observer(&trace);
@@ -138,7 +138,7 @@ std::vector<avm::ExecutionEvent> capture_success(avm::BootstrapRuntime &runtime,
 }
 
 std::vector<avm::ExecutionEvent> capture_failure(avm::BootstrapRuntime &runtime, avm::LinkStore &store,
-                                                avm::LinkId root)
+                                                 avm::LinkId root)
 {
 	avm::BoundedExecutionTrace trace(128);
 	runtime.executor().set_observer(&trace);
