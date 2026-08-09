@@ -273,7 +273,7 @@ Integer(7) + Integer(3) -> realize Integer(10) -> LinkId(10)
 
 Store materialization и semantic-context mutation являются разными эффектами и не должны смешиваться.
 
-## Frontend convergence
+## Сходимость frontend-ов
 
 Native `duplet-json/1` уже доказывает convergence boundary:
 
@@ -338,7 +338,7 @@ AVM canonical result/state/effect behavior
 4. нужен ли explicit semantic state transition;
 5. какой observable result/trace сравнивается с oracle.
 
-## Persistent contract
+## Контракт persistence
 
 Accepted value domains v1 не требуют host-side authoritative registry `LinkId -> payload`.
 
