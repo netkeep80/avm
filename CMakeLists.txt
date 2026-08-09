@@ -38,6 +38,7 @@ set(AVM_CORE_PUBLIC_HEADERS
     include/avm/program_model.h
     include/avm/projection.h
     include/avm/raw_carrier.h
+    include/avm/reference.h
     include/avm/relations_model.h
     include/avm/relations_query.h
     include/avm/semantic_context.h
@@ -198,6 +199,7 @@ if(AVM_BUILD_CORE_TESTS)
         semantic_execution_outcome_tests)
     avm_add_core_test(avm_integer_value_test test/integer_value_test.cpp integer_value_tests)
     avm_add_core_test(avm_text_value_test test/text_value_test.cpp text_value_tests)
+    avm_add_core_test(avm_reference_test test/reference_test.cpp reference_tests)
     avm_add_core_test(avm_triune_primitives_test test/triune_primitives_test.cpp triune_primitives_tests)
     avm_add_core_test(avm_execution_observer_test test/execution_observer_test.cpp execution_observer_tests)
     avm_add_core_test(avm_execution_trace_test test/execution_trace_test.cpp execution_trace_tests)
@@ -276,6 +278,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_semantic_execution_outcome_test
         avm_integer_value_test
         avm_text_value_test
+        avm_reference_test
         avm_triune_primitives_test
         avm_execution_observer_test
         avm_execution_trace_test
