@@ -177,8 +177,7 @@ void test_independent_projection()
 	const avm::LinkId fail_body1 = executable(store, fail_relation1);
 	const avm::LinkId fail_body2 = executable(store, fail_relation2);
 	const avm::LinkId fail_body3 = executable(store, fail_relation3);
-	const avm::LinkId fail_bodies =
-	    avm::encode_link_list(store, list_nil, {fail_body1, fail_body2, fail_body3});
+	const avm::LinkId fail_bodies = avm::encode_link_list(store, list_nil, {fail_body1, fail_body2, fail_body3});
 	const avm::LinkId failing_projection = relation_entity(store, projection.relation, fail_bodies, list_nil);
 
 	std::vector<avm::LinkId> failure_seen;
@@ -216,8 +215,7 @@ void test_independent_projection()
 	assert(store.size() == before_failure);
 
 	const avm::LinkId malformed_body_list = store.intern(body1, result1);
-	const avm::LinkId malformed_projection =
-	    relation_entity(store, projection.relation, malformed_body_list, list_nil);
+	const avm::LinkId malformed_projection = relation_entity(store, projection.relation, malformed_body_list, list_nil);
 	const std::size_t before_malformed = store.size();
 	const std::size_t bodies_before_malformed = seen_semantics.size();
 	bool malformed_rejected = false;
@@ -255,8 +253,7 @@ void test_persistent_reopen()
 	{
 		avm::PersistentLinkStore store(path);
 		list_nil = store.create_point();
-		const avm::IndependentProjectionVocabulary projection =
-		    avm::IndependentProjectionVocabulary::create(store);
+		const avm::IndependentProjectionVocabulary projection = avm::IndependentProjectionVocabulary::create(store);
 		projection_relation = projection.relation;
 		result1 = store.create_point();
 		result2 = store.create_point();
