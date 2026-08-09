@@ -93,6 +93,25 @@ class ProjectionBuilder
 public:
 	explicit ProjectionBuilder(const ReferenceVocabulary &vocabulary) : vocabulary_(vocabulary) {}
 
+	ProjectionRef base_reference(std::string_view source, const NamedAnchors &names)
+	{
+		if (source.front() == '$')
+			return context_reference(source);
+		return named_reference(source, names);
+	}
+
+	ProjectionRef structural_projection(std::string_view segment, ProjectionRef inner)
+	{
+		return append(projection_marker(vocabulary_, segment), inner);
+	}
+
+	ProjectionDescription finish(ProjectionRef root)
+	{
+		description_.root = root;
+		return description_;
+	}
+
+private:
 	ProjectionRef context_reference(std::string_view source)
 	{
 		std::size_t dollars = 0;
@@ -118,18 +137,6 @@ public:
 		return append(vocabulary_.named_reference, ProjectionRef::anchor(target->second));
 	}
 
-	ProjectionRef structural_projection(std::string_view segment, ProjectionRef inner)
-	{
-		return append(projection_marker(vocabulary_, segment), inner);
-	}
-
-	ProjectionDescription finish(ProjectionRef root)
-	{
-		description_.root = root;
-		return description_;
-	}
-
-private:
 	ProjectionRef append(LinkId marker, ProjectionRef end)
 	{
 		const ProjectionNodeId node_id = description_.nodes.size();
@@ -149,9 +156,7 @@ inline ProjectionDescription compile(std::string_view source, const ReferenceVoc
 	const std::vector<std::string_view> segments = detail::split_path(source);
 	detail::ProjectionBuilder builder(vocabulary);
 
-	ProjectionRef reference = builder.named_reference(segments.front(), names);
-	if (segments.front().front() == '$')
-		reference = builder.context_reference(segments.front());
+	ProjectionRef reference = builder.base_reference(segments.front(), names);
 	for (std::size_t index = 1; index < segments.size(); ++index)
 		reference = builder.structural_projection(segments[index], reference);
 	return builder.finish(reference);
