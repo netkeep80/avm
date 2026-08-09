@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <exception>
 #include <filesystem>
 #include <functional>
 #include <vector>
@@ -68,12 +69,12 @@ int main()
 	const std::vector<std::uint8_t> empty;
 	const std::vector<std::uint8_t> hello{'h', 'e', 'l', 'l', 'o'};
 	const std::vector<std::uint8_t> embedded_nul{'A', 0x00, 'B'};
-	const std::vector<std::uint8_t> utf8_cyrillic{0xD0, 0x9F, 0xD1, 0x80, 0xD0, 0xB8, 0xD0, 0xB2, 0xD0, 0xB5, 0xD1, 0x82};
+	const std::vector<std::uint8_t> utf8{0xD0, 0x9F, 0xD1, 0x80, 0xD0, 0xB8, 0xD0, 0xB2, 0xD0, 0xB5, 0xD1, 0x82};
 
 	verify_text_value(store, vocabulary, empty);
 	verify_text_value(store, vocabulary, hello);
 	verify_text_value(store, vocabulary, embedded_nul);
-	verify_text_value(store, vocabulary, utf8_cyrillic);
+	verify_text_value(store, vocabulary, utf8);
 
 	const std::vector<std::uint8_t> hell{'h', 'e', 'l', 'l'};
 	const avm::LinkId hello_id = *avm::find_text(store, vocabulary, hello);
@@ -135,8 +136,7 @@ int main()
 	unknown_vocabulary.text_marker = store.size() + 1000;
 	assert(rejected([&] { avm::validate_text_vocabulary(store, unknown_vocabulary); }));
 
-	const std::filesystem::path persistent_path =
-	    std::filesystem::temp_directory_path() / "avm_text_value_test.links";
+	const std::filesystem::path persistent_path = std::filesystem::temp_directory_path() / "avm_text_value_test.links";
 	std::filesystem::remove(persistent_path);
 
 	avm::TextVocabulary persistent_vocabulary{};
