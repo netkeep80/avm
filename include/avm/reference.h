@@ -4,6 +4,7 @@
 #include "avm/semantic_context.h"
 
 #include <cstddef>
+#include <limits>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -158,12 +159,16 @@ inline std::size_t context_selector_depth(const LinkStore &store, const Referenc
 {
 	std::size_t depth = 0;
 	LinkId current = selector;
+	std::set<LinkId> visited;
 	while (current != vocabulary.current_context)
 	{
 		if (depth >= max_depth)
 			throw std::runtime_error("context selector exceeds configured depth limit");
 		if (!store.contains(current))
 			throw std::runtime_error("context selector references an unknown LinkId");
+		if (!visited.insert(current).second)
+			throw std::runtime_error("cycle detected in context selector");
+
 		const Link step = store.get(current);
 		if (step.begin != vocabulary.parent_context)
 			throw std::runtime_error("context selector is not Current or Parent(selector)");
@@ -200,9 +205,8 @@ inline LinkId realize_context_selector(LinkStore &store, const ReferenceVocabula
 	return selector;
 }
 
-inline std::optional<LinkId> find_context_role_reference(const LinkStore &store,
-                                                         const ReferenceVocabulary &vocabulary, ReferenceRole role,
-                                                         std::size_t parent_levels = 0)
+inline std::optional<LinkId> find_context_role_reference(const LinkStore &store, const ReferenceVocabulary &vocabulary,
+                                                         ReferenceRole role, std::size_t parent_levels = 0)
 {
 	const auto selector = find_context_selector(store, vocabulary, parent_levels);
 	if (!selector)
@@ -252,9 +256,9 @@ inline LinkId realize_reference_projection(LinkStore &store, const ReferenceVoca
 	return store.intern(reference_detail::projection_marker(vocabulary, projection), inner_reference);
 }
 
-inline std::optional<LinkId> resolve_reference(const LinkStore &store, const ReferenceVocabulary &vocabulary,
-                                               LinkId reference, const SemanticContextView &context,
-                                               std::size_t max_depth = 1000000)
+inline std::optional<LinkId> resolve_reference(
+    const LinkStore &store, const ReferenceVocabulary &vocabulary, LinkId reference, const SemanticContextView &context,
+    std::size_t max_depth = std::numeric_limits<std::size_t>::max())
 {
 	validate_reference_vocabulary(store, vocabulary);
 	if (!store.contains(reference))
@@ -282,7 +286,11 @@ inline std::optional<LinkId> resolve_reference(const LinkStore &store, const Ref
 		}
 
 		if (expression.begin == vocabulary.named_reference)
+		{
+			if (!store.contains(expression.end))
+				return std::nullopt;
 			return expression.end;
+		}
 
 		const auto inner = self(self, expression.end);
 		if (!inner)
@@ -293,13 +301,15 @@ inline std::optional<LinkId> resolve_reference(const LinkStore &store, const Ref
 		if (expression.begin == vocabulary.end_reference)
 			return store.get(*inner).end;
 
-		if (expression.begin == vocabulary.relation_part_reference ||
-		    expression.begin == vocabulary.subject_part_reference || expression.begin == vocabulary.object_part_reference)
+		const bool relation_part = expression.begin == vocabulary.relation_part_reference;
+		const bool subject_part = expression.begin == vocabulary.subject_part_reference;
+		const bool object_part = expression.begin == vocabulary.object_part_reference;
+		if (relation_part || subject_part || object_part)
 		{
 			const RelationEntity entity = decode_relation_entity(store, *inner);
-			if (expression.begin == vocabulary.relation_part_reference)
+			if (relation_part)
 				return entity.relation;
-			if (expression.begin == vocabulary.subject_part_reference)
+			if (subject_part)
 				return entity.subject;
 			return entity.object;
 		}
