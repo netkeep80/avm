@@ -9,6 +9,7 @@
 #include <limits>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace avm::json_duplet
@@ -77,8 +78,8 @@ inline ProjectionRef append_text_projection(ProjectionDescription &description, 
 class NativeLeafResolver
 {
 public:
-	NativeLeafResolver(IntegerVocabulary integers, TextVocabulary text, const SymbolAnchors &symbols)
-	    : integers_(integers), text_(text), symbols_(symbols)
+	NativeLeafResolver(IntegerVocabulary integers, TextVocabulary text, SymbolAnchors symbols)
+	    : integers_(integers), text_(text), symbols_(std::move(symbols))
 	{
 	}
 
@@ -154,7 +155,7 @@ private:
 
 	IntegerVocabulary integers_;
 	TextVocabulary text_;
-	const SymbolAnchors &symbols_;
+	SymbolAnchors symbols_;
 };
 
 } // namespace avm::json_duplet
