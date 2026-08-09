@@ -89,7 +89,8 @@ inline ExecutionOutcome execute_foreach(const ExecutionContext &context, Executo
 	for (const LinkId item : items)
 	{
 		const SemanticContextFrame child = child_frame(context.semantic, orientation, item);
-		const ExecutionOutcome outcome = executor.execute_child_semantic_context_outcome(context.subject, context, child);
+		const ExecutionOutcome outcome =
+		    executor.execute_child_semantic_context_outcome(context.subject, context, child);
 		results.push_back(outcome.result);
 	}
 
@@ -103,19 +104,21 @@ inline void register_foreach_runtime(Executor &executor, const ForeachVocabulary
 {
 	validate_foreach_vocabulary(executor.store(), vocabulary, list_nil);
 
-	executor.register_native(vocabulary.object_relation,
-	                         [list_nil](const ExecutionContext &context, Executor &current_executor)
-	                         {
-		                         return foreach_detail::execute_foreach(
-		                             context, current_executor, list_nil, foreach_detail::Orientation::Object);
-	                         });
+	executor.register_native(
+	    vocabulary.object_relation,
+	    [list_nil](const ExecutionContext &context, Executor &current_executor)
+	    {
+		    return foreach_detail::execute_foreach(context, current_executor, list_nil,
+		                                           foreach_detail::Orientation::Object);
+	    });
 
-	executor.register_native(vocabulary.subject_relation,
-	                         [list_nil](const ExecutionContext &context, Executor &current_executor)
-	                         {
-		                         return foreach_detail::execute_foreach(
-		                             context, current_executor, list_nil, foreach_detail::Orientation::Subject);
-	                         });
+	executor.register_native(
+	    vocabulary.subject_relation,
+	    [list_nil](const ExecutionContext &context, Executor &current_executor)
+	    {
+		    return foreach_detail::execute_foreach(context, current_executor, list_nil,
+		                                           foreach_detail::Orientation::Subject);
+	    });
 }
 
 } // namespace avm
