@@ -103,7 +103,8 @@ int main()
 		assert(avm::resolve_reference(store, vocabulary, reference, child3) == test_case.expected);
 
 		const std::size_t before_repeat = store.size();
-		const avm::ProjectionDescription repeated_description = avm::legacy_reference::compile(test_case.source, vocabulary);
+		const avm::ProjectionDescription repeated_description =
+		    avm::legacy_reference::compile(test_case.source, vocabulary);
 		assert(avm::realize_projection(store, repeated_description).root == reference);
 		assert(store.size() == before_repeat);
 	}
