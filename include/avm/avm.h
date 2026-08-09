@@ -6,6 +6,7 @@
 #include "avm/execution_trace.h"
 #include "avm/executor.h"
 #include "avm/foreach_runtime.h"
+#include "avm/independent_projection.h"
 #include "avm/integer_value.h"
 #include "avm/link_store.h"
 #include "avm/persistent_link_store.h"
