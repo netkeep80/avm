@@ -8,6 +8,7 @@
 #include <limits>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace avm::json_duplet
 {
