@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <set>
 #include <span>
@@ -185,8 +186,9 @@ inline LinkId realize_text(LinkStore &store, const TextVocabulary &vocabulary, s
 	return store.intern(vocabulary.text_marker, tail);
 }
 
-inline std::vector<std::uint8_t> decode_text(const LinkStore &store, const TextVocabulary &vocabulary, LinkId value,
-                                             std::size_t max_bytes = 1000000)
+inline std::vector<std::uint8_t> decode_text(
+    const LinkStore &store, const TextVocabulary &vocabulary, LinkId value,
+    std::size_t max_bytes = std::numeric_limits<std::size_t>::max())
 {
 	validate_text_vocabulary(store, vocabulary);
 	if (!store.contains(value))
