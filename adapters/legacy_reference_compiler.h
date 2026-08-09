@@ -149,8 +149,9 @@ inline ProjectionDescription compile(std::string_view source, const ReferenceVoc
 	const std::vector<std::string_view> segments = detail::split_path(source);
 	detail::ProjectionBuilder builder(vocabulary);
 
-	ProjectionRef reference = segments.front().front() == '$' ? builder.context_reference(segments.front())
-	                                                        : builder.named_reference(segments.front(), names);
+	ProjectionRef reference = builder.named_reference(segments.front(), names);
+	if (segments.front().front() == '$')
+		reference = builder.context_reference(segments.front());
 	for (std::size_t index = 1; index < segments.size(); ++index)
 		reference = builder.structural_projection(segments[index], reference);
 	return builder.finish(reference);
