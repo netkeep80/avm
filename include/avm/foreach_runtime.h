@@ -98,25 +98,26 @@ inline ExecutionOutcome execute_foreach(const ExecutionContext &context, Executo
 	return ExecutionOutcome{result_list, context.semantic};
 }
 
-inline NativeRelationHandler handler(LinkId list_nil, Orientation orientation)
+struct Handler
 {
-	return [list_nil, orientation](const ExecutionContext &context, Executor &executor)
+	LinkId list_nil;
+	Orientation orientation;
+
+	ExecutionOutcome operator()(const ExecutionContext &context, Executor &executor) const
 	{
 		return execute_foreach(context, executor, list_nil, orientation);
-	};
-}
+	}
+};
 
 } // namespace foreach_detail
 
 inline void register_foreach_runtime(Executor &executor, const ForeachVocabulary &vocabulary, LinkId list_nil)
 {
 	validate_foreach_vocabulary(executor.store(), vocabulary, list_nil);
-	const NativeRelationHandler object_handler =
-	    foreach_detail::handler(list_nil, foreach_detail::Orientation::Object);
-	const NativeRelationHandler subject_handler =
-	    foreach_detail::handler(list_nil, foreach_detail::Orientation::Subject);
-	executor.register_native(vocabulary.object_relation, object_handler);
-	executor.register_native(vocabulary.subject_relation, subject_handler);
+	executor.register_native(vocabulary.object_relation,
+	                         foreach_detail::Handler{list_nil, foreach_detail::Orientation::Object});
+	executor.register_native(vocabulary.subject_relation,
+	                         foreach_detail::Handler{list_nil, foreach_detail::Orientation::Subject});
 }
 
 } // namespace avm
