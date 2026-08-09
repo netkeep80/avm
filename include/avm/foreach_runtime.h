@@ -82,7 +82,7 @@ inline ExecutionOutcome execute_foreach(const ExecutionContext &context, Executo
 		throw std::logic_error("foreach execution requires an explicit semantic context");
 
 	const std::vector<LinkId> items =
-	    decode_link_list(executor.store(), context.object, list_nil, std::numeric_limits<std::size_t>::max());
+	    decode_link_list(executor.store(), list_nil, context.object, std::numeric_limits<std::size_t>::max());
 	std::vector<LinkId> results;
 	results.reserve(items.size());
 
@@ -93,7 +93,7 @@ inline ExecutionOutcome execute_foreach(const ExecutionContext &context, Executo
 		results.push_back(outcome.result);
 	}
 
-	const LinkId result_list = encode_link_list(executor.store(), results, list_nil);
+	const LinkId result_list = encode_link_list(executor.store(), list_nil, results);
 	return ExecutionOutcome{result_list, context.semantic};
 }
 
