@@ -2,6 +2,7 @@
 #include "avm/reference.h"
 
 #include <cassert>
+#include <exception>
 #include <filesystem>
 #include <functional>
 
@@ -150,21 +151,25 @@ int main()
 
 	const avm::LinkId unknown_marker = store.create_point();
 	const avm::LinkId malformed_reference = store.intern(unknown_marker, named_target);
-	assert(rejected([&] { static_cast<void>(avm::resolve_reference(store, vocabulary, malformed_reference, child3)); }));
+	const bool malformed_rejected =
+	    rejected([&] { static_cast<void>(avm::resolve_reference(store, vocabulary, malformed_reference, child3)); });
+	assert(malformed_rejected);
 
 	const avm::LinkId bad_selector = store.intern(vocabulary.named_reference, vocabulary.current_context);
 	const avm::LinkId bad_role_reference = store.intern(vocabulary.subject_role, bad_selector);
-	assert(rejected([&] { static_cast<void>(avm::resolve_reference(store, vocabulary, bad_role_reference, child3)); }));
+	const bool bad_selector_rejected =
+	    rejected([&] { static_cast<void>(avm::resolve_reference(store, vocabulary, bad_role_reference, child3)); });
+	assert(bad_selector_rejected);
 
-	assert(rejected([&]
-	                { static_cast<void>(avm::resolve_reference(store, vocabulary, saturated_subject, child3, 2)); }));
+	const bool depth_rejected =
+	    rejected([&] { static_cast<void>(avm::resolve_reference(store, vocabulary, saturated_subject, child3, 2)); });
+	assert(depth_rejected);
 
 	avm::ReferenceVocabulary duplicate_vocabulary = vocabulary;
 	duplicate_vocabulary.object_role = duplicate_vocabulary.subject_role;
 	assert(rejected([&] { avm::validate_reference_vocabulary(store, duplicate_vocabulary); }));
 
-	const std::filesystem::path persistent_path =
-	    std::filesystem::temp_directory_path() / "avm_reference_test.links";
+	const std::filesystem::path persistent_path = std::filesystem::temp_directory_path() / "avm_reference_test.links";
 	std::filesystem::remove(persistent_path);
 
 	avm::ReferenceVocabulary persistent_vocabulary{};
@@ -176,8 +181,9 @@ int main()
 		persistent_vocabulary = avm::ReferenceVocabulary::create(persistent_store);
 		persistent_root_frame = frame(persistent_store);
 		persistent_child_frame = frame(persistent_store);
-		persistent_reference = avm::realize_context_role_reference(
-		    persistent_store, persistent_vocabulary, avm::ReferenceRole::Object, 1);
+		const auto object_role = avm::ReferenceRole::Object;
+		persistent_reference =
+		    avm::realize_context_role_reference(persistent_store, persistent_vocabulary, object_role, 1);
 	}
 	{
 		avm::PersistentLinkStore reopened(persistent_path);
@@ -187,9 +193,12 @@ int main()
 		assert(avm::resolve_reference(reopened, persistent_vocabulary, persistent_reference, persistent_context) ==
 		       persistent_root_frame.object);
 		assert(reopened.size() == before_resolve);
+
 		const std::size_t before_realize = reopened.size();
-		assert(avm::realize_context_role_reference(reopened, persistent_vocabulary, avm::ReferenceRole::Object, 1) ==
-		       persistent_reference);
+		const auto object_role = avm::ReferenceRole::Object;
+		const avm::LinkId repeated =
+		    avm::realize_context_role_reference(reopened, persistent_vocabulary, object_role, 1);
+		assert(repeated == persistent_reference);
 		assert(reopened.size() == before_realize);
 	}
 	std::filesystem::remove(persistent_path);
