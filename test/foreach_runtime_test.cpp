@@ -40,7 +40,7 @@ int main()
 	const avm::LinkId item2 = store.create_point();
 	const avm::LinkId item3 = store.create_point();
 	const std::vector<avm::LinkId> items{item1, item2, item3};
-	const avm::LinkId input = avm::encode_link_list(store, items, list_nil);
+	const avm::LinkId input = avm::encode_link_list(store, list_nil, items);
 
 	const avm::SemanticContextFrame root_frame{
 	    store.create_point(),
@@ -88,7 +88,7 @@ int main()
 	    });
 
 	const avm::ExecutionOutcome object_outcome = executor.execute_outcome_in_context(object_foreach, root);
-	assert(avm::decode_link_list(store, object_outcome.result, list_nil) == items);
+	assert(avm::decode_link_list(store, list_nil, object_outcome.result) == items);
 	assert(object_outcome.semantic == root);
 	assert(object_seen == items);
 	assert(relation_state_seen == std::vector<avm::LinkId>({
@@ -133,7 +133,7 @@ int main()
 	    });
 
 	const avm::ExecutionOutcome subject_outcome = executor.execute_outcome_in_context(subject_foreach, root);
-	assert(avm::decode_link_list(store, subject_outcome.result, list_nil) == items);
+	assert(avm::decode_link_list(store, list_nil, subject_outcome.result) == items);
 	assert(subject_outcome.semantic == root);
 	assert(subject_seen == items);
 
