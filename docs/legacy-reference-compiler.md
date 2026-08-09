@@ -168,7 +168,7 @@ ObjectPart(reference)
 
 ## Что намеренно отвергается
 
-### JSON member paths
+### Пути к членам JSON
 
 Не поддерживаются:
 
@@ -195,7 +195,7 @@ Ordered collection semantics относится к отдельному data-mod
 
 Не поддерживается обращение к неизвестному имени с попыткой загрузить его из базы.
 
-### Lvalue creation
+### Создание lvalue
 
 Read/reference compiler ничего не создаёт в target model. Старое write-time создание JSON member не смешивается с pure reference semantics.
 
