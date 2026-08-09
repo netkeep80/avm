@@ -58,9 +58,21 @@ template <typename Json> Json parse_unique_json(std::string_view text)
 
 } // namespace detail
 
+template <typename Json, typename LeafResolver>
+ProjectionDescription project_duplet_term_text(std::string_view text, const LeafResolver &leaf_resolver)
+{
+	return project_duplet_term(detail::parse_unique_json<Json>(text), leaf_resolver);
+}
+
 template <typename Json> ProjectionDescription project_duplet_term_text(std::string_view text)
 {
 	return project_duplet_term(detail::parse_unique_json<Json>(text));
+}
+
+template <typename Json, typename LeafResolver>
+ProjectionDescription project_duplet_document_text(std::string_view text, const LeafResolver &leaf_resolver)
+{
+	return project_duplet_document(detail::parse_unique_json<Json>(text), leaf_resolver);
 }
 
 template <typename Json> ProjectionDescription project_duplet_document_text(std::string_view text)
