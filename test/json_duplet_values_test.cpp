@@ -250,9 +250,7 @@ int main()
 		avm::PersistentLinkStore persistent_store(persistent_path);
 		persistent_integers = avm::IntegerVocabulary::create(persistent_store);
 		persistent_text = avm::TextVocabulary::create(persistent_store);
-		const avm::json_duplet::SymbolAnchors persistent_symbols;
-		const avm::json_duplet::NativeLeafResolver persistent_resolver(
-		    persistent_integers, persistent_text, persistent_symbols);
+		const avm::json_duplet::NativeLeafResolver persistent_resolver(persistent_integers, persistent_text, {});
 		const avm::ProjectionDescription persistent_description =
 		    avm::json_duplet::project_duplet_term(tagged("$integer", 42), persistent_resolver);
 		persistent_value = avm::realize_projection(persistent_store, persistent_description).root;
@@ -260,9 +258,7 @@ int main()
 	}
 	{
 		avm::PersistentLinkStore reopened(persistent_path);
-		const avm::json_duplet::SymbolAnchors persistent_symbols;
-		const avm::json_duplet::NativeLeafResolver persistent_resolver(
-		    persistent_integers, persistent_text, persistent_symbols);
+		const avm::json_duplet::NativeLeafResolver persistent_resolver(persistent_integers, persistent_text, {});
 		const avm::ProjectionDescription persistent_description =
 		    avm::json_duplet::project_duplet_term(tagged("$integer", 42), persistent_resolver);
 		const std::size_t before_reopen_find = reopened.size();
