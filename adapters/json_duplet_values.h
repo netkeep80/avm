@@ -3,11 +3,13 @@
 #include "json_duplet_projection.h"
 
 #include "avm/integer_value.h"
+#include "avm/text_value.h"
 
 #include <cstdint>
 #include <limits>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace avm::json_duplet
@@ -37,11 +39,47 @@ inline ProjectionRef append_integer_projection(ProjectionDescription &descriptio
 	return ProjectionRef::node(wrapper_id);
 }
 
+inline ProjectionRef append_byte_projection(ProjectionDescription &description, const TextVocabulary &vocabulary,
+                                            std::uint8_t value)
+{
+	ProjectionRef suffix = ProjectionRef::anchor(vocabulary.byte_end);
+	for (int bit = 7; bit >= 0; --bit)
+	{
+		const bool one = (value & static_cast<std::uint8_t>(1U << bit)) != 0;
+		const LinkId marker = one ? vocabulary.bit_one : vocabulary.bit_zero;
+		const ProjectionNodeId node_id = description.nodes.size();
+		description.nodes.push_back(ProjectionNode{ProjectionRef::anchor(marker), suffix});
+		suffix = ProjectionRef::node(node_id);
+	}
+
+	const ProjectionNodeId wrapper_id = description.nodes.size();
+	description.nodes.push_back(ProjectionNode{ProjectionRef::anchor(vocabulary.byte_marker), suffix});
+	return ProjectionRef::node(wrapper_id);
+}
+
+inline ProjectionRef append_text_projection(ProjectionDescription &description, const TextVocabulary &vocabulary,
+                                            const std::string &bytes)
+{
+	ProjectionRef tail = ProjectionRef::anchor(vocabulary.text_end);
+	for (auto byte = bytes.rbegin(); byte != bytes.rend(); ++byte)
+	{
+		const auto value = static_cast<std::uint8_t>(static_cast<unsigned char>(*byte));
+		const ProjectionRef byte_ref = append_byte_projection(description, vocabulary, value);
+		const ProjectionNodeId cell_id = description.nodes.size();
+		description.nodes.push_back(ProjectionNode{byte_ref, tail});
+		tail = ProjectionRef::node(cell_id);
+	}
+
+	const ProjectionNodeId wrapper_id = description.nodes.size();
+	description.nodes.push_back(ProjectionNode{ProjectionRef::anchor(vocabulary.text_marker), tail});
+	return ProjectionRef::node(wrapper_id);
+}
+
 class NativeLeafResolver
 {
 public:
-	NativeLeafResolver(IntegerVocabulary integers, const SymbolAnchors &symbols)
-	    : integers_(integers), symbols_(symbols)
+	NativeLeafResolver(IntegerVocabulary integers, TextVocabulary text, SymbolAnchors symbols)
+	    : integers_(integers), text_(text), symbols_(std::move(symbols))
 	{
 	}
 
@@ -57,6 +95,8 @@ public:
 			return resolve_symbol(value, path);
 		if (value.contains("$integer"))
 			return resolve_integer(value, description, path);
+		if (value.contains("$text"))
+			return resolve_text(value, description, path);
 
 		throw ProjectionError(path + ": unsupported native AVM leaf marker");
 	}
@@ -102,8 +142,20 @@ private:
 		return append_integer_projection(description, integers_, integer);
 	}
 
+	template <typename Json>
+	ProjectionRef resolve_text(const Json &value, ProjectionDescription &description, const std::string &path) const
+	{
+		const Json &encoded_text = value.at("$text");
+		if (!encoded_text.is_string())
+			throw ProjectionError(path + ".$text: text value must be a JSON string");
+
+		const std::string bytes = encoded_text.template get<std::string>();
+		return append_text_projection(description, text_, bytes);
+	}
+
 	IntegerVocabulary integers_;
-	const SymbolAnchors &symbols_;
+	TextVocabulary text_;
+	SymbolAnchors symbols_;
 };
 
 } // namespace avm::json_duplet

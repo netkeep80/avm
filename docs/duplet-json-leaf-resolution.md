@@ -20,14 +20,15 @@ Parser пары не создаёт `LinkId`, не вызывает `create_poin
 
 ## Грамматика листьев v1
 
-Первый нативный resolver поддерживает три явные формы:
+Первый нативный resolver поддерживает четыре явные формы:
 
 ```text
-Leaf := LinkAnchor | SymbolAnchor | IntegerValue
+Leaf := LinkAnchor | SymbolAnchor | IntegerValue | TextValue
 
 LinkAnchor := {"$link": positive_integer}
 SymbolAnchor := {"$symbol": string}
 IntegerValue := {"$integer": int64_json_integer}
+TextValue := {"$text": string}
 ```
 
 Каждый объект-лист содержит **ровно один** marker. Raw JSON scalar сам по себе листом AVM не является.
@@ -42,6 +43,10 @@ IntegerValue := {"$integer": int64_json_integer}
 7
 ```
 
+```json
+"hello"
+```
+
 а это допустимо:
 
 ```json
@@ -50,6 +55,10 @@ IntegerValue := {"$integer": int64_json_integer}
 
 ```json
 {"$integer":7}
+```
+
+```json
+{"$text":"hello"}
 ```
 
 ## `$link`: существующая identity
@@ -127,6 +136,56 @@ $integer
 
 Текущий canonical Integer contract ограничен `int64`, поэтому `$integer` принимает только целые JSON numbers в диапазоне `INT64_MIN..INT64_MAX`.
 
+## `$text`: проекция JSON-строки в канонический Text
+
+```json
+{"$text":"hello"}
+```
+
+не создаёт JSON-specific строковый тип. После того как JSON parser разобрал escapes, resolver берёт **точную последовательность байтов** полученной строки и строит `ProjectionDescription`, эквивалентный canonical byte-string Text из `TextVocabulary`.
+
+Нормативный путь:
+
+```text
+JSON string
+ -> bytes строки после JSON parsing
+ -> canonical Byte/Text projection
+ -> find_projection | realize_projection
+ -> тот же LinkId, что find_text | realize_text
+```
+
+AVM не выполняет Unicode normalization на этом пути.
+
+Поэтому:
+
+```json
+{"$text":"\u00e9"}
+```
+
+и literal UTF-8 `é` после JSON parsing дают одинаковые байты `C3 A9` и сходятся к одной identity.
+
+Но:
+
+```json
+{"$text":"e\u0301"}
+```
+
+даёт `65 CC 81` и остаётся другой byte identity.
+
+Это не ошибка: Unicode normalization является явной политикой frontend-а, а canonical Text AVM определён побайтово.
+
+Встроенный NUL также является обычным байтом. DOM-строка `A 00 B` проецируется как Text из трёх байтов и не обрезается C-string semantics.
+
+Пустая JSON-строка:
+
+```json
+{"$text":""}
+```
+
+проецируется в canonical empty Text `Link(text_marker, text_end)`.
+
+Как и `$integer`, `$text` ничего не materialize на этапе parse/project.
+
 ## Boolean и nil
 
 `true`, `false` и `nil` уже имеют canonical identities в `BootstrapVocabulary`. Поэтому v1 не вводит отдельные JSON-tagged value classes для них.
@@ -171,25 +230,13 @@ Link(
 
 `Executor` не знает, что entity когда-либо была записана в JSON.
 
-## Text не входит в этот gate
-
-Форма вроде:
-
-```json
-{"$text":"hello"}
-```
-
-**не вводится**, пока #128 не зафиксирует canonical Text/byte-string denotation.
-
-Причина принципиальная: UTF-8/JSON serialization не должна автоматически становиться semantic identity. Сначала нужен frontend-neutral link encoding текста с отдельными `find/realize/decode` контрактами, затем `$text` сможет быть лишь projection adapter-ом к этой структуре.
-
-До этого любой `$text` должен отклоняться как неизвестный leaf marker.
-
 ## Контекстные ссылки и выражения
 
-Контекстные ссылки (`$ent/$rel/$sub/$obj`, path/reference semantics jsonRVM) также не являются простыми value leaves. Их перенос относится к #125/#126 и semantic migrator #174.
+Контекстные ссылки (`$ent/$rel/$sub/$obj`, path/reference semantics jsonRVM) не являются простыми value leaves.
 
-Native JSON resolver не должен угадывать их по строкам.
+Их перенос относится к #125/#126 и semantic migrator #174. Native JSON resolver не должен угадывать их по строкам и не должен превращать старые jsonRVM reference expressions в `$symbol`.
+
+Это отдельный класс syntax/semantics поверх execution context, а не расширение таблицы значений.
 
 ## Инварианты
 
@@ -200,5 +247,8 @@ Native JSON resolver не должен угадывать их по строка
 3. materialization происходит только через явный `realize_projection`;
 4. одинаковое canonical значение сходится к одной structural identity;
 5. неизвестное имя не создаёт point;
-6. `Executor`, `LinkStore` и canonical value core не зависят от JSON syntax;
-7. persistent reopen сохраняет structural meaning.
+6. `$integer` сходится с canonical Integer core;
+7. `$text` сходится с canonical byte-string Text core;
+8. Boolean/nil используют существующие singleton identities;
+9. `Executor`, `LinkStore` и canonical value core не зависят от JSON syntax;
+10. persistent reopen сохраняет structural meaning.
