@@ -186,7 +186,7 @@ AVM conformance воспроизводит semantic denotation:
 
 Старый JSON wrapper `/result` не переносится как часть foreach semantics.
 
-## Observer contract
+## Контракт наблюдения
 
 Каждый body запускается обычным `Executor`.
 
