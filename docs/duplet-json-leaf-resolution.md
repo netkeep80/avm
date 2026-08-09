@@ -98,7 +98,7 @@ Resolver не проверяет наличие `42` в конкретном sto
 
 Таким образом, строка является **именем ссылки на уже определённую identity**, а не источником новой identity.
 
-## `$integer`: canonical Integer projection
+## `$integer`: каноническая проекция Integer
 
 ```json
 {"$integer":7}
@@ -185,7 +185,7 @@ Link(
 
 До этого любой `$text` должен отклоняться как неизвестный leaf marker.
 
-## Context/reference expressions
+## Контекстные ссылки и выражения
 
 Контекстные ссылки (`$ent/$rel/$sub/$obj`, path/reference semantics jsonRVM) также не являются простыми value leaves. Их перенос относится к #125/#126 и semantic migrator #174.
 
