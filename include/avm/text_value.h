@@ -24,36 +24,34 @@ struct TextVocabulary
 
 	static TextVocabulary create(LinkStore &store)
 	{
-		return TextVocabulary{
-		    store.create_point(),
-		    store.create_point(),
-		    store.create_point(),
-		    store.create_point(),
-		    store.create_point(),
-		    store.create_point(),
-		};
+		TextVocabulary vocabulary{};
+		vocabulary.text_marker = store.create_point();
+		vocabulary.text_end = store.create_point();
+		vocabulary.byte_marker = store.create_point();
+		vocabulary.byte_end = store.create_point();
+		vocabulary.bit_zero = store.create_point();
+		vocabulary.bit_one = store.create_point();
+		return vocabulary;
 	}
 };
 
 inline void validate_text_vocabulary(const LinkStore &store, const TextVocabulary &vocabulary)
 {
-	const LinkId ids[] = {
-	    vocabulary.text_marker,
-	    vocabulary.text_end,
-	    vocabulary.byte_marker,
-	    vocabulary.byte_end,
-	    vocabulary.bit_zero,
-	    vocabulary.bit_one,
-	};
-
 	std::set<LinkId> unique;
-	for (const LinkId id : ids)
+	const auto require_identity = [&store, &unique](LinkId id)
 	{
 		if (!store.contains(id))
 			throw std::invalid_argument("text vocabulary contains an unknown LinkId");
 		if (!unique.insert(id).second)
 			throw std::invalid_argument("text vocabulary identities must be distinct");
-	}
+	};
+
+	require_identity(vocabulary.text_marker);
+	require_identity(vocabulary.text_end);
+	require_identity(vocabulary.byte_marker);
+	require_identity(vocabulary.byte_end);
+	require_identity(vocabulary.bit_zero);
+	require_identity(vocabulary.bit_one);
 }
 
 namespace detail
