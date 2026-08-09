@@ -279,8 +279,6 @@ inline ExecutionOutcome execute_integer_binary(const ExecutionContext &context, 
 	const std::int64_t left = decode_integer(executor.store(), vocabulary, context.subject);
 	const std::int64_t right = decode_integer(executor.store(), vocabulary, context.object);
 	const LinkId result = realize_integer(executor.store(), vocabulary, operation(left, right));
-	if (context.semantic)
-		return ExecutionOutcome{result, context.semantic.with_relation_state(result)};
 	return ExecutionOutcome{result};
 }
 
