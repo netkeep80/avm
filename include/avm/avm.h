@@ -11,6 +11,7 @@
 #include "avm/program_model.h"
 #include "avm/projection.h"
 #include "avm/raw_carrier.h"
+#include "avm/reference.h"
 #include "avm/relations_model.h"
 #include "avm/relations_query.h"
 #include "avm/semantic_context.h"
