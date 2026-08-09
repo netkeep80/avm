@@ -256,9 +256,9 @@ inline LinkId realize_reference_projection(LinkStore &store, const ReferenceVoca
 	return store.intern(reference_detail::projection_marker(vocabulary, projection), inner_reference);
 }
 
-inline std::optional<LinkId> resolve_reference(
-    const LinkStore &store, const ReferenceVocabulary &vocabulary, LinkId reference, const SemanticContextView &context,
-    std::size_t max_depth = std::numeric_limits<std::size_t>::max())
+inline std::optional<LinkId> resolve_reference(const LinkStore &store, const ReferenceVocabulary &vocabulary,
+                                               LinkId reference, const SemanticContextView &context,
+                                               std::size_t max_depth = std::numeric_limits<std::size_t>::max())
 {
 	validate_reference_vocabulary(store, vocabulary);
 	if (!store.contains(reference))
