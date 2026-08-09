@@ -46,7 +46,7 @@ Reference :=
   | ObjectPart(Reference)
 ```
 
-## ReferenceVocabulary
+## Словарь ReferenceVocabulary
 
 `ReferenceVocabulary` содержит независимые identity:
 
@@ -101,7 +101,7 @@ ancestor(N > depth) = root
 
 Следовательно любая глубина над root детерминированно saturate-ится на root.
 
-## Role
+## Ролевая ссылка Role
 
 Role reference кодируется:
 
@@ -126,7 +126,7 @@ relation_state_role != ExecutionContext.relation controller identity
 
 То есть будущий `$rel` разрешается в semantic `relation_state`, а не в controller текущего dispatch.
 
-## Named
+## Именованная ссылка Named
 
 Известная абсолютная identity кодируется:
 
@@ -211,7 +211,7 @@ realize_reference_projection
 
 Повторная realization возвращает тот же canonical LinkId.
 
-## Resolve
+## Разрешение ссылки
 
 ```text
 resolve_reference(store, vocabulary, reference, context)
@@ -232,9 +232,9 @@ optional<LinkId>
 - structural projection malformed target -> deterministic Relations Model error;
 - read path не вызывает `intern/create_point`.
 
-Есть явный `max_depth` для защиты от патологически глубокой external structure. Он ограничивает операцию resolve, но не определяет semantic identity корректной ссылки.
+Есть явный `max_depth` для защиты от патологически глубокой external structure. По умолчанию искусственного предела нет: caller может задать собственный операционный лимит. Лимит не определяет semantic identity корректной ссылки.
 
-## Persistent contract
+## Контракт persistence
 
 Reference LinkId является обычной canonical link structure.
 
@@ -261,11 +261,11 @@ $$$sub
 
 остается adapter gate #184.
 
-### JSON pointer/member path
+### Пути JSON pointer/member
 
 `foo/bar/0` не является core reference syntax. JSON container traversal не переносится автоматически.
 
-### Lazy named lookup
+### Ленивый поиск имен
 
 Внешняя database/capability загрузка не входит в pure resolver. Если она понадобится, это отдельный effect/capability contract #129.
 
