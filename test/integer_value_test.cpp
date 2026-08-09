@@ -45,6 +45,14 @@ avm::LinkId arithmetic_entity(avm::LinkStore &store, avm::LinkId relation, avm::
 	return avm::encode_relation_entity(store, avm::RelationEntity{relation, left, right});
 }
 
+class RecordingObserver final : public avm::ExecutionObserver
+{
+public:
+	void observe(const avm::ExecutionEvent &event) override { events.push_back(event); }
+
+	std::vector<avm::ExecutionEvent> events;
+};
+
 } // namespace
 
 int main()
@@ -134,10 +142,32 @@ int main()
 	    store.create_point(),
 	    store.create_point(),
 	});
+
+	RecordingObserver observer;
+	executor.set_observer(&observer);
+
 	const avm::ExecutionOutcome semantic_add = executor.execute_outcome_in_context(add_7_3, root);
 	assert(semantic_add.result == ten);
-	assert(semantic_add.semantic.role(avm::SemanticContextRole::RelationState) == ten);
+	assert(semantic_add.semantic == root);
 	assert(root.role(avm::SemanticContextRole::RelationState) == zero);
+
+	const avm::ExecutionOutcome semantic_subtract = executor.execute_outcome_in_context(subtract_9_4, root);
+	assert(avm::decode_integer(store, vocabulary, semantic_subtract.result) == 5);
+	assert(semantic_subtract.semantic == root);
+
+	const avm::ExecutionOutcome semantic_multiply = executor.execute_outcome_in_context(multiply_6_7, root);
+	assert(avm::decode_integer(store, vocabulary, semantic_multiply.result) == 42);
+	assert(semantic_multiply.semantic == root);
+
+	const avm::ExecutionOutcome semantic_divide = executor.execute_outcome_in_context(divide_8_2, root);
+	assert(avm::decode_integer(store, vocabulary, semantic_divide.result) == 4);
+	assert(semantic_divide.semantic == root);
+
+	assert(!observer.events.empty());
+	const avm::ExecutionEvent &last_event = observer.events.back();
+	assert(last_event.kind == avm::ExecutionEventKind::Return);
+	assert(last_event.semantic_result == root);
+	executor.set_observer(nullptr);
 
 	const avm::LinkId int_max = avm::realize_integer(store, vocabulary, std::numeric_limits<std::int64_t>::max());
 	const avm::LinkId int_min = avm::realize_integer(store, vocabulary, std::numeric_limits<std::int64_t>::min());
