@@ -95,7 +95,7 @@ Returned semantic state конкретного body не становится н
 
 Это позволяет моделировать независимые проекции без mutable shared `vm_ctx`.
 
-## Execution nesting
+## Вложенность исполнения
 
 Body исполняется тем же canonical `Executor`:
 
@@ -253,7 +253,7 @@ Read resolution и execution projection не создают destination авто
 
 JSON wrapper вроде `/result` в oracle fixture может оставаться harness/output projection, если differential assertion проверяет вычисленное значение, а не mutation модели.
 
-## Persistent equivalence
+## Эквивалентность после reopen
 
 Canonical identity программы и результата не зависит от process lifetime.
 
