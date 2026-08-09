@@ -61,13 +61,12 @@ int main()
 	avm::InMemoryLinkStore store;
 	const avm::BootstrapVocabulary bootstrap = avm::BootstrapVocabulary::create(store);
 	const avm::IntegerVocabulary integers = avm::IntegerVocabulary::create(store);
-	const avm::json_duplet::SymbolAnchors symbols{
-	    {"integer_add", integers.add_relation},
-	    {"nil", bootstrap.nil},
-	    {"false", bootstrap.false_value},
-	    {"true", bootstrap.true_value},
-	    {"unit", bootstrap.unit},
-	};
+	avm::json_duplet::SymbolAnchors symbols;
+	symbols.emplace("integer_add", integers.add_relation);
+	symbols.emplace("nil", bootstrap.nil);
+	symbols.emplace("false", bootstrap.false_value);
+	symbols.emplace("true", bootstrap.true_value);
+	symbols.emplace("unit", bootstrap.unit);
 	const avm::json_duplet::NativeLeafResolver resolver(integers, symbols);
 
 	const Json expression = add_expression(7, 3);
@@ -128,7 +127,8 @@ int main()
 	assert(avm::find_projection(store, zero_description)->root == integers.zero);
 
 	const Json negative_leaf = tagged("$integer", -7);
-	const avm::ProjectionDescription negative_description = avm::json_duplet::project_duplet_term(negative_leaf, resolver);
+	const avm::ProjectionDescription negative_description =
+	    avm::json_duplet::project_duplet_term(negative_leaf, resolver);
 	const avm::LinkId negative_root = avm::realize_projection(store, negative_description).root;
 	assert(avm::decode_integer(store, integers, negative_root) == -7);
 	assert(negative_root == avm::realize_integer(store, integers, -7));
