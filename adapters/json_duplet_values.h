@@ -40,7 +40,10 @@ inline ProjectionRef append_integer_projection(ProjectionDescription &descriptio
 class NativeLeafResolver
 {
 public:
-	NativeLeafResolver(IntegerVocabulary integers, const SymbolAnchors &symbols) : integers_(integers), symbols_(symbols) {}
+	NativeLeafResolver(IntegerVocabulary integers, const SymbolAnchors &symbols)
+	    : integers_(integers), symbols_(symbols)
+	{
+	}
 
 	template <typename Json>
 	ProjectionRef operator()(const Json &value, ProjectionDescription &description, const std::string &path) const
