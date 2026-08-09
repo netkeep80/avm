@@ -37,7 +37,7 @@ raw bytes -> links
 
 а интерпретация байтов остаётся отдельной связью/протоколом.
 
-## Vocabulary
+## Словарь identity
 
 `TextVocabulary` содержит шесть независимых identity:
 
@@ -181,7 +181,7 @@ Decoder проверяет:
 
 Malformed структура не «исправляется» materialization-ом и не интерпретируется приблизительно.
 
-## UTF-8
+## Граница UTF-8
 
 Core API оперирует bytes:
 
@@ -207,7 +207,7 @@ C3 A9 != 65 CC 81
 
 если frontend заранее не применил свою явную normalization policy.
 
-## Embedded NUL
+## Встроенный NUL
 
 Байт `0x00` является обычным значением и не завершает Text.
 
