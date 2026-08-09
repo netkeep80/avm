@@ -33,6 +33,7 @@ set(AVM_CORE_PUBLIC_HEADERS
     include/avm/execution_trace.h
     include/avm/executor.h
     include/avm/foreach_runtime.h
+    include/avm/independent_projection.h
     include/avm/integer_value.h
     include/avm/link_store.h
     include/avm/persistent_link_store.h
@@ -199,6 +200,10 @@ if(AVM_BUILD_CORE_TESTS)
         test/semantic_execution_outcome_test.cpp
         semantic_execution_outcome_tests)
     avm_add_core_test(avm_foreach_runtime_test test/foreach_runtime_test.cpp foreach_runtime_tests)
+    avm_add_core_test(
+        avm_independent_projection_test
+        test/independent_projection_test.cpp
+        independent_projection_tests)
     avm_add_core_test(avm_integer_value_test test/integer_value_test.cpp integer_value_tests)
     avm_add_core_test(avm_text_value_test test/text_value_test.cpp text_value_tests)
     avm_add_core_test(avm_reference_test test/reference_test.cpp reference_tests)
@@ -287,6 +292,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_semantic_context_test
         avm_semantic_execution_outcome_test
         avm_foreach_runtime_test
+        avm_independent_projection_test
         avm_integer_value_test
         avm_text_value_test
         avm_reference_test
