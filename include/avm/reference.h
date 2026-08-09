@@ -292,29 +292,29 @@ inline std::optional<LinkId> resolve_reference(const LinkStore &store, const Ref
 			return expression.end;
 		}
 
+		const bool begin_projection = expression.begin == vocabulary.begin_reference;
+		const bool end_projection = expression.begin == vocabulary.end_reference;
+		const bool relation_part = expression.begin == vocabulary.relation_part_reference;
+		const bool subject_part = expression.begin == vocabulary.subject_part_reference;
+		const bool object_part = expression.begin == vocabulary.object_part_reference;
+		if (!begin_projection && !end_projection && !relation_part && !subject_part && !object_part)
+			throw std::runtime_error("LinkId is not a canonical reference expression");
+
 		const auto inner = self(self, expression.end);
 		if (!inner)
 			return std::nullopt;
 
-		if (expression.begin == vocabulary.begin_reference)
+		if (begin_projection)
 			return store.get(*inner).begin;
-		if (expression.begin == vocabulary.end_reference)
+		if (end_projection)
 			return store.get(*inner).end;
 
-		const bool relation_part = expression.begin == vocabulary.relation_part_reference;
-		const bool subject_part = expression.begin == vocabulary.subject_part_reference;
-		const bool object_part = expression.begin == vocabulary.object_part_reference;
-		if (relation_part || subject_part || object_part)
-		{
-			const RelationEntity entity = decode_relation_entity(store, *inner);
-			if (relation_part)
-				return entity.relation;
-			if (subject_part)
-				return entity.subject;
-			return entity.object;
-		}
-
-		throw std::runtime_error("LinkId is not a canonical reference expression");
+		const RelationEntity entity = decode_relation_entity(store, *inner);
+		if (relation_part)
+			return entity.relation;
+		if (subject_part)
+			return entity.subject;
+		return entity.object;
 	};
 
 	return resolve(resolve, reference);
