@@ -104,7 +104,8 @@ int main()
 
 	const avm::LinkId subject_body_relation = store.create_point();
 	std::vector<avm::LinkId> subject_seen;
-	const auto subject_body_handler = [&](const avm::ExecutionContext &context, avm::Executor &) -> avm::ExecutionOutcome
+	const auto subject_body_handler =
+	    [&](const avm::ExecutionContext &context, avm::Executor &) -> avm::ExecutionOutcome
 	{
 		assert(semantic_role(context, avm::SemanticContextRole::Object) == root_frame.object);
 		const avm::LinkId item = semantic_role(context, avm::SemanticContextRole::Subject);
@@ -167,8 +168,7 @@ int main()
 	assert(missing_context_rejected);
 
 	const avm::LinkId malformed_list = store.intern(item1, item2);
-	const avm::LinkId malformed_foreach =
-	    relation_entity(store, foreach.object_relation, object_body, malformed_list);
+	const avm::LinkId malformed_foreach = relation_entity(store, foreach.object_relation, object_body, malformed_list);
 	const std::size_t before_malformed = store.size();
 	bool malformed_rejected = false;
 	try
