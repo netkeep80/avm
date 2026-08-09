@@ -5,6 +5,7 @@
 #include "avm/execution_outcome.h"
 #include "avm/execution_trace.h"
 #include "avm/executor.h"
+#include "avm/integer_value.h"
 #include "avm/link_store.h"
 #include "avm/persistent_link_store.h"
 #include "avm/program_model.h"
