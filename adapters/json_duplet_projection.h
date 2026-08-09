@@ -51,9 +51,20 @@ template <typename Json> LinkId decode_link_anchor(const Json &value, const std:
 	return static_cast<LinkId>(id);
 }
 
-template <typename Json> class ProjectionBuilder
+struct LinkAnchorResolver
+{
+	template <typename Json>
+	ProjectionRef operator()(const Json &value, ProjectionDescription &, const std::string &path) const
+	{
+		return ProjectionRef::anchor(decode_link_anchor(value, path));
+	}
+};
+
+template <typename Json, typename LeafResolver> class ProjectionBuilder
 {
 public:
+	explicit ProjectionBuilder(const LeafResolver &leaf_resolver) : leaf_resolver_(leaf_resolver) {}
+
 	ProjectionDescription build_term(const Json &term)
 	{
 		description_ = ProjectionDescription{};
@@ -64,40 +75,49 @@ public:
 private:
 	ProjectionRef project_term(const Json &term, const std::string &path)
 	{
-		if (!term.is_object())
-			throw ProjectionError(path + ": unsupported duplet JSON leaf; expected pair or {$link: N}");
-
-		const bool has_begin = term.contains("<<");
-		const bool has_end = term.contains(">>");
-		if (has_begin || has_end)
+		if (term.is_object())
 		{
-			if (!has_begin || !has_end)
-				throw ProjectionError(path + ": malformed duplet: fields << and >> must appear together");
-			if (term.size() != 2)
-				throw ProjectionError(path + ": malformed duplet: foreign members are not allowed");
+			const bool has_begin = term.contains("<<");
+			const bool has_end = term.contains(">>");
+			if (has_begin || has_end)
+			{
+				if (!has_begin || !has_end)
+					throw ProjectionError(path + ": malformed duplet: fields << and >> must appear together");
+				if (term.size() != 2)
+					throw ProjectionError(path + ": malformed duplet: foreign members are not allowed");
 
-			const ProjectionRef begin = project_term(term.at("<<"), projection_object_path(path, "<<"));
-			const ProjectionRef end = project_term(term.at(">>"), projection_object_path(path, ">>"));
-			const ProjectionNodeId node_id = description_.nodes.size();
-			description_.nodes.push_back(ProjectionNode{begin, end});
-			return ProjectionRef::node(node_id);
+				const ProjectionRef begin = project_term(term.at("<<"), projection_object_path(path, "<<"));
+				const ProjectionRef end = project_term(term.at(">>"), projection_object_path(path, ">>"));
+				const ProjectionNodeId node_id = description_.nodes.size();
+				description_.nodes.push_back(ProjectionNode{begin, end});
+				return ProjectionRef::node(node_id);
+			}
 		}
 
-		return ProjectionRef::anchor(decode_link_anchor(term, path));
+		return leaf_resolver_(term, description_, path);
 	}
 
+	const LeafResolver &leaf_resolver_;
 	ProjectionDescription description_{};
 };
 
 } // namespace detail
 
-template <typename Json> ProjectionDescription project_duplet_term(const Json &term)
+template <typename Json, typename LeafResolver>
+ProjectionDescription project_duplet_term(const Json &term, const LeafResolver &leaf_resolver)
 {
-	detail::ProjectionBuilder<Json> builder;
+	detail::ProjectionBuilder<Json, LeafResolver> builder(leaf_resolver);
 	return builder.build_term(term);
 }
 
-template <typename Json> ProjectionDescription project_duplet_document(const Json &document)
+template <typename Json> ProjectionDescription project_duplet_term(const Json &term)
+{
+	const detail::LinkAnchorResolver resolver;
+	return project_duplet_term(term, resolver);
+}
+
+template <typename Json, typename LeafResolver>
+ProjectionDescription project_duplet_document(const Json &document, const LeafResolver &leaf_resolver)
 {
 	if (!document.is_object())
 		throw ProjectionError("$: duplet-json/1 document must be an object");
@@ -108,7 +128,13 @@ template <typename Json> ProjectionDescription project_duplet_document(const Jso
 	if (!version.is_string() || version.template get<std::string>() != "duplet-json/1")
 		throw ProjectionError("$.$avm: expected version marker duplet-json/1");
 
-	return project_duplet_term(document.at("$root"));
+	return project_duplet_term(document.at("$root"), leaf_resolver);
+}
+
+template <typename Json> ProjectionDescription project_duplet_document(const Json &document)
+{
+	const detail::LinkAnchorResolver resolver;
+	return project_duplet_document(document, resolver);
 }
 
 } // namespace avm::json_duplet
