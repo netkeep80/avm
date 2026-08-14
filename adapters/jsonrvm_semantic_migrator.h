@@ -10,10 +10,33 @@
 namespace avm::jsonrvm_migration
 {
 
+enum class MigrationFailureKind
+{
+	InvalidSource,
+	UnresolvedReference,
+};
+
 class MigrationError : public std::runtime_error
 {
 public:
-	using std::runtime_error::runtime_error;
+	explicit MigrationError(std::string message) : std::runtime_error(std::move(message)) {}
+
+	MigrationError(MigrationFailureKind kind, std::string source_path, std::string source_identity, std::string message)
+	    : std::runtime_error(std::move(message)), kind_(kind), source_path_(std::move(source_path)),
+	      source_identity_(std::move(source_identity))
+	{
+	}
+
+	MigrationFailureKind kind() const noexcept { return kind_; }
+
+	const std::string &source_path() const noexcept { return source_path_; }
+
+	const std::string &source_identity() const noexcept { return source_identity_; }
+
+private:
+	MigrationFailureKind kind_ = MigrationFailureKind::InvalidSource;
+	std::string source_path_;
+	std::string source_identity_;
 };
 
 template <typename Json> struct MigrationResult
@@ -37,6 +60,7 @@ inline constexpr const char *semantic_apply_pure_relation_symbol = "semantic_app
 inline constexpr const char *current_relation_state_reference_symbol = "current_relation_state_reference";
 inline constexpr const char *current_object_reference_symbol = "current_object_reference";
 inline constexpr const char *foreach_object_symbol = "foreach_object";
+inline constexpr const char *missing_reference_oracle_identity = "__avm_missing_reference_oracle__";
 
 inline const char *integer_relation_symbol(const std::string &legacy_operator)
 {
@@ -353,6 +377,21 @@ template <typename Json> MigrationResult<Json> migrate_program(const Json &legac
 		throw MigrationError("$: migration expects exactly the frozen $rel/result envelope");
 
 	const Json &body = legacy.at("$rel/result");
+	if (body.is_object() && body.size() == 1 && body.contains("$ref"))
+	{
+		const Json &reference = body.at("$ref");
+		if (!reference.is_string())
+			throw MigrationError("$.$rel/result.$ref: legacy named reference must be a string");
+
+		const std::string identity = reference.template get<std::string>();
+		if (identity != detail::missing_reference_oracle_identity)
+		{
+			throw MigrationError("$.$rel/result.$ref: standalone legacy named reference is unsupported without frozen evidence");
+		}
+		throw MigrationError(MigrationFailureKind::UnresolvedReference, "$.$rel/result.$ref", identity,
+		                     "$.$rel/result.$ref: unresolved legacy named reference: " + identity);
+	}
+
 	Json document = Json::object();
 	document["$avm"] = "duplet-json/1";
 	document["$root"] = body.is_array() ? detail::migrate_sequence<Json>(body) : detail::migrate_relation<Json>(body);
