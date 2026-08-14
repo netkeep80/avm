@@ -299,6 +299,16 @@ if(AVM_BUILD_CORE_TESTS)
             "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/foreach-object-context.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/boolean-branch.json")
 
+    add_executable(avm_jsonrvm_persistent_release_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/jsonrvm_persistent_release_test.cpp")
+    avm_add_json_adapter_includes(avm_jsonrvm_persistent_release_test)
+    avm_apply_quality(avm_jsonrvm_persistent_release_test)
+    avm_enable_test_assertions(avm_jsonrvm_persistent_release_test)
+    add_test(
+        NAME jsonrvm_persistent_release_tests
+        COMMAND avm_jsonrvm_persistent_release_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/pure-relation-composition.json")
+
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
         avm_link_store_test
@@ -336,7 +346,8 @@ if(AVM_BUILD_CORE_TESTS)
         avm_json_duplet_converter_test
         avm_json_duplet_projection_test
         avm_json_duplet_values_test
-        avm_jsonrvm_semantic_migrator_test)
+        avm_jsonrvm_semantic_migrator_test
+        avm_jsonrvm_persistent_release_test)
 endif()
 
 if(AVM_BUILD_ANUM_ADAPTER_TESTS)
