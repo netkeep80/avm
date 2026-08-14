@@ -12,7 +12,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -372,9 +371,11 @@ void glfw_error_callback(int error, const char *description)
 int main(int argc, char **argv)
 {
 	bool calculator_basic_demo = false;
+	std::optional<std::string> screenshot_path;
 	try
 	{
 		calculator_basic_demo = calculator_basic_demo_requested(argc, argv);
+		screenshot_path = avm::showcase::framebuffer_capture_path_from_environment();
 	}
 	catch (const std::exception &error)
 	{
@@ -382,8 +383,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	const char *screenshot_path = std::getenv("AVM_SHOWCASE_SCREENSHOT_PPM");
-	if (screenshot_path != nullptr && !calculator_basic_demo)
+	if (screenshot_path.has_value() && !calculator_basic_demo)
 	{
 		std::cerr << "AVM_SHOWCASE_SCREENSHOT_PPM requires --demo calculator-basic\n";
 		return 2;
@@ -457,9 +457,9 @@ int main(int argc, char **argv)
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 			++rendered_frames;
-			const bool capture_frame = screenshot_path != nullptr && rendered_frames >= 2;
+			const bool capture_frame = screenshot_path.has_value() && rendered_frames >= 2;
 			if (capture_frame)
-				avm::showcase::write_framebuffer_ppm(screenshot_path, display_width, display_height);
+				avm::showcase::write_framebuffer_ppm(*screenshot_path, display_width, display_height);
 
 			glfwSwapBuffers(window);
 			if (capture_frame)
