@@ -153,7 +153,6 @@ int main(int argc, char **argv)
 	symbols.emplace("bootstrap_unit", runtime.vocabulary().unit);
 	symbols.emplace("bootstrap_nil", runtime.vocabulary().nil);
 	symbols.emplace("bootstrap_true", runtime.vocabulary().true_value);
-	symbols.emplace("bootstrap_false", runtime.vocabulary().false_value);
 	symbols.emplace("bootstrap_quote", runtime.vocabulary().quote_relation);
 	symbols.emplace("bootstrap_sequence", runtime.vocabulary().sequence_relation);
 	symbols.emplace("bootstrap_if", runtime.vocabulary().if_relation);
@@ -361,6 +360,10 @@ int main(int argc, char **argv)
 
 	assert(migration_rejected(boolean_sequence_fixture("thirteen", 42)));
 	assert(migration_rejected(boolean_sequence_fixture(13, 42, "if_rel_then_sub_else_obj")));
+	Json false_condition = boolean_sequence_fixture(13, 42);
+	false_condition["$rel/result"][0] = false;
+	assert(migration_rejected(false_condition));
+
 	Json ambiguous_boolean = boolean_sequence_fixture(13, 42);
 	ambiguous_boolean["$rel/result"][1]["extra"] = true;
 	assert(migration_rejected(ambiguous_boolean));
