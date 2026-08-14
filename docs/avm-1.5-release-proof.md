@@ -21,7 +21,7 @@ source / frontend
 
 Legacy JSON interpreter, compatibility Executor и второй storage universe отсутствуют.
 
-## Frozen semantic corpus
+## Замороженный semantic corpus
 
 Pinned historical oracle:
 
@@ -133,13 +133,13 @@ Reopen path не читает legacy fixture, не вызывает semantic mig
 
 > После canonical realization source syntax не является runtime dependency AVM.
 
-## Effects
+## Граница effects
 
 Pure AVM 1.5 release proof не использует filesystem/HTTP/time/database/native host effects как semantic operations.
 
 Issue #129 остаётся отдельным обязательным prerequisite **до переноса первого реального host effect**. Dummy effect ради release checklist не добавляется.
 
-## Release vetoes
+## Запреты release gate
 
 - никакого второго Executor/interpreter;
 - никакой remigration после reopen;
@@ -150,7 +150,7 @@ Issue #129 остаётся отдельным обязательным prerequi
 - никакой автоматической совместимости arbitrary textual `$ref`;
 - никакого cross-store сравнения numeric LinkId как универсального значения.
 
-## CI gate
+## Проверки CI
 
 Финальный merge AVM 1.5 требует exact-head green:
 
