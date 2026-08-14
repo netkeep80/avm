@@ -309,6 +309,15 @@ if(AVM_BUILD_CORE_TESTS)
         COMMAND avm_jsonrvm_persistent_release_test
             "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/pure-relation-composition.json")
 
+    add_executable(avm_showcase_calculator_model_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/showcase_calculator_model_test.cpp")
+    target_link_libraries(avm_showcase_calculator_model_test PRIVATE avm_core)
+    target_include_directories(avm_showcase_calculator_model_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/examples/showcase")
+    avm_apply_quality(avm_showcase_calculator_model_test)
+    avm_enable_test_assertions(avm_showcase_calculator_model_test)
+    add_test(NAME showcase_calculator_model_tests COMMAND avm_showcase_calculator_model_test)
+
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
         avm_link_store_test
@@ -347,7 +356,8 @@ if(AVM_BUILD_CORE_TESTS)
         avm_json_duplet_projection_test
         avm_json_duplet_values_test
         avm_jsonrvm_semantic_migrator_test
-        avm_jsonrvm_persistent_release_test)
+        avm_jsonrvm_persistent_release_test
+        avm_showcase_calculator_model_test)
 endif()
 
 if(AVM_BUILD_ANUM_ADAPTER_TESTS)
