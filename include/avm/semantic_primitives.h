@@ -99,9 +99,10 @@ inline void require_unit_subject(const ExecutionContext &context, LinkId unit, c
 inline ExecutionOutcome execute_state_neutral(Executor &executor, LinkId expression,
                                               const ExecutionContext &parent_context, const char *operation)
 {
-	const ExecutionOutcome outcome =
-	    executor.execute_outcome_in_context(expression, parent_context.semantic, parent_context.entity,
-	                                        parent_context.frame);
+	const auto semantic = parent_context.semantic;
+	const LinkId parent_entity = parent_context.entity;
+	const LinkId frame = parent_context.frame;
+	const ExecutionOutcome outcome = executor.execute_outcome_in_context(expression, semantic, parent_entity, frame);
 	if (!(outcome.semantic == parent_context.semantic))
 		throw std::runtime_error(std::string(operation) + " requires state-neutral nested execution");
 	return outcome;
@@ -168,8 +169,11 @@ inline void register_semantic_execution_primitives(Executor &executor, const Sem
 		        object.result,
 		    });
 
+		    Executor &nested = current_executor;
+		    const LinkId parent_entity = context.entity;
+		    const LinkId frame = context.frame;
 		    const ExecutionOutcome target =
-		        current_executor.execute_outcome_in_context(target_entity, target_semantic, context.entity, context.frame);
+		        nested.execute_outcome_in_context(target_entity, target_semantic, parent_entity, frame);
 		    if (!(target.semantic == target_semantic))
 			    throw std::runtime_error("pure relation target changed semantic state");
 
