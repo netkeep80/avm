@@ -12,7 +12,8 @@
 namespace avm::showcase
 {
 
-// Source pane остаётся presentation-only: parser/projector/find/realize/Executor берутся из уже принятого Native JSON path.
+// Source pane остаётся presentation-only.
+// Parser/projector/find/realize/Executor берутся из уже принятого Native JSON path.
 class NativeJsonViewport
 {
 public:
