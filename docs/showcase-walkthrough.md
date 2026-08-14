@@ -151,9 +151,9 @@ Focused workflow `.github/workflows/showcase.yml` на Linux:
 2. запускает именно этот executable под Xvfb;
 3. включает Mesa software OpenGL через `LIBGL_ALWAYS_SOFTWARE=1`;
 4. передаёт `--demo calculator-basic`;
-5. проверяет, что process остаётся жив после успешного demo;
-6. снимает реальный X11 screenshot через ImageMagick;
-7. публикует artifact:
+5. через CI-only `AVM_SHOWCASE_SCREENSHOT_PPM` просит приложение сохранить кадр после двух обычных ImGui render cycles;
+6. приложение читает `GL_BACK` через `glReadPixels`, то есть тот же OpenGL framebuffer, который реально показывается окном;
+7. workflow конвертирует raw PPM в PNG, проверяет размер и число цветов и публикует artifact:
 
 ```text
 avm-showcase-calculator-basic
@@ -166,9 +166,9 @@ avm-showcase-calculator-basic.png
 calculator-basic.log
 ```
 
-Это provenance реального executable. Mockup, ручная перерисовка или screenshot старого PR не считаются evidence текущего main.
+Это provenance реального executable и реально отрисованного framebuffer. Mockup, ручная перерисовка, X11 root-pixmap или screenshot старого PR не считаются evidence текущего main.
 
-`xdotool` используется только для обнаружения/позиционирования реального окна. Семантические действия не воспроизводятся координатными кликами: их выполняет deterministic demo через тот же canonical event path.
+Семантические действия не воспроизводятся координатными кликами: их выполняет deterministic demo через тот же canonical event path. Framebuffer capture только читает уже отрисованный кадр и не меняет AVM semantic state.
 
 ## Граница поддержки
 
