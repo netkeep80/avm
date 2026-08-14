@@ -1,0 +1,124 @@
+{
+  "$schema": "avm/frontend-common-denotation/v1",
+  "cases": [
+    {
+      "id": "anchor",
+      "anchors": ["a"],
+      "json": {
+        "$avm": "duplet-json/1",
+        "$root": {"$symbol": "a"}
+      },
+      "anum": {
+        "nodes": [],
+        "root": {"anchor": 0}
+      }
+    },
+    {
+      "id": "pair",
+      "anchors": ["a", "b"],
+      "json": {
+        "$avm": "duplet-json/1",
+        "$root": {
+          "<<": {"$symbol": "a"},
+          ">>": {"$symbol": "b"}
+        }
+      },
+      "anum": {
+        "nodes": [
+          {"begin": {"anchor": 0}, "end": {"anchor": 1}}
+        ],
+        "root": {"node": 0}
+      }
+    },
+    {
+      "id": "nested",
+      "anchors": ["a", "b", "c"],
+      "json": {
+        "$avm": "duplet-json/1",
+        "$root": {
+          "<<": {"$symbol": "a"},
+          ">>": {
+            "<<": {"$symbol": "b"},
+            ">>": {"$symbol": "c"}
+          }
+        }
+      },
+      "anum": {
+        "nodes": [
+          {"begin": {"anchor": 1}, "end": {"anchor": 2}},
+          {"begin": {"anchor": 0}, "end": {"node": 0}}
+        ],
+        "root": {"node": 1}
+      }
+    },
+    {
+      "id": "shared",
+      "anchors": ["a", "b"],
+      "json": {
+        "$avm": "duplet-json/1",
+        "$root": {
+          "<<": {
+            "<<": {"$symbol": "a"},
+            ">>": {"$symbol": "b"}
+          },
+          ">>": {
+            "<<": {"$symbol": "a"},
+            ">>": {"$symbol": "b"}
+          }
+        }
+      },
+      "anum": {
+        "nodes": [
+          {"begin": {"anchor": 0}, "end": {"anchor": 1}},
+          {"begin": {"node": 0}, "end": {"node": 0}}
+        ],
+        "root": {"node": 1}
+      },
+      "assert_shared_root_ends": true
+    },
+    {
+      "id": "relation-entity",
+      "anchors": ["rel", "sub", "obj"],
+      "json": {
+        "$avm": "duplet-json/1",
+        "$root": {
+          "<<": {"$symbol": "rel"},
+          ">>": {
+            "<<": {"$symbol": "sub"},
+            ">>": {"$symbol": "obj"}
+          }
+        }
+      },
+      "anum": {
+        "nodes": [
+          {"begin": {"anchor": 1}, "end": {"anchor": 2}},
+          {"begin": {"anchor": 0}, "end": {"node": 0}}
+        ],
+        "root": {"node": 1}
+      },
+      "relation_entity": ["rel", "sub", "obj"]
+    },
+    {
+      "id": "executable-quote",
+      "anchors": ["quote_relation", "unit", "value"],
+      "json": {
+        "$avm": "duplet-json/1",
+        "$root": {
+          "<<": {"$symbol": "quote_relation"},
+          ">>": {
+            "<<": {"$symbol": "unit"},
+            ">>": {"$symbol": "value"}
+          }
+        }
+      },
+      "anum": {
+        "nodes": [
+          {"begin": {"anchor": 1}, "end": {"anchor": 2}},
+          {"begin": {"anchor": 0}, "end": {"node": 0}}
+        ],
+        "root": {"node": 1}
+      },
+      "execute_returns": "value"
+    }
+  ]
+}
