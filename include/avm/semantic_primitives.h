@@ -67,8 +67,7 @@ inline LinkId materialize_reference_resolution(LinkStore &store, const SemanticE
 	return encode_relation_entity(store, RelationEntity{vocabulary.resolve_reference_relation, unit, reference});
 }
 
-inline LinkId materialize_pure_relation_application(LinkStore &store,
-                                                    const SemanticExecutionVocabulary &vocabulary,
+inline LinkId materialize_pure_relation_application(LinkStore &store, const SemanticExecutionVocabulary &vocabulary,
                                                     LinkId target_relation, LinkId subject_expression,
                                                     LinkId object_expression)
 {
@@ -100,8 +99,9 @@ inline void require_unit_subject(const ExecutionContext &context, LinkId unit, c
 inline ExecutionOutcome execute_state_neutral(Executor &executor, LinkId expression,
                                               const ExecutionContext &parent_context, const char *operation)
 {
-	const ExecutionOutcome outcome = executor.execute_outcome_in_context(
-	    expression, parent_context.semantic, parent_context.entity, parent_context.frame);
+	const ExecutionOutcome outcome =
+	    executor.execute_outcome_in_context(expression, parent_context.semantic, parent_context.entity,
+	                                        parent_context.frame);
 	if (!(outcome.semantic == parent_context.semantic))
 		throw std::runtime_error(std::string(operation) + " requires state-neutral nested execution");
 	return outcome;
@@ -136,7 +136,8 @@ inline void register_semantic_execution_primitives(Executor &executor, const Sem
 		    semantic_primitives_detail::require_semantic_context(context, "reference resolution");
 		    semantic_primitives_detail::require_unit_subject(context, unit, "reference resolution");
 
-		    const auto value = resolve_reference(current_executor.store(), references, context.object, context.semantic);
+		    const auto value =
+		        resolve_reference(current_executor.store(), references, context.object, context.semantic);
 		    if (!value)
 			    throw std::runtime_error("semantic reference did not resolve");
 		    return ExecutionOutcome{*value};
@@ -167,8 +168,8 @@ inline void register_semantic_execution_primitives(Executor &executor, const Sem
 		        object.result,
 		    });
 
-		    const ExecutionOutcome target = current_executor.execute_outcome_in_context(
-		        target_entity, target_semantic, context.entity, context.frame);
+		    const ExecutionOutcome target =
+		        current_executor.execute_outcome_in_context(target_entity, target_semantic, context.entity, context.frame);
 		    if (!(target.semantic == target_semantic))
 			    throw std::runtime_error("pure relation target changed semantic state");
 
