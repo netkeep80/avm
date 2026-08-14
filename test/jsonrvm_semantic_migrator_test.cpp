@@ -89,8 +89,7 @@ int main(int argc, char **argv)
 	const avm::ReferenceVocabulary references = avm::ReferenceVocabulary::create(store);
 	const avm::SemanticExecutionVocabulary semantic = avm::SemanticExecutionVocabulary::create(store);
 	avm::register_integer_arithmetic(runtime.executor(), integers);
-	avm::register_semantic_execution_primitives(
-	    runtime.executor(), semantic, references, runtime.vocabulary().unit);
+	avm::register_semantic_execution_primitives(runtime.executor(), semantic, references, runtime.vocabulary().unit);
 
 	const avm::LinkId current_relation_state_reference =
 	    avm::realize_context_role_reference(store, references, avm::ReferenceRole::RelationState);
@@ -158,7 +157,8 @@ int main(int argc, char **argv)
 	assert(sequence_migration.document.at("$avm") == "duplet-json/1");
 	frozen_sequence.clear();
 	const avm::LinkId sequence_program = project_and_realize(store, resolver, sequence_migration.document);
-	const avm::ExecutionOutcome sequence_outcome = runtime.executor().execute_outcome_in_context(sequence_program, initial);
+	const avm::ExecutionOutcome sequence_outcome =
+	    runtime.executor().execute_outcome_in_context(sequence_program, initial);
 	assert(avm::decode_integer(store, integers, sequence_outcome.result) == 3);
 	assert(sequence_outcome.semantic.role(avm::SemanticContextRole::RelationState) == sequence_outcome.result);
 	assert(initial.role(avm::SemanticContextRole::RelationState) == zero);
