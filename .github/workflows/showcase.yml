@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - agent/semantic-context-view
     paths:
       - 'CMakeLists.txt'
       - 'examples/showcase/**'
@@ -33,7 +32,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y clang-format
       - name: Check showcase formatting
-        run: clang-format --dry-run --Werror examples/showcase/main.cpp
+        run: >-
+          find examples/showcase -maxdepth 1 -type f
+          \( -name '*.cpp' -o -name '*.h' \) -print0
+          | xargs -0 clang-format --dry-run --Werror
 
   linux:
     name: Showcase / Linux
@@ -44,7 +46,7 @@ jobs:
       - name: Install window-system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xorg-dev libgl1-mesa-dev
+          sudo apt-get install -y xorg-dev libgl1-mesa-dev xvfb xdotool imagemagick
       - name: Configure
         run: >-
           cmake -S . -B build-showcase
@@ -57,6 +59,62 @@ jobs:
           -DAVM_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build-showcase --target avm_showcase --parallel
+      - name: Run calculator demo and capture real UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir="$PWD/build-showcase/showcase-artifacts"
+          mkdir -p "$output_dir"
+          binary=$(find build-showcase -type f -name avm_showcase -perm -111 -print -quit)
+          test -n "$binary"
+          binary="$PWD/$binary"
+
+          xvfb-run -a --server-args="-screen 0 1600x1000x24" bash -c '
+            set -euo pipefail
+            export LIBGL_ALWAYS_SOFTWARE=1
+            binary="$1"
+            output_dir="$2"
+            log="$output_dir/calculator-basic.log"
+
+            "$binary" --demo calculator-basic >"$log" 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+
+            window=""
+            for _ in $(seq 1 100); do
+              if ! kill -0 "$pid" 2>/dev/null; then
+                cat "$log"
+                exit 1
+              fi
+              window=$(xdotool search --name "AVM Showcase" 2>/dev/null | head -n 1 || true)
+              if [ -n "$window" ]; then
+                break
+              fi
+              sleep 0.1
+            done
+            test -n "$window"
+            xdotool windowmove "$window" 0 0 || true
+            sleep 1
+
+            if ! kill -0 "$pid" 2>/dev/null; then
+              cat "$log"
+              exit 1
+            fi
+
+            import -display "$DISPLAY" -window root "$output_dir/avm-showcase-calculator-basic.png"
+            test -s "$output_dir/avm-showcase-calculator-basic.png"
+            identify "$output_dir/avm-showcase-calculator-basic.png"
+          ' _ "$binary" "$output_dir"
+
+          file "$output_dir/avm-showcase-calculator-basic.png"
+      - name: Upload calculator showcase evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: avm-showcase-calculator-basic
+          path: |
+            build-showcase/showcase-artifacts/avm-showcase-calculator-basic.png
+            build-showcase/showcase-artifacts/calculator-basic.log
+          if-no-files-found: error
 
   windows:
     name: Showcase / Windows
