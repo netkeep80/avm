@@ -193,7 +193,7 @@ entering_new_number = true
 
 Если event handler завершается ошибкой, next CalculatorState не публикуется через `ExecutionOutcome.semantic`.
 
-## Persistent reopen
+## Повторное открытие persistent store
 
 Calculator vocabulary и states — обычные LinkIds.
 
