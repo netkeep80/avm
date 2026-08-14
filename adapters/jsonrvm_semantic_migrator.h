@@ -158,7 +158,9 @@ template <typename Json> Json conditional(Json condition, Json then_branch, Json
 	arguments.push_back(std::move(then_branch));
 	arguments.push_back(std::move(else_branch));
 	Json encoded_arguments = list<Json>(std::move(arguments));
-	return relation(symbol<Json>(bootstrap_if_symbol), symbol<Json>(bootstrap_unit_symbol), std::move(encoded_arguments));
+	Json relation_term = symbol<Json>(bootstrap_if_symbol);
+	Json subject_term = symbol<Json>(bootstrap_unit_symbol);
+	return relation(std::move(relation_term), std::move(subject_term), std::move(encoded_arguments));
 }
 
 template <typename Json> std::string relation_name(const Json &relation_value, const std::string &path)
