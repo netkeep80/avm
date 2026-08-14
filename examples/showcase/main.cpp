@@ -69,7 +69,8 @@ struct ShowcaseModel
 	bool use_semantic_context = true;
 
 	ShowcaseModel()
-	    : runtime(store), direct(avm::DirectTriuneVocabulary::create(store)), trace(256), calculator_view(store, runtime)
+	    : runtime(store), direct(avm::DirectTriuneVocabulary::create(store)), trace(256),
+	      calculator_view(store, runtime)
 	{
 		avm::register_direct_triune_primitives(runtime.executor(), direct);
 		runtime.executor().set_observer(&trace);
