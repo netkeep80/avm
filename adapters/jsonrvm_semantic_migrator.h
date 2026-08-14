@@ -337,7 +337,10 @@ template <typename Json> Json migrate_relation(const Json &relation_value)
 		throw MigrationError(
 		    "$.$rel/result.$rel: legacy foreachsub is not supported by the frozen compatibility corpus");
 	if (name.rfind("if_", 0) == 0)
-		throw MigrationError("$.$rel/result.$rel: legacy conditional is supported only inside the frozen sequence shape");
+	{
+		throw MigrationError(
+		    "$.$rel/result.$rel: legacy conditional is supported only inside the frozen sequence shape");
+	}
 	return migrate_direct_arithmetic_relation<Json>(relation_value);
 }
 
