@@ -143,8 +143,8 @@ int main()
 
 	const avm::LinkId state_after_condition = store.create_point();
 	const avm::LinkId stateful_condition_relation = store.create_point();
-	const avm::LinkId stateful_condition = avm::encode_relation_entity(
-	    store, avm::RelationEntity{stateful_condition_relation, v.unit, v.nil});
+	const avm::RelationEntity stateful_condition_entity{stateful_condition_relation, v.unit, v.nil};
+	const avm::LinkId stateful_condition = avm::encode_relation_entity(store, stateful_condition_entity);
 	runtime.executor().register_native(
 	    stateful_condition_relation,
 	    [state_after_condition, true_value = v.true_value](const avm::ExecutionContext &context, avm::Executor &)
