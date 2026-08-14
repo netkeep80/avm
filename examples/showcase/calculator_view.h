@@ -2,7 +2,9 @@
 
 #include "avm/bootstrap_runtime.h"
 #include "avm/integer_value.h"
+#include "avm/text_value.h"
 #include "calculator_model.h"
+#include "native_json_view.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -17,7 +19,7 @@ namespace avm::showcase
 class CalculatorViewport
 {
 public:
-	CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime, IntegerVocabulary integers);
+	CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime);
 
 	void draw(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
 	          std::size_t &selected_trace);
@@ -28,7 +30,9 @@ private:
 	LinkStore &store_;
 	BootstrapRuntime &runtime_;
 	IntegerVocabulary integers_;
+	TextVocabulary text_;
 	CalculatorVocabulary calculator_;
+	NativeJsonViewport native_json_view_;
 	LinkId current_state_ = invalid_link_id;
 	SemanticContextView semantic_;
 
