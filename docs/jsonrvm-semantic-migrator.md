@@ -55,20 +55,20 @@ compat/jsonrvm-oracle-golden.json
 
 Поддержка нового construct добавляется только вместе с frozen fixture и differential AVM conformance.
 
-## Текущий supported subset
+## Текущий frozen subset
 
 | Frozen case | Legacy observation | Canonical AVM mapping | Статус |
 |---|---|---|---|
 | `CASE-ARITHMETIC` | `1 + 1 -> 2` | direct canonical Integer relation | ✅ #195/#196 |
 | `CASE-SEQUENCE-ORDER` | `[1,2,3] -> 3` | sequence + explicit relation-state commits | ✅ #197/#198 |
 | `CASE-PURE-RELATION-COMPOSITION` | `1+1; $rel+3 -> 5` | canonical reference + pure relation application + explicit commits | ✅ #197/#198 |
-| `CASE-FOREACH-CONTEXT` | `foreachobj [1,2,3] -> [1,2,3]` | existing `ForeachVocabulary::object_relation` + `Current.Object` reference | ✅ #199/#200 |
-| `CASE-BOOLEAN-BRANCH` | `true; if -> 42` | context-preserving canonical lazy If + explicit commits | 🚧 #202 |
-| `CASE-MISSING-REFERENCE` | deterministic failure | canonical observational reference miss | следующий gate |
+| `CASE-FOREACH-CONTEXT` | `foreachobj [1,2,3] -> [1,2,3]` | existing foreach + `Current.Object` | ✅ #199/#200 |
+| `CASE-BOOLEAN-BRANCH` | `true; if -> 42` | context-preserving canonical lazy If + explicit commits | ✅ #202/#203 |
+| `CASE-MISSING-REFERENCE` | deterministic failure | typed unresolved textual reference before materialization | 🚧 #205 |
 
-Таблица означает **поддержанный semantic migration corpus**, а не полную совместимость со всем старым `base.rm.h`.
+Эта таблица означает **доказанный semantic migration corpus**, а не полную совместимость со всем историческим `base.rm.h`.
 
-## Арифметический vertical slice — #196
+## Арифметика — #196
 
 Frozen source:
 
@@ -82,19 +82,13 @@ Frozen source:
 }
 ```
 
-Pinned oracle возвращает observable `result = 2`.
-
-Внешний ключ `$rel/result` является только legacy output envelope. Он не становится generic Object/Map value AVM.
-
-Expression компилируется в:
+Expression компилируется в direct canonical relation:
 
 ```text
 (integer_add, Integer(1), Integer(1))
 ```
 
-и затем в canonical Native Duplet form.
-
-Поддержанный arithmetic vocabulary:
+Поддержанный frozen arithmetic vocabulary:
 
 ```text
 + -> integer_add
@@ -103,17 +97,19 @@ Expression компилируется в:
 / -> integer_divide
 ```
 
-Operands принадлежат signed `int64` migration domain. Сам arithmetic contract принадлежит `IntegerVocabulary`, а не migrator-у.
-
-## Result и semantic relation-state — #198
-
-Pure Integer arithmetic возвращает canonical result и не выполняет скрытое:
+Pure Integer arithmetic возвращает value и не выполняет скрытое:
 
 ```text
 $rel := result
 ```
 
-Legacy stateful composition выражается отдельными frontend-neutral executable relations:
+Внешний `$rel/result` — differential-output metadata, а не generic mutable Object/Map runtime AVM.
+
+## Sequence и явный relation-state — #198
+
+Legacy executable array компилируется в existing canonical sequence.
+
+Stateful compatibility выражается отдельными frontend-neutral relations:
 
 ```text
 commit_relation_state
@@ -121,14 +117,14 @@ resolve_reference_relation
 apply_pure_relation
 ```
 
-Для frozen composition:
+Frozen composition:
 
 ```text
 1 + 1
 $rel + 3
 ```
 
-migrated structure концептуально выполняет:
+становится концептуально:
 
 ```text
 apply(integer_add, quote(1), quote(1)) -> 2
@@ -138,29 +134,15 @@ apply(integer_add, 2, quote(3)) -> 5
 commit -> semantic $rel = 5
 ```
 
-Таким образом сохраняется инвариант:
+Сохраняется главный инвариант:
 
 ```text
-value computation != state transition
+value computation != semantic state transition
 ```
 
-`$ref:"$rel"` существует только в legacy compiler boundary. Generated program содержит canonical `ReferenceRole::RelationState(Current)` identity; runtime не парсит `$rel` strings.
+`$ref:"$rel"` заканчивает существование на legacy compiler boundary. Generated program содержит canonical `ReferenceRole::RelationState(Current)` identity.
 
-## Упорядоченный sequence — #198
-
-Legacy source array в executable position:
-
-```json
-[1, 2, 3]
-```
-
-компилируется в existing canonical sequence с explicit commits каждого legacy step.
-
-Existing sequence runtime thread-ит `ExecutionOutcome.semantic` между children. Никакого второго sequence executor нет.
-
-Это отличается от ordinary data list: JSON array интерпретируется как sequence **только в доказанном legacy executable context**.
-
-## Перенос foreach object context — #200
+## Foreach object context — #200
 
 Frozen source:
 
@@ -177,15 +159,7 @@ Frozen source:
 }
 ```
 
-Pinned oracle:
-
-```json
-{"/result":[1,2,3]}
-```
-
-Core foreach semantics уже была принята в #187/#189, поэтому #199/#200 **не добавили новый runtime primitive**.
-
-Legacy form компилируется в существующую canonical structure:
+Canonical migration:
 
 ```text
 (foreach_object,
@@ -193,66 +167,27 @@ Legacy form компилируется в существующую canonical str
     [Integer(1), Integer(2), Integer(3)])
 ```
 
-где:
+Новый foreach runtime не создавался: используется `ForeachVocabulary::object_relation` из #187/#189.
 
-- `foreach_object` — caller-owned anchor на `ForeachVocabulary::object_relation`;
-- collection — canonical ordered link-list, завершающийся existing `bootstrap_nil`;
-- каждый item получает fresh sibling child context;
+Доказаны:
+
+- ordered canonical collection;
+- fresh sibling child contexts;
 - `child.object = item`;
-- body читает item через canonical `ReferenceRole::Object(Current)`;
-- body исполняется обычным `Executor`;
-- ordered result list возвращается без изменения parent semantic state.
+- no state bleed между sibling iterations;
+- parent semantic state unchanged;
+- canonical ordered result `[1,2,3]`;
+- convergence/no-growth.
 
-### Почему legacy `=` здесь не становится generic оператором
-
-Frozen body:
+Exact historical body
 
 ```json
-{
-  "$obj": {"$ref": "$obj"},
-  "$rel": "="
-}
+{"$rel":"=","$obj":{"$ref":"$obj"}}
 ```
 
-наблюдаемо ведёт себя в этом exact case как projection текущего child object.
+трактуется только как evidence-backed identity projection `Current.Object`. Generic legacy `=` из одного fixture не выводится.
 
-Migrator распознаёт **ровно этот evidence-backed shape** и компилирует его в:
-
-```text
-resolve_reference(Current.Object)
-```
-
-Из одного fixture нельзя выводить generic assignment/equality/lvalue semantics старого `=`. Любые другие формы `=` остаются unsupported до отдельного frozen evidence и semantic contract.
-
-### Foreach и state threading
-
-Foreach принципиально отличается от sequence:
-
-```text
-sequence child output state -> next child input state
-foreach iteration child state -X-> next sibling
-```
-
-Каждая итерация строится из исходного parent semantic context. Parent outcome после frozen identity foreach остаётся неизменным:
-
-```text
-ExecutionOutcome {
-    result = ordered result list,
-    semantic = input semantic context
-}
-```
-
-### Collection — данные, не executable sequence
-
-`[1,2,3]` внутри `$obj` `foreachobj` компилируется в canonical list **данных**:
-
-```text
-[Integer(1), Integer(2), Integer(3)]
-```
-
-Здесь не используются `quote` или `commit_relation_state`. Это важная source-context distinction: одинаковая JSON array surface form не определяет одну universal runtime semantics.
-
-## Булевое управление — #202
+## Булевое управление — #203
 
 Frozen source:
 
@@ -269,103 +204,139 @@ Frozen source:
 }
 ```
 
-Pinned oracle:
+Oracle:
 
 ```text
 /result = 42
 ```
 
-Legacy observable semantics:
+Во время migration был обнаружен реальный gap canonical core: existing `if_relation` был lazy, но nested condition/branch выполнялись context-free и теряли `SemanticContextView`.
 
-```text
-true -> current $rel = true
-if current $rel then object else subject
-true -> object = 42
-final $rel/result = 42
-```
-
-### Исправление canonical If
-
-До #202 существующий `BootstrapVocabulary::if_relation` был lazy, но nested condition/branch выполнялись context-free через `Executor::execute(...)`. При запуске If внутри `SemanticContextView` это теряло текущий `$rel/$sub/$obj` и делало canonical `Current.RelationState` reference непригодным как condition.
-
-#202 не вводит второй If. Тот же `if_relation` теперь имеет два совместимых режима одного handler-а:
-
-```text
-без semantic context
-    -> прежний context-free lazy execution
-
-с semantic context
-    -> condition выполняется в current semantic context
-    -> condition ExecutionOutcome.semantic thread-ится в selected branch
-    -> выполняется только selected branch
-    -> весь selected branch ExecutionOutcome возвращается наружу
-```
-
-То есть:
+#203 сохранил один `if_relation` и один Executor, но сделал semantic path compositional:
 
 ```text
 condition_outcome = execute(condition, input_semantic)
-selected = Boolean(condition_outcome.result)
-branch_outcome = execute(selected_branch, condition_outcome.semantic)
+selector = Boolean(condition_outcome.result)
+branch_outcome = execute(only selected branch, condition_outcome.semantic)
 return branch_outcome
 ```
 
-If сам не создаёт скрытого state transition. Если condition или branch меняют semantic state, это происходит только через их явный `ExecutionOutcome`.
+Context-free behavior осталось прежним; If сам не вводит скрытый state transition.
 
-### Отображение frozen legacy relation
-
-Exact relation:
-
-```json
-{"$rel":"if_rel_then_obj_else_sub","$sub":13,"$obj":42}
-```
-
-компилируется как:
-
-```text
-commit_relation_state(
-  if(
-    resolve_reference(Current.RelationState),
-    quote(Integer(42)),
-    quote(Integer(13))))
-```
-
-Полный frozen sequence:
+Frozen relation компилируется в:
 
 ```text
 sequence([
-  commit_relation_state(quote(Boolean(true))),
+  commit_relation_state(quote(canonical true)),
   commit_relation_state(
-    if(resolve(Current.RelationState), quote(42), quote(13)))
+    if(
+      resolve(Current.RelationState),
+      quote(Integer(42)),
+      quote(Integer(13))))
 ])
 ```
 
-Historical relation name фиксирует branch orientation:
+Historical branch orientation сохраняется:
 
 ```text
-true  -> object
-false -> subject
+true  -> object = 42
+false -> subject = 13
 ```
 
-Никакого string dispatch `if_rel_then_obj_else_sub` в Executor нет: имя существует только в semantic compiler.
+Raw legacy `true` поддержан только в frozen evidence-backed executable context. Canonical AVM `false_value` существует и тестируется независимо, но raw legacy `false` не объявляется совместимым без отдельного oracle evidence.
 
-### Денотация Boolean
+## Missing reference failure — #205
 
-Legacy raw `true` в этом frozen executable sequence context компилируется не в raw JSON runtime value, а в caller-owned canonical singleton anchor:
+Frozen source:
+
+```json
+{
+  "$rel/result": {
+    "$ref": "__avm_missing_reference_oracle__"
+  }
+}
+```
+
+Legacy oracle доказывает только semantic observation:
 
 ```text
-bootstrap_true -> BootstrapVocabulary::true_value
+requested textual reference cannot be resolved
 ```
 
-Затем singleton передаётся через ordinary `quote` и explicit `commit_relation_state`.
+и наличие diagnostic, содержащего source marker. Exact exception/JSON wording не является contract.
 
-`BootstrapVocabulary::false_value` остаётся полноценным canonical Boolean AVM, но **raw legacy `false` не объявляется поддержанным source construct этого migration slice**: frozen corpus доказывает только `true`. Такой source детерминированно отвергается до появления отдельного oracle-backed evidence.
+### Почему нельзя создавать fake LinkId
 
-Это не вводит универсальную implicit semantics для raw JSON Boolean во всех Native JSON contexts.
+Canonical #126 `Named` reference содержит `LinkId`, а не строку. Для неизвестного source name semantic adapter не имеет корректной canonical identity.
+
+Запрещён искусственный путь:
+
+```text
+unknown textual name
+ -> create_point()
+ -> Named(fake LinkId)
+ -> runtime miss
+```
+
+Он нарушил бы фундаментальную границу:
+
+```text
+find / resolve / verify != realize / write
+```
+
+и создал бы semantic identity только ради представления отсутствия.
+
+### Принятый failure boundary
+
+Для frozen case используется typed adapter failure **до** Native document/projection/execution:
+
+```text
+legacy {$ref:"__avm_missing_reference_oracle__"}
+ -> semantic adapter recognizes unresolved textual reference
+ -> MigrationFailureKind::UnresolvedReference
+ -> structured source path + source identity
+ -> no ProjectionDescription realization
+ -> no Executor
+ -> LinkStore unchanged
+```
+
+`MigrationError` теперь несёт:
+
+```text
+kind
+source_path
+source_identity
+human-readable what()
+```
+
+Обычные malformed/unsupported source forms сохраняют `MigrationFailureKind::InvalidSource`.
+
+Differential test сравнивает typed category и structured marker, а не полный `what()`.
+
+### Unknown source name и absent LinkId — разные случаи
+
+Нужно различать:
+
+```text
+A. unknown textual legacy name
+   -> frontend/migration name-resolution failure
+
+B. caller already supplied canonical LinkId anchor,
+   но anchor отсутствует в prepared store
+   -> canonical find/realize miss/reject из #126
+```
+
+#205 не превращает A в B через synthetic identity.
+
+### Почему пока нет generic name resolver API
+
+Frozen corpus содержит только intentional missing-name failure и не содержит доказанного success case произвольного named reference.
+
+Поэтому #205 не вводит преждевременный global/callback resolver surface. Когда появится реальный success fixture/consumer, caller-owned textual-name resolver можно добавить evidence-driven, всё так же без доступа migrator-а к LinkStore и без hidden DB lookup.
 
 ## Символьные anchors
 
-Generated `duplet-json/1` может содержать protocol-level symbolic anchors, например:
+Generated `duplet-json/1` success documents могут содержать frontend transport anchors, например:
 
 ```text
 integer_add
@@ -383,26 +354,26 @@ current_object_reference
 foreach_object
 ```
 
-Эти строки являются transport metadata frontend-а. Caller явно связывает их с уже существующими LinkIds конкретного prepared runtime.
+Caller связывает их с уже существующими LinkIds prepared runtime. Migrator не создаёт global symbol registry.
 
-Migrator не создаёт canonical identities и не владеет глобальным symbol registry.
+Unknown textual **legacy references** не маскируются под `$symbol`.
 
 ## Метаданные наблюдаемого результата
 
-`MigrationResult` содержит:
+Для success case `MigrationResult` содержит:
 
 ```text
 document
 observable_json_pointer
 ```
 
-`document` — самостоятельный Native JSON artifact.
+`observable_json_pointer` — differential-harness metadata и не materialize-ится в LinkStore.
 
-`observable_json_pointer` — differential-harness metadata для сопоставления canonical AVM result с legacy oracle field `/result`. Эта строка не materialize-ится в LinkStore и не является semantic value.
+Failure #205 не обязан создавать `MigrationResult`: unresolved source reference прекращает migration до Native document.
 
 ## Границы materialization
 
-Нормативное разделение:
+Нормативный pipeline:
 
 ```text
 migrate legacy JSON
@@ -415,25 +386,25 @@ find_projection
     -> observation only
 
 realize_projection
-    -> explicit static program/value materialization
+    -> explicit static materialization
 
 execute
-    -> только явно определённые runtime effects canonical relations
+    -> только явные effects canonical relations
 ```
 
-Для dynamic pure relation application #198 first execution может materialize canonical target RelationEntity. После convergence repeated identical execution не должно увеличивать store.
+Для unresolved textual reference pipeline заканчивается на первом шаге:
 
-Для #200 identity foreach входной и выходной ordered list сходятся к одной canonical identity, поэтому successful execution после realization не требует дополнительных list nodes.
+```text
+migration failure -> no projection -> no realization -> no execution
+```
 
-Boolean #202 использует только уже realized singleton/value/program structures и после convergence не должен увеличивать store.
+Differential test специально фиксирует `store.size()` до и после failure.
 
 ## Граница времени жизни
 
-После `migrate_program` исходный legacy JSON DOM больше не нужен.
+После успешного `migrate_program` исходный legacy DOM больше не нужен. Native document является самостоятельным artifact.
 
-Native document является самостоятельным artifact. После projection/realization canonical program graph также не зависит от lifetime source DOM.
-
-Differential tests намеренно уничтожают source DOM до projection.
+Для failure case structured diagnostic копирует source path/identity и также не зависит от lifetime input DOM после throw/catch boundary.
 
 ## Ошибки migration boundary
 
@@ -444,62 +415,57 @@ Migrator детерминированно отвергает неподдерж�
 - non-object root;
 - root без exact `$rel/result` envelope;
 - дополнительные root members;
-- malformed arithmetic relation;
-- unknown arithmetic operator;
+- malformed/unknown arithmetic;
 - non-integer arithmetic operand;
 - unsupported sequence reference role;
 - empty executable sequence;
-- legacy `foreachsub` без frozen compatibility evidence;
-- foreach body с `$ref` не на `$obj`;
+- raw legacy `false` без frozen evidence;
+- legacy `foreachsub` без evidence;
 - modified/generic `=` foreach body;
-- non-Integer или empty collection первого foreach slice;
-- дополнительные ambiguous foreach fields;
-- raw legacy `false` в Boolean sequence без frozen evidence;
-- unknown `if_*` relation name;
+- non-Integer/empty foreach collection первого slice;
+- unknown/modified conditional relation;
 - missing/extra Boolean relation fields;
-- non-Integer Boolean branch values в первом frozen slice.
-
-Runtime failures canonical relations не эмулируются migrator-ом.
+- non-Integer Boolean branch values первого slice;
+- malformed top-level `$ref`;
+- frozen unresolved textual reference — отдельный typed `UnresolvedReference`.
 
 ## Дифференциальные доказательства
 
-Для каждого supported construct нужны два независимых доказательства:
+Для success constructs сравниваются decoded semantic values/context/order, а не source JSON formatting или cross-store numeric LinkIds.
 
-1. pinned jsonRVM oracle фиксирует observable behavior source fixture;
-2. AVM test проходит полный migrated pipeline и сравнивает semantic result/context/order/failure meaning.
-
-Совместимость не выводится из визуального сходства JSON.
-
-Примеры:
+Для frozen failure сравниваются:
 
 ```text
-CASE-ARITHMETIC
-jsonRVM -> 2
-AVM -> canonical Integer(2)
-
-CASE-PURE-RELATION-COMPOSITION
-jsonRVM -> 5
-AVM -> Integer(5), final semantic relation-state = Integer(5)
-
-CASE-FOREACH-CONTEXT
-jsonRVM -> [1,2,3]
-AVM -> canonical ordered Integer list [1,2,3], parent semantic unchanged
-
-CASE-BOOLEAN-BRANCH
-jsonRVM -> 42
-AVM -> canonical Integer(42), final semantic relation-state = Integer(42)
+failure kind
+source identity/path
+absence of hidden materialization
 ```
 
-## Следующие gates
+Не сравниваются literal host exception strings.
 
-После #202:
+Текущий minimal corpus:
 
-1. `CASE-MISSING-REFERENCE` как первый frozen failure migration slice;
-2. additional addressing/where/view/defaults только evidence-driven;
-3. common-denotation JSON/Anum proof #130;
-4. host effects только после #129 capability/effect boundary.
+```text
+CASE-ARITHMETIC                -> 2
+CASE-SEQUENCE-ORDER            -> 3
+CASE-PURE-RELATION-COMPOSITION -> 5
+CASE-FOREACH-CONTEXT           -> [1,2,3]
+CASE-BOOLEAN-BRANCH            -> 42
+CASE-MISSING-REFERENCE         -> typed unresolved-reference failure
+```
 
-Не поддержанные constructs не получают заглушек и не исполняются частично.
+## Дальнейший план
+
+После #205 минимальный frozen corpus #123 считается закрытым.
+
+Следующий приоритет:
+
+1. #131 — собрать AVM 1.5 end-to-end release proof, включая persistent reopen без remigration;
+2. #130 — common-denotation JSON/Anum equivalence на реально общем subset;
+3. #129 — capability/effect boundary до переноса первого FS/HTTP/time/database/native effect;
+4. дополнительные legacy constructs — только по реальному consumer/use-case и frozen evidence.
+
+Не следует механически портировать весь `base.rm.h` operator-by-operator.
 
 ## Архитектурные запреты
 
@@ -510,11 +476,11 @@ AVM -> canonical Integer(42), final semantic relation-state = Integer(42)
 5. legacy JSON не становится runtime value universe AVM;
 6. Native Duplet parser не получает legacy-special cases;
 7. frozen jsonRVM не изменяется;
-8. unsupported construct отвергается вместо fallback к старому interpreter;
-9. compatibility state transition не прячется в pure Integer/Text/If primitives;
+8. unsupported construct отвергается вместо fallback к old interpreter;
+9. state transition не прячется в pure Integer/Text/If primitives;
 10. `$ref/$rel/$obj` strings не попадают в canonical core;
 11. generic legacy `=` не выводится из одного foreach fixture;
 12. legacy Boolean relation name не становится runtime opcode;
-13. unselected If branch никогда не исполняется;
-14. raw legacy `false` не объявляется совместимым без отдельного oracle evidence;
+13. unselected If branch не исполняется;
+14. unknown textual reference не создаёт fake LinkId;
 15. каждый новый supported construct получает oracle-backed conformance.
