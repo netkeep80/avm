@@ -45,6 +45,7 @@ set(AVM_CORE_PUBLIC_HEADERS
     include/avm/relations_query.h
     include/avm/semantic_context.h
     include/avm/semantic_execution.h
+    include/avm/semantic_primitives.h
     include/avm/text_value.h
     include/avm/triune_primitives.h
     include/avm/version.h)
@@ -199,6 +200,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_semantic_execution_outcome_test
         test/semantic_execution_outcome_test.cpp
         semantic_execution_outcome_tests)
+    avm_add_core_test(avm_semantic_primitives_test test/semantic_primitives_test.cpp semantic_primitives_tests)
     avm_add_core_test(avm_foreach_runtime_test test/foreach_runtime_test.cpp foreach_runtime_tests)
     avm_add_core_test(
         avm_independent_projection_test
@@ -291,7 +293,9 @@ if(AVM_BUILD_CORE_TESTS)
     add_test(
         NAME jsonrvm_semantic_migrator_tests
         COMMAND avm_jsonrvm_semantic_migrator_test
-            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/arithmetic-add.json")
+            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/arithmetic-add.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/sequence-order.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/pure-relation-composition.json")
 
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
@@ -301,6 +305,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_executor_test
         avm_semantic_context_test
         avm_semantic_execution_outcome_test
+        avm_semantic_primitives_test
         avm_foreach_runtime_test
         avm_independent_projection_test
         avm_integer_value_test
