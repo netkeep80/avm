@@ -101,7 +101,7 @@ inline ExecutionOutcome execute_state_neutral(Executor &executor, LinkId express
 {
 	const auto semantic = parent_context.semantic;
 	const LinkId parent_entity = parent_context.entity;
-	const LinkId frame = parent_context.frame;
+	const std::optional<LinkId> frame = parent_context.frame;
 	const ExecutionOutcome outcome = executor.execute_outcome_in_context(expression, semantic, parent_entity, frame);
 	if (!(outcome.semantic == parent_context.semantic))
 		throw std::runtime_error(std::string(operation) + " requires state-neutral nested execution");
@@ -171,7 +171,7 @@ inline void register_semantic_execution_primitives(Executor &executor, const Sem
 
 		    Executor &nested = current_executor;
 		    const LinkId parent_entity = context.entity;
-		    const LinkId frame = context.frame;
+		    const std::optional<LinkId> frame = context.frame;
 		    const ExecutionOutcome target =
 		        nested.execute_outcome_in_context(target_entity, target_semantic, parent_entity, frame);
 		    if (!(target.semantic == target_semantic))
