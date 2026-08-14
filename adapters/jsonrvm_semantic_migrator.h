@@ -28,7 +28,6 @@ namespace detail
 inline constexpr const char *bootstrap_unit_symbol = "bootstrap_unit";
 inline constexpr const char *bootstrap_nil_symbol = "bootstrap_nil";
 inline constexpr const char *bootstrap_true_symbol = "bootstrap_true";
-inline constexpr const char *bootstrap_false_symbol = "bootstrap_false";
 inline constexpr const char *bootstrap_quote_symbol = "bootstrap_quote";
 inline constexpr const char *bootstrap_sequence_symbol = "bootstrap_sequence";
 inline constexpr const char *bootstrap_if_symbol = "bootstrap_if";
@@ -107,19 +106,31 @@ template <typename Json> Json list(std::vector<Json> items)
 	return tail;
 }
 
-template <typename Json> Json quote(Json value)
+template <typename Json> Json quote_symbol(const char *value_symbol)
 {
-	return relation(symbol<Json>(bootstrap_quote_symbol), symbol<Json>(bootstrap_unit_symbol), std::move(value));
+	return relation(symbol<Json>(bootstrap_quote_symbol), symbol<Json>(bootstrap_unit_symbol),
+	                symbol<Json>(value_symbol));
 }
 
 template <typename Json> Json quote_integer(std::int64_t value)
 {
-	return quote<Json>(integer<Json>(value));
+	return relation(symbol<Json>(bootstrap_quote_symbol), symbol<Json>(bootstrap_unit_symbol), integer<Json>(value));
 }
 
-template <typename Json> Json quote_boolean(bool value)
+template <typename Json> Json quote_frozen_true()
 {
-	return quote<Json>(symbol<Json>(value ? bootstrap_true_symbol : bootstrap_false_symbol));
+	return quote_symbol<Json>(bootstrap_true_symbol);
+}
+
+template <typename Json> Json conditional(Json condition, Json then_branch, Json else_branch)
+{
+	std::vector<Json> arguments;
+	arguments.reserve(3);
+	arguments.push_back(std::move(condition));
+	arguments.push_back(std::move(then_branch));
+	arguments.push_back(std::move(else_branch));
+	return relation(symbol<Json>(bootstrap_if_symbol), symbol<Json>(bootstrap_unit_symbol),
+	                list<Json>(std::move(arguments)));
 }
 
 template <typename Json> Json commit_relation_state(Json value_expression)
@@ -149,18 +160,6 @@ Json apply_pure_relation(const char *target_relation_symbol, Json subject_expres
 {
 	return relation(symbol<Json>(semantic_apply_pure_relation_symbol), symbol<Json>(target_relation_symbol),
 	                duplet(std::move(subject_expression), std::move(object_expression)));
-}
-
-template <typename Json> Json conditional(Json condition, Json then_branch, Json else_branch)
-{
-	std::vector<Json> arguments;
-	arguments.push_back(std::move(condition));
-	arguments.push_back(std::move(then_branch));
-	arguments.push_back(std::move(else_branch));
-	Json encoded_arguments = list<Json>(std::move(arguments));
-	Json relation_term = symbol<Json>(bootstrap_if_symbol);
-	Json subject_term = symbol<Json>(bootstrap_unit_symbol);
-	return relation(std::move(relation_term), std::move(subject_term), std::move(encoded_arguments));
 }
 
 template <typename Json> std::string relation_name(const Json &relation_value, const std::string &path)
@@ -220,14 +219,14 @@ template <typename Json> Json migrate_sequence_operand(const Json &value, const 
 	throw MigrationError(path + ": this migration gate supports only Integer or exact {$ref:$rel} operands");
 }
 
-template <typename Json> Json migrate_boolean_relation(const Json &relation_value, const std::string &path)
+template <typename Json> Json migrate_frozen_if_relation(const Json &relation_value, const std::string &path)
 {
 	if (!relation_value.is_object() || relation_value.size() != 3 || !relation_value.contains("$rel") ||
 	    !relation_value.contains("$sub") || !relation_value.contains("$obj"))
 		throw MigrationError(path + ": expected exactly $rel, $sub and $obj for frozen Boolean branch");
 	if (!relation_value.at("$rel").is_string() ||
 	    relation_value.at("$rel").template get<std::string>() != "if_rel_then_obj_else_sub")
-		throw MigrationError(path + ".$rel: unsupported legacy Boolean relation");
+		throw MigrationError(path + ".$rel: expected frozen if_rel_then_obj_else_sub relation");
 
 	const std::int64_t false_branch = require_integer_operand(relation_value.at("$sub"), path + ".$sub");
 	const std::int64_t true_branch = require_integer_operand(relation_value.at("$obj"), path + ".$obj");
@@ -240,7 +239,9 @@ template <typename Json> Json migrate_sequence_relation(const Json &relation_val
 {
 	const std::string name = relation_name(relation_value, path);
 	if (name == "if_rel_then_obj_else_sub")
-		return migrate_boolean_relation<Json>(relation_value, path);
+		return migrate_frozen_if_relation<Json>(relation_value, path);
+	if (name.rfind("if_", 0) == 0)
+		throw MigrationError(path + ".$rel: unsupported legacy conditional relation in this frozen migration gate");
 
 	const char *relation_symbol = require_arithmetic_relation_symbol(relation_value, path);
 	Json application =
@@ -252,7 +253,11 @@ template <typename Json> Json migrate_sequence_relation(const Json &relation_val
 template <typename Json> Json migrate_sequence_item(const Json &value, const std::string &path)
 {
 	if (value.is_boolean())
-		return commit_relation_state<Json>(quote_boolean<Json>(value.template get<bool>()));
+	{
+		if (!value.template get<bool>())
+			throw MigrationError(path + ": only the frozen true Boolean sequence literal is supported");
+		return commit_relation_state<Json>(quote_frozen_true<Json>());
+	}
 	if (value.is_number_integer() || value.is_number_unsigned())
 		return commit_relation_state<Json>(quote_integer<Json>(require_integer_operand(value, path)));
 	if (value.is_object())
@@ -330,6 +335,11 @@ template <typename Json> Json migrate_relation(const Json &relation_value)
 	if (name == "foreachsub")
 		throw MigrationError(
 		    "$.$rel/result.$rel: legacy foreachsub is not supported by the frozen compatibility corpus");
+	if (name.rfind("if_", 0) == 0)
+	{
+		throw MigrationError(
+		    "$.$rel/result.$rel: legacy conditional is supported only inside the frozen sequence shape");
+	}
 	return migrate_direct_arithmetic_relation<Json>(relation_value);
 }
 
