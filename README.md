@@ -4,7 +4,7 @@
 
 AVM — экспериментальная виртуальная машина на C++20, построенная поверх Модели Отношений и канонического хранилища направленных связей.
 
-**Текущая публичная версия: 1.3.0.** Архитектурное развитие репозитория уже прошло этапы AVM 1.0–1.4; текущая ветка работ AVM 1.5 посвящена переносу существенной семантики `jsonRVM` в единый link-native runtime.
+**Текущая публичная версия: 1.3.0.** Архитектурное развитие репозитория прошло этапы AVM 1.0–1.4; AVM 1.5 собирает доказанный перенос выбранной семантики `jsonRVM` в единый link-native runtime без legacy fallback.
 
 ## Главная идея
 
@@ -170,33 +170,45 @@ AVM 1.4 построил слой инспекции поверх существ
 
 См. [сессию инспекции](docs/inspection-session.md), [команды инспекции](docs/inspection-commands.md) и [persistent inspection session](docs/persistent-inspection-session.md).
 
-## AVM 1.5 — перенос семантики Relations Model из jsonRVM
+## AVM 1.5 — доказанный перенос семантики Relations Model из jsonRVM
 
-Текущий этап развития отвечает на более сильный вопрос: может ли AVM быть не просто VM поверх дуплетов, а полноценным link-native исполнителем существенной семантики старого `jsonRVM`?
+AVM 1.5 отвечает на более сильный вопрос: может ли AVM исполнять существенную семантику старого `jsonRVM` через один canonical link-native runtime, не возвращая JSON interpreter?
 
-Representation problem уже решён. Оставшаяся задача — execution semantics.
-
-В `jsonRVM` самостоятельный смысл имеют все роли:
+Representation problem уже решён:
 
 ```text
-relation = controller
-subject  = view / receiver / manifestation
-object   = model / input
+(relation, subject, object) = Link(relation, Link(subject, object))
 ```
 
-Кроме этого, старый runtime содержит:
+Execution semantics переносилась evidence-driven gates. Pinned historical oracle:
 
-- текущий и родительские контексты `ent/rel/sub/obj`;
-- `$ent/$rel/$sub/$obj` и `$$...`;
-- абсолютные и относительные ссылки;
-- sequence/lambda/projection semantics;
-- `foreach` и дочерние контексты;
-- pure value vocabulary;
-- filesystem/HTTP/time/native эффекты.
+```text
+netkeep80/jsonRVM@843b3326141e090ccd1a106ba0a4a21ce72805b7
+runtime 3.0.0
+```
 
-AVM 1.5 переносит эти свойства без возврата к JSON interpreter. Главный epic — #122, первый активный gate — #123.
+Доказанный frozen corpus:
 
-В `main` уже есть versioned semantic inventory и frozen golden corpus, привязанные к конкретному commit `jsonRVM`. См. [совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md).
+```text
+CASE-ARITHMETIC                  -> 2
+CASE-SEQUENCE-ORDER              -> 3
+CASE-PURE-RELATION-COMPOSITION   -> 5
+CASE-FOREACH-CONTEXT             -> [1,2,3]
+CASE-BOOLEAN-BRANCH              -> 42
+CASE-MISSING-REFERENCE           -> typed source failure
+```
+
+Контексты `ent/rel/sub/obj`, current/parent references, ordered sequence, explicit relation-state transitions, foreach child contexts, lazy control и canonical values реализованы как link-native contracts. Pure result не означает скрытое `$rel := result`: semantic state меняется только через явный `ExecutionOutcome`.
+
+Для отсутствующей textual reference точная compatibility boundary доказана только для frozen marker `__avm_missing_reference_oracle__`, который даёт `MigrationFailureKind::UnresolvedReference`. Произвольный неподтверждённый `$ref` остаётся `InvalidSource` / unsupported; synthetic LinkId не создаётся.
+
+Native JSON и canonical Anum L3 сходятся к одной `ProjectionDescription -> find | realize -> LinkStore` semantics. Versioned `frontend-common-denotation/v1` доказывает в том числе shared-substructure convergence и исполнение общего `quote` root одним обычным `Executor` независимо от frontend provenance.
+
+Финальный persistent release proof использует context-sensitive program `1+1; $rel+3 -> 5`: canonical root materialize-ится один раз, затем тот же `PersistentLinkStore` открывается заново и existing root исполняется с сохранёнными vocabulary identities **без legacy JSON, remigration, reprojection и повторного realize**.
+
+Host effects не входят в proven pure AVM 1.5 subset. До переноса первого filesystem/HTTP/time/database/native effect обязателен отдельный capability gate #129.
+
+См. [совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md), [semantic migrator](docs/jsonrvm-semantic-migrator.md) и [доказательства готовности AVM 1.5](docs/avm-1.5-release-proof.md).
 
 ## Публичный API ядра
 
@@ -288,6 +300,8 @@ CI устанавливает пакет во временный prefix и со�
 - [Мост Anum L3→L4](docs/anum-l3-l4-bridge.md)
 - [Persistent LinkStore](docs/persistent-link-store.md)
 - [Совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md)
+- [Semantic migrator jsonRVM → AVM](docs/jsonrvm-semantic-migrator.md)
+- [Доказательства готовности AVM 1.5](docs/avm-1.5-release-proof.md)
 - [Политика релизов](docs/release-policy.md)
 - [Анализ проекта](analysis.md)
 - [План развития](plan.md)
