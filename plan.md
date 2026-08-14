@@ -72,7 +72,7 @@ Fail(ExecutionContext,phase)
 
 Observer не управляет исполнением. `BoundedExecutionTrace` ограничен, детерминирован и не является VM state. Persistent reopen сохраняет exact trace identity в одном logical store; независимые stores сравниваются с точностью до переименования opaque LinkIds.
 
-### AVM 1.4 — inspection tooling ✅
+### AVM 1.4 — инструменты инспекции ✅
 
 Типизированная `InspectionSession`, persistent inspection и scripted tooling используют существующие canonical APIs и один `Executor`; textual commands остаются presentation layer.
 
@@ -100,7 +100,7 @@ netkeep80/jsonRVM@843b3326141e090ccd1a106ba0a4a21ce72805b7
 runtime 3.0.0
 ```
 
-### Foundation gates #123–#128 ✅
+### Базовые gates #123–#128 ✅
 
 Завершены:
 
@@ -120,7 +120,7 @@ find/resolve/query != realize/write/effect
 textual frontend name != canonical LinkId
 ```
 
-### Frozen semantic migration ladder ✅
+### Лестница frozen semantic migration ✅
 
 Доказанный subset:
 
@@ -135,7 +135,7 @@ CASE-MISSING-REFERENCE           -> typed source failure #206/#211
 
 #174 semantic-migrator umbrella закрыт после этого минимального corpus и не является endless operator-porting backlog.
 
-#### Arithmetic / sequence / state
+#### Арифметика, sequence и state
 
 Pure Integer operations не мутируют semantic `$rel`. Legacy stateful composition выражается explicit canonical relations:
 
@@ -145,15 +145,15 @@ resolve_reference_relation
 apply_pure_relation
 ```
 
-#### Foreach
+#### Семантика foreach
 
 Используется существующий deterministic sibling-context runtime. Exact frozen body `{"$rel":"=","$obj":{"$ref":"$obj"}}` доказан только как Current.Object identity projection; generic assignment semantics не выводится из одного fixture.
 
-#### Boolean control
+#### Булево управление
 
 Existing lazy `if_relation` исправлен так, чтобы condition и выбранная branch сохраняли/thread-или `SemanticContextView`. Второй conditional executor не создан.
 
-#### Missing reference
+#### Отсутствующая reference
 
 После #211 evidence boundary точная:
 
@@ -167,7 +167,7 @@ arbitrary unproven textual $ref
 
 Unknown textual name не превращается в synthetic LinkId.
 
-### Gate #130 — JSON ↔ Anum common denotation ✅
+### Gate #130 — общее представление JSON ↔ Anum ✅
 
 PR #212 добавил versioned test-only corpus:
 
@@ -197,7 +197,7 @@ JSON может иметь две equal tree-occurrences `p`, Anum — один 
 
 Один ordinary `Executor` исполняет общий root независимо от frontend provenance.
 
-### Gate #131/#213 — persistent release proof ✅
+### Gate #131/#213 — persistent доказательство release ✅
 
 Финальный context-sensitive program:
 
