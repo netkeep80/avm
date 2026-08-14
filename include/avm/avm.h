@@ -18,6 +18,7 @@
 #include "avm/relations_query.h"
 #include "avm/semantic_context.h"
 #include "avm/semantic_execution.h"
+#include "avm/semantic_primitives.h"
 #include "avm/text_value.h"
 #include "avm/triune_primitives.h"
 #include "avm/version.h"
