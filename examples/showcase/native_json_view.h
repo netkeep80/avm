@@ -25,7 +25,6 @@ private:
 	LinkStore &store_;
 	BootstrapRuntime &runtime_;
 	IntegerVocabulary integers_;
-	TextVocabulary text_;
 	json_duplet::NativeLeafResolver resolver_;
 	std::string status_;
 
