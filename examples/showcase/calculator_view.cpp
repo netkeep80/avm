@@ -8,8 +8,9 @@
 namespace avm::showcase
 {
 
-CalculatorViewport::CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime, IntegerVocabulary integers)
-    : store_(store), runtime_(runtime), integers_(integers), calculator_(CalculatorVocabulary::create(store))
+CalculatorViewport::CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime)
+    : store_(store), runtime_(runtime), integers_(IntegerVocabulary::create(store)), text_(TextVocabulary::create(store)),
+      calculator_(CalculatorVocabulary::create(store)), native_json_view_(store, runtime, integers_, text_)
 {
 	register_integer_arithmetic(runtime_.executor(), integers_);
 	register_calculator_runtime(runtime_.executor(), runtime_.vocabulary(), integers_, calculator_);
@@ -177,6 +178,8 @@ void CalculatorViewport::draw(LinkId &selected_entity, std::optional<LinkId> &la
 
 	if (!last_error.empty())
 		ImGui::TextWrapped("failure: %s", last_error.c_str());
+
+	native_json_view_.draw(selected_entity, last_result, last_error, selected_trace);
 }
 
 } // namespace avm::showcase
