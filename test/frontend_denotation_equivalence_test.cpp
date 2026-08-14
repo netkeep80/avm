@@ -280,8 +280,8 @@ void verify_failure_matrix()
 	Harness harness;
 
 	avm::json_duplet::SymbolAnchors no_symbols;
-	const avm::json_duplet::NativeLeafResolver unresolved_json_resolver(harness.integers, harness.text,
-	                                                                  std::move(no_symbols));
+	const auto unresolved_json_resolver =
+	    avm::json_duplet::NativeLeafResolver(harness.integers, harness.text, std::move(no_symbols));
 	Json unresolved_document = Json::object();
 	unresolved_document["$avm"] = "duplet-json/1";
 	unresolved_document["$root"] = Json::object({{"$symbol", "missing"}});
@@ -317,12 +317,13 @@ void verify_failure_matrix()
 	const avm::LinkId missing = static_cast<avm::LinkId>(harness.store.size() + 1000);
 	assert(!harness.store.contains(missing));
 	avm::json_duplet::SymbolAnchors missing_symbol{{"missing", missing}};
-	const avm::json_duplet::NativeLeafResolver missing_json_resolver(harness.integers, harness.text,
-	                                                               std::move(missing_symbol));
+	const auto missing_json_resolver =
+	    avm::json_duplet::NativeLeafResolver(harness.integers, harness.text, std::move(missing_symbol));
 	const avm::ProjectionDescription missing_json =
 	    avm::json_duplet::project_duplet_document(unresolved_document, missing_json_resolver);
-	const auto missing_anum = avm::bridge_anum_denotation(
-	    unresolved_anum, [missing](std::string_view) -> std::optional<avm::LinkId> { return missing; });
+	const avm::AnumAnchorResolver missing_anum_resolver =
+	    [missing](std::string_view) -> std::optional<avm::LinkId> { return missing; };
+	const auto missing_anum = avm::bridge_anum_denotation(unresolved_anum, missing_anum_resolver);
 	assert(missing_anum.has_value());
 
 	const std::size_t before_missing_anchor = harness.store.size();
@@ -379,8 +380,8 @@ void verify_failure_matrix()
 	assert(harness.store.size() == before_malformed_anum);
 
 	avm::json_duplet::SymbolAnchors existing_symbol{{"a", existing}};
-	const avm::json_duplet::NativeLeafResolver existing_json_resolver(harness.integers, harness.text,
-	                                                                std::move(existing_symbol));
+	const auto existing_json_resolver =
+	    avm::json_duplet::NativeLeafResolver(harness.integers, harness.text, std::move(existing_symbol));
 	Json malformed_document = Json::object();
 	malformed_document["$avm"] = "duplet-json/1";
 	malformed_document["$root"] = Json::object({{"<<", Json::object({{"$symbol", "a"}})}});
