@@ -83,7 +83,7 @@ Unselected branch не должна:
 
 Focused core test использует intentionally failing unselected branch и bounded trace, чтобы это было executable invariant, а не только документация.
 
-## Frozen Boolean migration
+## Перенос frozen Boolean-сценария
 
 Pinned source:
 
