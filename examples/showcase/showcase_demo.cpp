@@ -3,12 +3,35 @@
 #include <GLFW/glfw3.h>
 
 #include <cstddef>
+#include <cstdlib>
 #include <fstream>
 #include <stdexcept>
 #include <vector>
 
 namespace avm::showcase
 {
+
+std::optional<std::string> framebuffer_capture_path_from_environment()
+{
+#ifdef _WIN32
+	char *value = nullptr;
+	std::size_t length = 0;
+	if (_dupenv_s(&value, &length, "AVM_SHOWCASE_SCREENSHOT_PPM") != 0)
+		throw std::runtime_error("cannot read AVM_SHOWCASE_SCREENSHOT_PPM");
+	if (value == nullptr)
+		return std::nullopt;
+	const std::string result(value);
+	std::free(value);
+#else
+	const char *value = std::getenv("AVM_SHOWCASE_SCREENSHOT_PPM");
+	if (value == nullptr)
+		return std::nullopt;
+	const std::string result(value);
+#endif
+	if (result.empty())
+		throw std::invalid_argument("AVM_SHOWCASE_SCREENSHOT_PPM must not be empty");
+	return result;
+}
 
 void write_framebuffer_ppm(const std::string &path, int width, int height)
 {
