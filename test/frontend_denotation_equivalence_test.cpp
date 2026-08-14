@@ -322,8 +322,7 @@ void verify_failure_matrix()
 	const avm::ProjectionDescription missing_json =
 	    avm::json_duplet::project_duplet_document(unresolved_document, missing_json_resolver);
 	const auto missing_anum = avm::bridge_anum_denotation(
-	    unresolved_anum,
-	    [missing](std::string_view) -> std::optional<avm::LinkId> { return missing; });
+	    unresolved_anum, [missing](std::string_view) -> std::optional<avm::LinkId> { return missing; });
 	assert(missing_anum.has_value());
 
 	const std::size_t before_missing_anchor = harness.store.size();
