@@ -81,9 +81,10 @@ avm::json_duplet::SymbolAnchors release_symbols(const PersistedReleaseState &sta
 
 void register_release_handlers(avm::BootstrapRuntime &runtime, const PersistedReleaseState &state)
 {
-	avm::validate_integer_vocabulary(runtime.store(), state.integers);
-	avm::validate_reference_vocabulary(runtime.store(), state.references);
-	avm::validate_semantic_execution_vocabulary(runtime.store(), state.semantic);
+	avm::LinkStore &store = runtime.executor().store();
+	avm::validate_integer_vocabulary(store, state.integers);
+	avm::validate_reference_vocabulary(store, state.references);
+	avm::validate_semantic_execution_vocabulary(store, state.semantic);
 	avm::register_integer_arithmetic(runtime.executor(), state.integers);
 	avm::register_semantic_execution_primitives(runtime.executor(), state.semantic, state.references,
 	                                           state.bootstrap.unit);
