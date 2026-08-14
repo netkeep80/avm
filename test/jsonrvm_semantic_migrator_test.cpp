@@ -363,6 +363,24 @@ int main(int argc, char **argv)
 	assert(malformed_reference_rejected);
 	assert(store.size() == before_missing_reference);
 
+	Json unproven_reference_body = Json::object();
+	unproven_reference_body["$ref"] = "another_unproven_name";
+	Json unproven_reference = Json::object();
+	unproven_reference["$rel/result"] = std::move(unproven_reference_body);
+	bool unproven_reference_rejected = false;
+	try
+	{
+		static_cast<void>(avm::jsonrvm_migration::migrate_program(unproven_reference));
+	}
+	catch (const avm::jsonrvm_migration::MigrationError &error)
+	{
+		unproven_reference_rejected = true;
+		assert(error.kind() == avm::jsonrvm_migration::MigrationFailureKind::InvalidSource);
+		assert(error.source_identity().empty());
+	}
+	assert(unproven_reference_rejected);
+	assert(store.size() == before_missing_reference);
+
 	assert(migration_rejected(Json::array()));
 	assert(migration_rejected(Json::object()));
 	assert(migration_rejected(arithmetic_fixture("%", 7, 3)));

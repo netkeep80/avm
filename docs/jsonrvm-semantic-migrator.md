@@ -64,7 +64,7 @@ compat/jsonrvm-oracle-golden.json
 | `CASE-PURE-RELATION-COMPOSITION` | `1+1; $rel+3 -> 5` | canonical reference + pure relation application + explicit commits | ✅ #197/#198 |
 | `CASE-FOREACH-CONTEXT` | `foreachobj [1,2,3] -> [1,2,3]` | existing foreach + `Current.Object` | ✅ #199/#200 |
 | `CASE-BOOLEAN-BRANCH` | `true; if -> 42` | context-preserving canonical lazy If + explicit commits | ✅ #202/#203 |
-| `CASE-MISSING-REFERENCE` | deterministic failure | typed unresolved textual reference before materialization | 🚧 #205 |
+| `CASE-MISSING-REFERENCE` | deterministic failure | exact-marker typed unresolved reference before materialization | ✅ #205/#206; boundary #209 |
 
 Эта таблица означает **доказанный semantic migration corpus**, а не полную совместимость со всем историческим `base.rm.h`.
 
@@ -245,7 +245,7 @@ false -> subject = 13
 
 Raw legacy `true` поддержан только в frozen evidence-backed executable context. Canonical AVM `false_value` существует и тестируется независимо, но raw legacy `false` не объявляется совместимым без отдельного oracle evidence.
 
-## Ошибка отсутствующей ссылки — #205
+## Ошибка отсутствующей ссылки — #205/#209
 
 Frozen source:
 
@@ -288,11 +288,11 @@ find / resolve / verify != realize / write
 
 ### Принятый failure boundary
 
-Для frozen case используется typed adapter failure **до** Native document/projection/execution:
+Typed `UnresolvedReference` доказан **только** для exact frozen marker:
 
 ```text
 legacy {$ref:"__avm_missing_reference_oracle__"}
- -> semantic adapter recognizes unresolved textual reference
+ -> semantic adapter recognizes exact frozen failure case
  -> MigrationFailureKind::UnresolvedReference
  -> structured source path + source identity
  -> no ProjectionDescription realization
@@ -300,7 +300,9 @@ legacy {$ref:"__avm_missing_reference_oracle__"}
  -> LinkStore unchanged
 ```
 
-`MigrationError` теперь несёт:
+Произвольный standalone textual `$ref:"some-other-name"` не имеет ни success-, ни failure-oracle evidence. Он остаётся `MigrationFailureKind::InvalidSource` / unsupported source и не получает inferred compatibility по аналогии.
+
+`MigrationError` для доказанного unresolved case несёт:
 
 ```text
 kind
@@ -309,7 +311,7 @@ source_identity
 human-readable what()
 ```
 
-Обычные malformed/unsupported source forms сохраняют `MigrationFailureKind::InvalidSource`.
+Обычные malformed/unsupported source forms сохраняют `MigrationFailureKind::InvalidSource` без ложного structured unresolved identity contract.
 
 Differential test сравнивает typed category и structured marker, а не полный `what()`.
 
@@ -318,21 +320,21 @@ Differential test сравнивает typed category и structured marker, а �
 Нужно различать:
 
 ```text
-A. unknown textual legacy name
-   -> frontend/migration name-resolution failure
+A. textual legacy name без доказанного resolution contract
+   -> frontend/migration InvalidSource или evidence-backed source failure
 
 B. caller already supplied canonical LinkId anchor,
    но anchor отсутствует в prepared store
    -> canonical find/realize miss/reject из #126
 ```
 
-#205 не превращает A в B через synthetic identity.
+#205/#209 не превращают A в B через synthetic identity.
 
 ### Почему пока нет generic name resolver API
 
-Frozen corpus содержит только intentional missing-name failure и не содержит доказанного success case произвольного named reference.
+Frozen corpus содержит только intentional missing-name failure exact marker и не содержит доказанного success case произвольного named reference.
 
-Поэтому #205 не вводит преждевременный global/callback resolver surface. Когда появится реальный success fixture/consumer, caller-owned textual-name resolver можно добавить evidence-driven, всё так же без доступа migrator-а к LinkStore и без hidden DB lookup.
+Поэтому #205/#209 не вводят преждевременный global/callback resolver surface. Когда появится реальный success fixture/consumer, caller-owned textual-name resolver можно добавить evidence-driven, всё так же без доступа migrator-а к LinkStore и без hidden DB lookup.
 
 ## Символьные anchors
 
@@ -369,7 +371,7 @@ observable_json_pointer
 
 `observable_json_pointer` — differential-harness metadata и не materialize-ится в LinkStore.
 
-Failure #205 не обязан создавать `MigrationResult`: unresolved source reference прекращает migration до Native document.
+Failure #205 не обязан создавать `MigrationResult`: evidence-backed unresolved source reference прекращает migration до Native document.
 
 ## Границы materialization
 
@@ -392,7 +394,7 @@ execute
     -> только явные effects canonical relations
 ```
 
-Для unresolved textual reference pipeline заканчивается на первом шаге:
+Для exact unresolved textual reference pipeline заканчивается на первом шаге:
 
 ```text
 migration failure -> no projection -> no realization -> no execution
@@ -427,7 +429,8 @@ Migrator детерминированно отвергает неподдерж�
 - missing/extra Boolean relation fields;
 - non-Integer Boolean branch values первого slice;
 - malformed top-level `$ref`;
-- frozen unresolved textual reference — отдельный typed `UnresolvedReference`.
+- arbitrary standalone textual `$ref` без evidence — `InvalidSource`;
+- exact frozen unresolved textual reference — отдельный typed `UnresolvedReference`.
 
 ## Дифференциальные доказательства
 
@@ -451,17 +454,17 @@ CASE-SEQUENCE-ORDER            -> 3
 CASE-PURE-RELATION-COMPOSITION -> 5
 CASE-FOREACH-CONTEXT           -> [1,2,3]
 CASE-BOOLEAN-BRANCH            -> 42
-CASE-MISSING-REFERENCE         -> typed unresolved-reference failure
+CASE-MISSING-REFERENCE         -> typed unresolved-reference failure for exact frozen marker
 ```
 
 ## Дальнейший план
 
-После #205 минимальный frozen corpus #123 считается закрытым.
+После #205/#209 минимальный frozen corpus #123 считается закрытым с точной evidence boundary.
 
 Следующий приоритет:
 
-1. #131 — собрать AVM 1.5 end-to-end release proof, включая persistent reopen без remigration;
-2. #130 — common-denotation JSON/Anum equivalence на реально общем subset;
+1. #130 — common-denotation JSON/Anum equivalence на реально общем subset;
+2. #131 — собрать AVM 1.5 end-to-end release proof, включая persistent reopen без remigration;
 3. #129 — capability/effect boundary до переноса первого FS/HTTP/time/database/native effect;
 4. дополнительные legacy constructs — только по реальному consumer/use-case и frozen evidence.
 
@@ -483,4 +486,5 @@ CASE-MISSING-REFERENCE         -> typed unresolved-reference failure
 12. legacy Boolean relation name не становится runtime opcode;
 13. unselected If branch не исполняется;
 14. unknown textual reference не создаёт fake LinkId;
-15. каждый новый supported construct получает oracle-backed conformance.
+15. arbitrary textual reference не получает compatibility без oracle evidence;
+16. каждый новый supported construct получает oracle-backed conformance.
