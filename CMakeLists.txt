@@ -353,7 +353,21 @@ if(AVM_BUILD_ANUM_ADAPTER_TESTS)
             "${CMAKE_CURRENT_SOURCE_DIR}/test/conformance/anum-denotation-conformance-v0.2.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/test/conformance/anum-recursive-denotation-conformance-v0.2.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/test/conformance/anum-v0.2-provenance.json")
-    add_custom_target(avm_anum_adapter_tests DEPENDS avm_anum_denotation_bridge_test)
+
+    add_executable(
+        avm_frontend_denotation_equivalence_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/frontend_denotation_equivalence_test.cpp")
+    avm_add_json_adapter_includes(avm_frontend_denotation_equivalence_test)
+    avm_apply_quality(avm_frontend_denotation_equivalence_test)
+    avm_enable_test_assertions(avm_frontend_denotation_equivalence_test)
+    add_test(
+        NAME frontend_denotation_equivalence_tests
+        COMMAND avm_frontend_denotation_equivalence_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/conformance/frontend-common-denotation-v1.json")
+
+    add_custom_target(
+        avm_anum_adapter_tests
+        DEPENDS avm_anum_denotation_bridge_test avm_frontend_denotation_equivalence_test)
 endif()
 
 if(AVM_BUILD_JSON_COMPAT_TESTS)
