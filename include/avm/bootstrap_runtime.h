@@ -447,9 +447,8 @@ private:
 			    {
 				    const ExecutionOutcome condition = executor.execute_outcome_in_context(
 				        arguments[0], context.semantic, context.entity, context.frame);
-				    const LinkId selected = require_lookup(
-				        lookup_relation_value(store_, vocabulary_.if_relation, condition.result),
-				        "If condition is not a Boolean value");
+				    const auto selector = lookup_relation_value(store_, vocabulary_.if_relation, condition.result);
+				    const LinkId selected = require_lookup(selector, "If condition is not a Boolean value");
 
 				    if (selected == vocabulary_.true_value)
 				    {
