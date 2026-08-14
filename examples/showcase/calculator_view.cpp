@@ -78,13 +78,13 @@ void CalculatorViewport::run_basic_demo(LinkId &selected_entity, std::optional<L
 
 	// Детерминированный walkthrough не имеет собственной арифметики: это те же event helpers, что вызывают кнопки.
 	require_step(press_digit(7, selected_entity, last_result, last_error, selected_trace), "7");
-	require_step(press_operation(calculator_.press_add_relation, selected_entity, last_result, last_error,
-	                             selected_trace),
-	             "+");
+	const bool add_succeeded =
+	    press_operation(calculator_.press_add_relation, selected_entity, last_result, last_error, selected_trace);
+	require_step(add_succeeded, "+");
 	require_step(press_digit(3, selected_entity, last_result, last_error, selected_trace), "3");
-	require_step(press_operation(calculator_.press_equals_relation, selected_entity, last_result, last_error,
-	                             selected_trace),
-	             "=");
+	const bool equals_succeeded =
+	    press_operation(calculator_.press_equals_relation, selected_entity, last_result, last_error, selected_trace);
+	require_step(equals_succeeded, "=");
 
 	const CalculatorState state =
 	    decode_calculator_state(store_, runtime_.vocabulary(), integers_, calculator_, current_state_);
@@ -168,7 +168,8 @@ void CalculatorViewport::draw(LinkId &selected_entity, std::optional<LinkId> &la
 			                selected_trace);
 		ImGui::TableNextColumn();
 		if (ImGui::Button("/", key_size))
-			press_operation(calculator_.press_divide_relation, selected_entity, last_result, last_error, selected_trace);
+			press_operation(calculator_.press_divide_relation, selected_entity, last_result, last_error,
+			                selected_trace);
 		ImGui::TableNextColumn();
 		if (ImGui::Button("=", key_size))
 			press_operation(calculator_.press_equals_relation, selected_entity, last_result, last_error, selected_trace);
