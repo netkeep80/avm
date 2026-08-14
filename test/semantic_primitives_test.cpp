@@ -36,11 +36,21 @@ struct SemanticProgram
 	avm::LinkId current_relation_state_reference;
 };
 
-SemanticProgram build_composition(avm::LinkStore &store, avm::BootstrapRuntime &runtime,
-                                  const avm::IntegerVocabulary &integers,
-                                  const avm::ReferenceVocabulary &references,
-                                  const avm::SemanticExecutionVocabulary &semantic)
+struct SemanticDependencies
 {
+	const avm::IntegerVocabulary &integers;
+	const avm::ReferenceVocabulary &references;
+	const avm::SemanticExecutionVocabulary &semantic;
+};
+
+SemanticProgram build_composition(avm::BootstrapRuntime &runtime, const SemanticDependencies &dependencies)
+{
+	avm::LinkStore &store = runtime.executor().store();
+	const avm::IntegerVocabulary &integers = dependencies.integers;
+	const avm::ReferenceVocabulary &references = dependencies.references;
+	const avm::SemanticExecutionVocabulary &semantic = dependencies.semantic;
+	const avm::LinkId unit = runtime.vocabulary().unit;
+
 	avm::ProgramBuilder builder = runtime.builder();
 	const avm::LinkId one = avm::realize_integer(store, integers, 1);
 	const avm::LinkId three = avm::realize_integer(store, integers, 3);
@@ -48,18 +58,16 @@ SemanticProgram build_composition(avm::LinkStore &store, avm::BootstrapRuntime &
 	const avm::LinkId quote_three = builder.literal(three);
 	const avm::LinkId current_relation_state_reference =
 	    avm::realize_context_role_reference(store, references, avm::ReferenceRole::RelationState);
-	const avm::LinkId read_relation_state = avm::materialize_reference_resolution(
-	    store, semantic, runtime.vocabulary().unit, current_relation_state_reference);
+	const avm::LinkId read_state =
+	    avm::materialize_reference_resolution(store, semantic, unit, current_relation_state_reference);
 
 	const avm::LinkId first_apply =
 	    avm::materialize_pure_relation_application(store, semantic, integers.add_relation, quote_one, quote_one);
-	const avm::LinkId first_commit =
-	    avm::materialize_relation_state_commit(store, semantic, runtime.vocabulary().unit, first_apply);
+	const avm::LinkId first_commit = avm::materialize_relation_state_commit(store, semantic, unit, first_apply);
 
-	const avm::LinkId second_apply = avm::materialize_pure_relation_application(
-	    store, semantic, integers.add_relation, read_relation_state, quote_three);
-	const avm::LinkId second_commit =
-	    avm::materialize_relation_state_commit(store, semantic, runtime.vocabulary().unit, second_apply);
+	const avm::LinkId second_apply =
+	    avm::materialize_pure_relation_application(store, semantic, integers.add_relation, read_state, quote_three);
+	const avm::LinkId second_commit = avm::materialize_relation_state_commit(store, semantic, unit, second_apply);
 
 	return SemanticProgram{
 	    runtime.builder().sequence({first_commit, second_commit}),
@@ -75,11 +83,13 @@ int main()
 {
 	avm::InMemoryLinkStore store;
 	avm::BootstrapRuntime runtime(store);
+	avm::Executor &executor = runtime.executor();
 	const avm::IntegerVocabulary integers = avm::IntegerVocabulary::create(store);
 	const avm::ReferenceVocabulary references = avm::ReferenceVocabulary::create(store);
 	const avm::SemanticExecutionVocabulary semantic = avm::SemanticExecutionVocabulary::create(store);
-	avm::register_integer_arithmetic(runtime.executor(), integers);
-	avm::register_semantic_execution_primitives(runtime.executor(), semantic, references, runtime.vocabulary().unit);
+	const SemanticDependencies dependencies{integers, references, semantic};
+	avm::register_integer_arithmetic(executor, integers);
+	avm::register_semantic_execution_primitives(executor, semantic, references, runtime.vocabulary().unit);
 
 	const avm::LinkId zero = avm::realize_integer(store, integers, 0);
 	const avm::LinkId semantic_entity = store.create_point();
@@ -93,22 +103,23 @@ int main()
 	});
 	const avm::SemanticContextView root_before = root;
 
-	const SemanticProgram program = build_composition(store, runtime, integers, references, semantic);
+	const SemanticProgram program = build_composition(runtime, dependencies);
 
 	const std::size_t before_reference_read = store.size();
-	const avm::LinkId reference_read = avm::materialize_reference_resolution(
-	    store, semantic, runtime.vocabulary().unit, program.current_relation_state_reference);
+	const avm::LinkId unit = runtime.vocabulary().unit;
+	const avm::LinkId reference = program.current_relation_state_reference;
+	const avm::LinkId reference_read = avm::materialize_reference_resolution(store, semantic, unit, reference);
 	const std::size_t after_reference_expression = store.size();
-	const avm::ExecutionOutcome reference_outcome = runtime.executor().execute_outcome_in_context(reference_read, root);
+	const avm::ExecutionOutcome reference_outcome = executor.execute_outcome_in_context(reference_read, root);
 	assert(reference_outcome.result == zero);
 	assert(reference_outcome.semantic == root);
 	assert(store.size() == after_reference_expression);
 	assert(after_reference_expression >= before_reference_read);
 
 	avm::BoundedExecutionTrace trace(128);
-	runtime.executor().set_observer(&trace);
+	executor.set_observer(&trace);
 
-	const avm::ExecutionOutcome pure_first = runtime.executor().execute_outcome_in_context(program.first_apply, root);
+	const avm::ExecutionOutcome pure_first = executor.execute_outcome_in_context(program.first_apply, root);
 	assert(avm::decode_integer(store, integers, pure_first.result) == 2);
 	assert(pure_first.semantic == root);
 	assert(root == root_before);
@@ -128,7 +139,7 @@ int main()
 	assert(saw_child_integer_add);
 
 	trace.reset();
-	const avm::ExecutionOutcome sequence = runtime.executor().execute_outcome_in_context(program.root, root);
+	const avm::ExecutionOutcome sequence = executor.execute_outcome_in_context(program.root, root);
 	assert(avm::decode_integer(store, integers, sequence.result) == 5);
 	assert(sequence.semantic.role(avm::SemanticContextRole::RelationState) == sequence.result);
 	assert(root == root_before);
@@ -143,16 +154,15 @@ int main()
 		    avm::decode_integer(store, integers, event.context.object) != 3)
 			continue;
 		assert(event.context.semantic.current().entity == program.second_apply);
-		const avm::LinkId observed_state =
-		    event.context.semantic.role(avm::SemanticContextRole::RelationState);
+		const avm::LinkId observed_state = event.context.semantic.role(avm::SemanticContextRole::RelationState);
 		assert(avm::decode_integer(store, integers, observed_state) == 2);
 		saw_second_add = true;
 	}
 	assert(saw_second_add);
 
-	runtime.executor().set_observer(nullptr);
+	executor.set_observer(nullptr);
 	const std::size_t converged_size = store.size();
-	const avm::ExecutionOutcome repeated = runtime.executor().execute_outcome_in_context(program.root, root);
+	const avm::ExecutionOutcome repeated = executor.execute_outcome_in_context(program.root, root);
 	assert(repeated.result == sequence.result);
 	assert(repeated.semantic == sequence.semantic);
 	assert(store.size() == converged_size);
@@ -166,7 +176,7 @@ int main()
 	const std::size_t before_missing_reference = store.size();
 	const auto execute_with_missing_reference = [&]
 	{
-		static_cast<void>(runtime.executor().execute_outcome_in_context(program.second_apply, missing_state));
+		static_cast<void>(executor.execute_outcome_in_context(program.second_apply, missing_state));
 	};
 	assert(rejected(execute_with_missing_reference));
 	assert(store.size() == before_missing_reference);
@@ -174,13 +184,12 @@ int main()
 	avm::ProgramBuilder builder = runtime.builder();
 	const avm::LinkId one = avm::realize_integer(store, integers, 1);
 	const avm::LinkId quote_one = builder.literal(one);
-	const avm::LinkId stateful_operand =
-	    avm::materialize_relation_state_commit(store, semantic, runtime.vocabulary().unit, quote_one);
+	const avm::LinkId stateful_operand = avm::materialize_relation_state_commit(store, semantic, unit, quote_one);
 	const avm::LinkId invalid_pure_application =
 	    avm::materialize_pure_relation_application(store, semantic, integers.add_relation, stateful_operand, quote_one);
 	const auto execute_stateful_operand = [&]
 	{
-		static_cast<void>(runtime.executor().execute_outcome_in_context(invalid_pure_application, root));
+		static_cast<void>(executor.execute_outcome_in_context(invalid_pure_application, root));
 	};
 	assert(rejected(execute_stateful_operand));
 
@@ -191,12 +200,12 @@ int main()
 			throw std::runtime_error("stateful target requires semantic context");
 		return avm::ExecutionOutcome{one, context.semantic.with_relation_state(one)};
 	};
-	runtime.executor().register_native(stateful_target, stateful_handler);
+	executor.register_native(stateful_target, stateful_handler);
 	const avm::LinkId invalid_pure_target =
 	    avm::materialize_pure_relation_application(store, semantic, stateful_target, quote_one, quote_one);
 	const auto execute_stateful_target = [&]
 	{
-		static_cast<void>(runtime.executor().execute_outcome_in_context(invalid_pure_target, root));
+		static_cast<void>(executor.execute_outcome_in_context(invalid_pure_target, root));
 	};
 	assert(rejected(execute_stateful_target));
 
@@ -230,8 +239,12 @@ int main()
 		    persistent_store.create_point(),
 		    persistent_store.create_point(),
 		};
-		const SemanticProgram persistent_program = build_composition(
-		    persistent_store, persistent_runtime, *persistent_integers, *persistent_references, *persistent_semantic);
+		const SemanticDependencies persistent_dependencies{
+		    *persistent_integers,
+		    *persistent_references,
+		    *persistent_semantic,
+		};
+		const SemanticProgram persistent_program = build_composition(persistent_runtime, persistent_dependencies);
 		persistent_root = persistent_program.root;
 		const avm::ExecutionOutcome outcome = persistent_runtime.executor().execute_outcome_in_context(
 		    persistent_root, avm::SemanticContextView::root(persistent_frame));
