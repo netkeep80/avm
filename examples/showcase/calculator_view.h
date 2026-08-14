@@ -12,8 +12,8 @@
 namespace avm::showcase
 {
 
-// Presentation adapter: it keeps only canonical LinkId/context handles required by the GUI event loop.
-// Arithmetic, state transitions and validation stay in calculator_model.h and the ordinary Executor.
+// Presentation-adapter хранит только canonical LinkId/context handles, нужные GUI event loop.
+// Арифметика, переходы состояния и валидация остаются в calculator_model.h и обычном Executor.
 class CalculatorViewport
 {
   public:
