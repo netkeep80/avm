@@ -61,6 +61,7 @@ inline constexpr const char *semantic_apply_pure_relation_symbol = "semantic_app
 inline constexpr const char *current_relation_state_reference_symbol = "current_relation_state_reference";
 inline constexpr const char *current_object_reference_symbol = "current_object_reference";
 inline constexpr const char *foreach_object_symbol = "foreach_object";
+inline constexpr const char *missing_reference_oracle_identity = "__avm_missing_reference_oracle__";
 
 inline const char *integer_relation_symbol(const std::string &legacy_operator)
 {
@@ -383,8 +384,14 @@ template <typename Json> MigrationResult<Json> migrate_program(const Json &legac
 		if (!reference.is_string())
 			throw MigrationError("$.$rel/result.$ref: legacy named reference must be a string");
 
-		// Текстовое имя без caller-owned binding не является LinkId: завершаем migration до projection/realize.
 		const std::string identity = reference.template get<std::string>();
+		// Только exact frozen marker имеет доказанную failure-семантику. Произвольное имя без caller-owned binding
+		// не становится LinkId и не получает inferred compatibility по аналогии.
+		if (identity != detail::missing_reference_oracle_identity)
+		{
+			throw MigrationError(
+			    "$.$rel/result.$ref: standalone legacy named reference is unsupported without frozen evidence");
+		}
 		throw MigrationError(MigrationFailureKind::UnresolvedReference, "$.$rel/result.$ref", identity,
 		                     "$.$rel/result.$ref: unresolved legacy named reference: " + identity);
 	}
