@@ -71,9 +71,15 @@ template <typename Json> Json tagged(const char *marker, Json value)
 	return result;
 }
 
-template <typename Json> Json symbol(const char *name) { return tagged<Json>("$symbol", name); }
+template <typename Json> Json symbol(const char *name)
+{
+	return tagged<Json>("$symbol", name);
+}
 
-template <typename Json> Json integer(std::int64_t value) { return tagged<Json>("$integer", value); }
+template <typename Json> Json integer(std::int64_t value)
+{
+	return tagged<Json>("$integer", value);
+}
 
 template <typename Json> Json duplet(Json begin, Json end)
 {
@@ -161,9 +167,9 @@ template <typename Json> Json migrate_sequence_operand(const Json &value, const 
 template <typename Json> Json migrate_sequence_relation(const Json &relation_value, const std::string &path)
 {
 	const char *relation_symbol = require_arithmetic_relation_symbol(relation_value, path);
-	Json application = apply_pure_relation<Json>(
-	    relation_symbol, migrate_sequence_operand(relation_value.at("$sub"), path + ".$sub"),
-	    migrate_sequence_operand(relation_value.at("$obj"), path + ".$obj"));
+	Json application =
+	    apply_pure_relation<Json>(relation_symbol, migrate_sequence_operand(relation_value.at("$sub"), path + ".$sub"),
+	                              migrate_sequence_operand(relation_value.at("$obj"), path + ".$obj"));
 	return commit_relation_state<Json>(std::move(application));
 }
 
@@ -207,8 +213,8 @@ template <typename Json> MigrationResult<Json> migrate_program(const Json &legac
 	const Json &body = legacy.at("$rel/result");
 	Json document = Json::object();
 	document["$avm"] = "duplet-json/1";
-	document["$root"] = body.is_array() ? detail::migrate_sequence<Json>(body)
-	                                    : detail::migrate_direct_arithmetic_relation<Json>(body);
+	document["$root"] =
+	    body.is_array() ? detail::migrate_sequence<Json>(body) : detail::migrate_direct_arithmetic_relation<Json>(body);
 	return MigrationResult<Json>{std::move(document), "/result"};
 }
 
