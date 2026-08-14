@@ -351,14 +351,15 @@ false -> subject
 
 ### Денотация Boolean
 
-Legacy raw `true` в supported executable sequence context компилируется не в raw JSON runtime value, а в caller-owned canonical singleton anchor:
+Legacy raw `true` в этом frozen executable sequence context компилируется не в raw JSON runtime value, а в caller-owned canonical singleton anchor:
 
 ```text
 bootstrap_true -> BootstrapVocabulary::true_value
-bootstrap_false -> BootstrapVocabulary::false_value
 ```
 
 Затем singleton передаётся через ordinary `quote` и explicit `commit_relation_state`.
+
+`BootstrapVocabulary::false_value` остаётся полноценным canonical Boolean AVM, но **raw legacy `false` не объявляется поддержанным source construct этого migration slice**: frozen corpus доказывает только `true`. Такой source детерминированно отвергается до появления отдельного oracle-backed evidence.
 
 Это не вводит универсальную implicit semantics для raw JSON Boolean во всех Native JSON contexts.
 
@@ -371,7 +372,6 @@ integer_add
 bootstrap_unit
 bootstrap_nil
 bootstrap_true
-bootstrap_false
 bootstrap_quote
 bootstrap_sequence
 bootstrap_if
@@ -454,6 +454,7 @@ Migrator детерминированно отвергает неподдерж�
 - modified/generic `=` foreach body;
 - non-Integer или empty collection первого foreach slice;
 - дополнительные ambiguous foreach fields;
+- raw legacy `false` в Boolean sequence без frozen evidence;
 - unknown `if_*` relation name;
 - missing/extra Boolean relation fields;
 - non-Integer Boolean branch values в первом frozen slice.
@@ -515,4 +516,5 @@ AVM -> canonical Integer(42), final semantic relation-state = Integer(42)
 11. generic legacy `=` не выводится из одного foreach fixture;
 12. legacy Boolean relation name не становится runtime opcode;
 13. unselected If branch никогда не исполняется;
-14. каждый новый supported construct получает oracle-backed conformance.
+14. raw legacy `false` не объявляется совместимым без отдельного oracle evidence;
+15. каждый новый supported construct получает oracle-backed conformance.
