@@ -296,7 +296,8 @@ if(AVM_BUILD_CORE_TESTS)
             "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/arithmetic-add.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/sequence-order.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/pure-relation-composition.json"
-            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/foreach-object-context.json")
+            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/foreach-object-context.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/compat/jsonrvm-legacy-fixtures/boolean-branch.json")
 
     add_custom_target(avm_core_tests DEPENDS
         avm_assertions_enabled_test
