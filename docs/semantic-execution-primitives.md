@@ -40,7 +40,7 @@ apply_pure_relation
 
 Caller создаёт или восстанавливает их явно так же, как `IntegerVocabulary`, `ReferenceVocabulary` и другие domain-specific vocabularies.
 
-## `commit_relation_state`
+## Операция `commit_relation_state`
 
 Canonical executable shape:
 
@@ -75,7 +75,7 @@ $rel := result
 
 но без C++ alias/lvalue.
 
-## `resolve_reference_relation`
+## Операция `resolve_reference_relation`
 
 Executable shape:
 
@@ -109,7 +109,7 @@ Role(Current, RelationState)
 
 а не controller identity `ExecutionContext.relation`.
 
-## `apply_pure_relation`
+## Операция `apply_pure_relation`
 
 Canonical shape:
 
@@ -121,13 +121,13 @@ Canonical shape:
 
 Это не второй evaluator. Relation только собирает dynamic operands и затем вызывает обычный canonical target entity через тот же `Executor`.
 
-### Operand phase
+### Фаза вычисления operands
 
 Оба operand expressions выполняются в caller semantic context.
 
 Каждый operand обязан быть state-neutral. Если operand пытается изменить semantic state, pure application отвергается. Это запрещает скрытый порядок state effects внутри «чистой» relation form.
 
-### Canonical target entity
+### Каноническая target entity
 
 После получения values materialize-ится или переиспользуется:
 
@@ -141,7 +141,7 @@ RelationEntity(target_relation, subject_value, object_value)
 
 Никакого synthetic manual dispatch в обход RelationEntity нет.
 
-### Child semantic context
+### Дочерний semantic context
 
 Target получает child semantic frame:
 
@@ -155,7 +155,7 @@ parent         = caller semantic context
 
 Таким образом relation form имеет meaningful `sub/obj`, а controller target relation остаётся `ExecutionContext.relation` вложенного dispatch.
 
-### Purity boundary
+### Граница чистоты
 
 Target handler должен вернуть тот же child semantic state:
 
@@ -176,7 +176,7 @@ ExecutionOutcome {
 
 Если result должен стать `$rel`, внешний `commit_relation_state` делает это явно.
 
-## Legacy sequence composition
+## Композиция legacy sequence
 
 Existing `BootstrapRuntime::sequence_relation` уже использует:
 
@@ -204,7 +204,7 @@ sequence([
 
 Final result = Integer(3), final relation-state = тот же LinkId.
 
-## Frozen pure relation composition
+## Frozen-композиция pure relation
 
 Legacy:
 
@@ -252,7 +252,7 @@ result = 5
 
 Это воспроизводит observable frozen oracle, не меняя pure Integer contract.
 
-## Materialization accounting
+## Учёт материализации
 
 Нужно различать фазы:
 
@@ -273,7 +273,7 @@ repeat after convergence
 
 Reference resolution сама по себе остаётся read-only.
 
-## Failure boundary
+## Граница ошибок
 
 Deterministic failures включают:
 
@@ -288,7 +288,7 @@ Deterministic failures включают:
 
 Явные effects, завершившиеся до более поздней failure, не откатываются: этот слой не является транзакцией.
 
-## Persistence
+## Персистентность
 
 Vocabularies и static program identities caller сохраняет явно.
 
