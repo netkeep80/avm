@@ -2,6 +2,7 @@
 #include "avm/execution_trace.h"
 #include "avm/triune_primitives.h"
 
+#include "calculator_view.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -46,6 +47,7 @@ struct ShowcaseModel
 	avm::BootstrapRuntime runtime;
 	avm::DirectTriuneVocabulary direct;
 	avm::BoundedExecutionTrace trace;
+	avm::showcase::CalculatorViewport calculator_view;
 
 	avm::LinkId subject_a = avm::invalid_link_id;
 	avm::LinkId subject_b = avm::invalid_link_id;
@@ -66,7 +68,8 @@ struct ShowcaseModel
 	std::size_t selected_trace = no_trace_selection;
 	bool use_semantic_context = true;
 
-	ShowcaseModel() : runtime(store), direct(avm::DirectTriuneVocabulary::create(store)), trace(256)
+	ShowcaseModel()
+	    : runtime(store), direct(avm::DirectTriuneVocabulary::create(store)), trace(256), calculator_view(store, runtime)
 	{
 		avm::register_direct_triune_primitives(runtime.executor(), direct);
 		runtime.executor().set_observer(&trace);
@@ -333,6 +336,7 @@ void draw_showcase(ShowcaseModel &model)
 
 		ImGui::TableNextColumn();
 		draw_playground(model);
+		model.calculator_view.draw(model.selected_entity, model.last_result, model.last_error, model.selected_trace);
 
 		ImGui::TableNextColumn();
 		draw_relation_graph(model);
