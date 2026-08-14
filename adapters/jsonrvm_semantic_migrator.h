@@ -1,7 +1,10 @@
 #pragma once
 
+#include "avm/link_store.h"
+
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -10,11 +13,46 @@
 namespace avm::jsonrvm_migration
 {
 
+enum class MigrationFailureKind
+{
+	UnsupportedSource,
+	UnresolvedReference,
+};
+
 class MigrationError : public std::runtime_error
 {
 public:
-	using std::runtime_error::runtime_error;
+	explicit MigrationError(std::string message)
+	    : std::runtime_error(std::move(message)), kind_(MigrationFailureKind::UnsupportedSource)
+	{
+	}
+
+	static MigrationError unresolved_reference(std::string source_path, std::string source_identity)
+	{
+		const std::string message = source_path + ": unresolved legacy reference: " + source_identity;
+		return MigrationError(MigrationFailureKind::UnresolvedReference, std::move(source_path),
+		                      std::move(source_identity), message);
+	}
+
+	MigrationFailureKind kind() const noexcept { return kind_; }
+
+	const std::string &source_path() const noexcept { return source_path_; }
+
+	const std::string &source_identity() const noexcept { return source_identity_; }
+
+private:
+	MigrationError(MigrationFailureKind kind, std::string source_path, std::string source_identity, std::string message)
+	    : std::runtime_error(std::move(message)), kind_(kind), source_path_(std::move(source_path)),
+	      source_identity_(std::move(source_identity))
+	{
+	}
+
+	MigrationFailureKind kind_;
+	std::string source_path_;
+	std::string source_identity_;
 };
+
+using LegacyNameBindings = std::map<std::string, LinkId>;
 
 template <typename Json> struct MigrationResult
 {
@@ -36,6 +74,7 @@ inline constexpr const char *semantic_resolve_reference_symbol = "semantic_resol
 inline constexpr const char *semantic_apply_pure_relation_symbol = "semantic_apply_pure_relation";
 inline constexpr const char *current_relation_state_reference_symbol = "current_relation_state_reference";
 inline constexpr const char *current_object_reference_symbol = "current_object_reference";
+inline constexpr const char *reference_named_symbol = "reference_named";
 inline constexpr const char *foreach_object_symbol = "foreach_object";
 
 inline const char *integer_relation_symbol(const std::string &legacy_operator)
@@ -78,6 +117,11 @@ template <typename Json> Json tagged(const char *marker, Json value)
 template <typename Json> Json symbol(const char *name)
 {
 	return tagged<Json>("$symbol", name);
+}
+
+template <typename Json> Json link(LinkId value)
+{
+	return tagged<Json>("$link", value);
 }
 
 template <typename Json> Json integer(std::int64_t value)
@@ -139,10 +183,15 @@ template <typename Json> Json commit_relation_state(Json value_expression)
 	                std::move(value_expression));
 }
 
-template <typename Json> Json resolve_reference_symbol(const char *reference_symbol)
+template <typename Json> Json resolve_reference(Json reference_expression)
 {
 	return relation(symbol<Json>(semantic_resolve_reference_symbol), symbol<Json>(bootstrap_unit_symbol),
-	                symbol<Json>(reference_symbol));
+	                std::move(reference_expression));
+}
+
+template <typename Json> Json resolve_reference_symbol(const char *reference_symbol)
+{
+	return resolve_reference<Json>(symbol<Json>(reference_symbol));
 }
 
 template <typename Json> Json resolve_current_relation_state()
@@ -153,6 +202,12 @@ template <typename Json> Json resolve_current_relation_state()
 template <typename Json> Json resolve_current_object()
 {
 	return resolve_reference_symbol<Json>(current_object_reference_symbol);
+}
+
+template <typename Json> Json resolve_named_reference(LinkId target)
+{
+	Json reference = duplet(symbol<Json>(reference_named_symbol), link<Json>(target));
+	return resolve_reference<Json>(std::move(reference));
 }
 
 template <typename Json>
@@ -207,6 +262,22 @@ template <typename Json> bool is_exact_current_role_reference(const Json &value,
 template <typename Json> bool is_current_relation_state_reference(const Json &value)
 {
 	return is_exact_current_role_reference(value, "$rel");
+}
+
+template <typename Json>
+Json migrate_named_reference(const Json &reference_value, const LegacyNameBindings &names, const std::string &path)
+{
+	if (!reference_value.is_object() || reference_value.size() != 1 || !reference_value.contains("$ref") ||
+	    !reference_value.at("$ref").is_string())
+		throw MigrationError(path + ": expected exact {$ref:string} named reference");
+
+	const std::string name = reference_value.at("$ref").template get<std::string>();
+	const auto binding = names.find(name);
+	if (binding == names.end())
+		throw MigrationError::unresolved_reference(path + ".$ref", name);
+	if (binding->second == invalid_link_id)
+		throw MigrationError(path + ".$ref: caller binding uses invalid LinkId");
+	return resolve_named_reference<Json>(binding->second);
 }
 
 template <typename Json> Json migrate_sequence_operand(const Json &value, const std::string &path)
@@ -345,7 +416,7 @@ template <typename Json> Json migrate_relation(const Json &relation_value)
 
 } // namespace detail
 
-template <typename Json> MigrationResult<Json> migrate_program(const Json &legacy)
+template <typename Json> MigrationResult<Json> migrate_program(const Json &legacy, const LegacyNameBindings &names)
 {
 	if (!legacy.is_object())
 		throw MigrationError("$: legacy jsonRVM program must be an object");
@@ -355,8 +426,18 @@ template <typename Json> MigrationResult<Json> migrate_program(const Json &legac
 	const Json &body = legacy.at("$rel/result");
 	Json document = Json::object();
 	document["$avm"] = "duplet-json/1";
-	document["$root"] = body.is_array() ? detail::migrate_sequence<Json>(body) : detail::migrate_relation<Json>(body);
+	if (body.is_object() && body.contains("$ref"))
+		document["$root"] = detail::migrate_named_reference<Json>(body, names, "$.$rel/result");
+	else if (body.is_array())
+		document["$root"] = detail::migrate_sequence<Json>(body);
+	else
+		document["$root"] = detail::migrate_relation<Json>(body);
 	return MigrationResult<Json>{std::move(document), "/result"};
+}
+
+template <typename Json> MigrationResult<Json> migrate_program(const Json &legacy)
+{
+	return migrate_program<Json>(legacy, LegacyNameBindings{});
 }
 
 } // namespace avm::jsonrvm_migration
