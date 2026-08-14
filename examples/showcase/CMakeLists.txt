@@ -39,9 +39,24 @@ target_link_libraries(avm_showcase_imgui PUBLIC glfw OpenGL::GL)
 add_executable(avm_showcase
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/calculator_view.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/native_json_view.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/showcase_demo.cpp")
-target_link_libraries(avm_showcase PRIVATE avm_core avm_showcase_imgui)
+target_link_libraries(avm_showcase PRIVATE avm_showcase_imgui)
+avm_add_json_adapter_includes(avm_showcase)
 avm_apply_quality(avm_showcase)
+
+add_executable(avm_native_json_examples_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../test/native_json_examples_test.cpp")
+avm_add_json_adapter_includes(avm_native_json_examples_test)
+avm_apply_quality(avm_native_json_examples_test)
+avm_enable_test_assertions(avm_native_json_examples_test)
+add_test(
+    NAME native_json_examples_tests
+    COMMAND avm_native_json_examples_test
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native-json/pair.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native-json/relation.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native-json/integer-add.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native-json/text.json")
 
 if(APPLE)
     target_compile_definitions(avm_showcase PRIVATE GL_SILENCE_DEPRECATION)
