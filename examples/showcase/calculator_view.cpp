@@ -32,7 +32,7 @@ void CalculatorViewport::execute_event(LinkId relation, LinkId input, LinkId &se
 	last_result.reset();
 	try
 	{
-		// UI materializes only the explicit user event; accepted headless semantics performs the transition.
+		// UI materialize-ит только явное пользовательское событие; переход выполняет принятая headless-семантика.
 		const LinkId entity = realize_calculator_event(store_, calculator_, relation, current_state_, input);
 		selected_entity = entity;
 		const ExecutionOutcome outcome = runtime_.executor().execute_outcome_in_context(entity, semantic_);
@@ -45,7 +45,7 @@ void CalculatorViewport::execute_event(LinkId relation, LinkId input, LinkId &se
 	}
 	catch (const std::exception &error)
 	{
-		// Failure is presentation data only: previous canonical state/context remain authoritative.
+		// Ошибка остаётся только presentation-данными: предыдущее canonical state/context сохраняет authority.
 		last_error = error.what();
 	}
 }
