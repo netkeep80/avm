@@ -321,9 +321,8 @@ void verify_failure_matrix()
 	    avm::json_duplet::NativeLeafResolver(harness.integers, harness.text, std::move(missing_symbol));
 	const avm::ProjectionDescription missing_json =
 	    avm::json_duplet::project_duplet_document(unresolved_document, missing_json_resolver);
-	const avm::AnumAnchorResolver missing_anum_resolver =
-	    [missing](std::string_view) -> std::optional<avm::LinkId> { return missing; };
-	const auto missing_anum = avm::bridge_anum_denotation(unresolved_anum, missing_anum_resolver);
+	const AnchorMap missing_anchors{{"missing", missing}};
+	const auto missing_anum = avm::bridge_anum_denotation(unresolved_anum, anum_resolver(missing_anchors));
 	assert(missing_anum.has_value());
 
 	const std::size_t before_missing_anchor = harness.store.size();
