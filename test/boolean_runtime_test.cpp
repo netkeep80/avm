@@ -1,4 +1,7 @@
 #include "avm/bootstrap_runtime.h"
+#include "avm/execution_trace.h"
+#include "avm/reference.h"
+#include "avm/semantic_primitives.h"
 
 #include <cassert>
 #include <stdexcept>
@@ -98,6 +101,83 @@ int main()
 		arity_rejected = true;
 	}
 	assert(arity_rejected);
+
+	const avm::ReferenceVocabulary references = avm::ReferenceVocabulary::create(store);
+	const avm::SemanticExecutionVocabulary semantic = avm::SemanticExecutionVocabulary::create(store);
+	avm::register_semantic_execution_primitives(runtime.executor(), semantic, references, v.unit);
+	const avm::LinkId current_relation_state_reference =
+	    avm::realize_context_role_reference(store, references, avm::ReferenceRole::RelationState);
+	const avm::LinkId read_relation_state =
+	    avm::materialize_reference_resolution(store, semantic, v.unit, current_relation_state_reference);
+
+	const avm::LinkId semantic_entity = store.create_point();
+	const avm::LinkId semantic_subject = store.create_point();
+	const avm::LinkId semantic_object = store.create_point();
+	const avm::SemanticContextView initial = avm::SemanticContextView::root(avm::SemanticContextFrame{
+	    semantic_entity,
+	    v.true_value,
+	    semantic_subject,
+	    semantic_object,
+	});
+	const avm::SemanticContextView initial_before = initial;
+
+	avm::BoundedExecutionTrace trace(64);
+	runtime.executor().set_observer(&trace);
+	const avm::LinkId semantic_lazy = builder.conditional(read_relation_state, f, failing_branch);
+	const avm::ExecutionOutcome semantic_lazy_outcome =
+	    runtime.executor().execute_outcome_in_context(semantic_lazy, initial);
+	assert(semantic_lazy_outcome.result == v.false_value);
+	assert(semantic_lazy_outcome.semantic == initial);
+	assert(initial == initial_before);
+	for (const avm::ExecutionEvent &event : trace.events())
+		assert(event.context.entity != failing_branch);
+
+	const avm::LinkId stateful_condition_relation = store.create_point();
+	const avm::LinkId stateful_condition = avm::encode_relation_entity(
+	    store, avm::RelationEntity{stateful_condition_relation, v.unit, v.nil});
+	runtime.executor().register_native(
+	    stateful_condition_relation,
+	    [&v](const avm::ExecutionContext &context, avm::Executor &)
+	    {
+		    if (!context.semantic)
+			    throw std::runtime_error("stateful Boolean condition requires semantic context");
+		    return avm::ExecutionOutcome{v.true_value, context.semantic.with_relation_state(v.false_value)};
+	    });
+
+	const avm::LinkId threaded_condition = builder.conditional(stateful_condition, read_relation_state, failing_branch);
+	const avm::ExecutionOutcome threaded_outcome =
+	    runtime.executor().execute_outcome_in_context(threaded_condition, initial);
+	assert(threaded_outcome.result == v.false_value);
+	assert(threaded_outcome.semantic.role(avm::SemanticContextRole::RelationState) == v.false_value);
+	assert(initial == initial_before);
+
+	const avm::LinkId commit_false =
+	    avm::materialize_relation_state_commit(store, semantic, v.unit, builder.literal(v.false_value));
+	const avm::LinkId branch_state_transition = builder.conditional(t, commit_false, failing_branch);
+	const avm::ExecutionOutcome branch_outcome =
+	    runtime.executor().execute_outcome_in_context(branch_state_transition, initial);
+	assert(branch_outcome.result == v.false_value);
+	assert(branch_outcome.semantic.role(avm::SemanticContextRole::RelationState) == v.false_value);
+	assert(initial == initial_before);
+
+	bool semantic_invalid_condition_rejected = false;
+	try
+	{
+		static_cast<void>(runtime.executor().execute_outcome_in_context(invalid_condition, initial));
+	}
+	catch (const std::runtime_error &)
+	{
+		semantic_invalid_condition_rejected = true;
+	}
+	assert(semantic_invalid_condition_rejected);
+
+	runtime.executor().set_observer(nullptr);
+	const std::size_t converged_size = store.size();
+	const avm::ExecutionOutcome repeated =
+	    runtime.executor().execute_outcome_in_context(threaded_condition, initial);
+	assert(repeated.result == threaded_outcome.result);
+	assert(repeated.semantic == threaded_outcome.semantic);
+	assert(store.size() == converged_size);
 
 	return 0;
 }
