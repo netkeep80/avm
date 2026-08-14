@@ -3,6 +3,7 @@
 #include "avm/triune_primitives.h"
 
 #include "calculator_view.h"
+#include "showcase_demo.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -380,6 +382,13 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
+	const char *screenshot_path = std::getenv("AVM_SHOWCASE_SCREENSHOT_PPM");
+	if (screenshot_path != nullptr && !calculator_basic_demo)
+	{
+		std::cerr << "AVM_SHOWCASE_SCREENSHOT_PPM requires --demo calculator-basic\n";
+		return 2;
+	}
+
 	glfwSetErrorCallback(glfw_error_callback);
 	if (glfwInit() == GLFW_FALSE)
 		return 1;
@@ -423,6 +432,7 @@ int main(int argc, char **argv)
 			model.calculator_view.run_basic_demo(model.selected_entity, model.last_result, model.last_error,
 			                                     model.selected_trace);
 
+		int rendered_frames = 0;
 		while (glfwWindowShouldClose(window) == GLFW_FALSE)
 		{
 			glfwPollEvents();
@@ -445,7 +455,15 @@ int main(int argc, char **argv)
 			glClearColor(0.08F, 0.08F, 0.10F, 1.0F);
 			glClear(GL_COLOR_BUFFER_BIT);
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+			++rendered_frames;
+			const bool capture_frame = screenshot_path != nullptr && rendered_frames >= 2;
+			if (capture_frame)
+				avm::showcase::write_framebuffer_ppm(screenshot_path, display_width, display_height);
+
 			glfwSwapBuffers(window);
+			if (capture_frame)
+				glfwSetWindowShouldClose(window, GLFW_TRUE);
 		}
 	}
 	catch (const std::exception &error)
