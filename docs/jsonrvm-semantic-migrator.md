@@ -252,7 +252,7 @@ ExecutionOutcome {
 
 Здесь не используются `quote` или `commit_relation_state`. Это важная source-context distinction: одинаковая JSON array surface form не определяет одну universal runtime semantics.
 
-## Boolean control — #202
+## Булевое управление — #202
 
 Frozen source:
 
@@ -312,7 +312,7 @@ return branch_outcome
 
 If сам не создаёт скрытого state transition. Если condition или branch меняют semantic state, это происходит только через их явный `ExecutionOutcome`.
 
-### Mapping frozen legacy relation
+### Отображение frozen legacy relation
 
 Exact relation:
 
@@ -349,7 +349,7 @@ false -> subject
 
 Никакого string dispatch `if_rel_then_obj_else_sub` в Executor нет: имя существует только в semantic compiler.
 
-### Boolean denotation
+### Денотация Boolean
 
 Legacy raw `true` в supported executable sequence context компилируется не в raw JSON runtime value, а в caller-owned canonical singleton anchor:
 
