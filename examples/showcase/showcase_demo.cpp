@@ -5,27 +5,10 @@
 #include <cstddef>
 #include <fstream>
 #include <stdexcept>
-#include <string_view>
 #include <vector>
 
 namespace avm::showcase
 {
-
-ShowcaseOptions parse_showcase_options(int argc, char **argv)
-{
-	if (argc == 1)
-		return {};
-
-	const bool calculator_basic =
-	    argc >= 3 && std::string_view(argv[1]) == "--demo" && std::string_view(argv[2]) == "calculator-basic";
-	if (!calculator_basic)
-		throw std::invalid_argument("usage: avm_showcase [--demo calculator-basic [--screenshot <path>]]");
-	if (argc == 3)
-		return ShowcaseOptions{true, std::nullopt};
-	if (argc == 5 && std::string_view(argv[3]) == "--screenshot")
-		return ShowcaseOptions{true, std::string(argv[4])};
-	throw std::invalid_argument("usage: avm_showcase [--demo calculator-basic [--screenshot <path>]]");
-}
 
 void write_framebuffer_ppm(const std::string &path, int width, int height)
 {
