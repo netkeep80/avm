@@ -253,8 +253,11 @@ template <typename Json> Json migrate_foreach_collection(const Json &collection,
 	std::vector<Json> items;
 	items.reserve(collection.size());
 	for (std::size_t index = 0; index < collection.size(); ++index)
-		items.push_back(integer<Json>(require_integer_operand(collection.at(index),
-		                                                      path + "[" + std::to_string(index) + "]")));
+	{
+		const std::int64_t item =
+		    require_integer_operand(collection.at(index), path + "[" + std::to_string(index) + "]");
+		items.push_back(integer<Json>(item));
+	}
 	return list<Json>(std::move(items));
 }
 
