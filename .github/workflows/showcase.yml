@@ -37,6 +37,8 @@ jobs:
           examples/showcase/main.cpp
           examples/showcase/calculator_view.cpp
           examples/showcase/calculator_view.h
+          examples/showcase/showcase_demo.cpp
+          examples/showcase/showcase_demo.h
 
   linux:
     name: Showcase / Linux
@@ -47,7 +49,7 @@ jobs:
       - name: Install window-system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xorg-dev libgl1-mesa-dev xvfb xdotool imagemagick
+          sudo apt-get install -y xorg-dev libgl1-mesa-dev xvfb imagemagick
       - name: Configure
         run: >-
           cmake -S . -B build-showcase
@@ -60,7 +62,7 @@ jobs:
           -DAVM_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build-showcase --target avm_showcase --parallel
-      - name: Run calculator demo and capture real UI
+      - name: Run calculator demo and capture real framebuffer
         shell: bash
         run: |
           set -euo pipefail
@@ -69,48 +71,23 @@ jobs:
           binary=$(find build-showcase -type f -name avm_showcase -perm -111 -print -quit)
           test -n "$binary"
           binary="$PWD/$binary"
+          ppm="$output_dir/avm-showcase-calculator-basic.ppm"
+          png="$output_dir/avm-showcase-calculator-basic.png"
+          log="$output_dir/calculator-basic.log"
 
-          xvfb-run -a --server-args="-screen 0 1600x1000x24" bash -c '
-            set -euo pipefail
-            export LIBGL_ALWAYS_SOFTWARE=1
-            binary="$1"
-            output_dir="$2"
-            log="$output_dir/calculator-basic.log"
-            screenshot="$output_dir/avm-showcase-calculator-basic.png"
+          xvfb-run -a --server-args="-screen 0 1600x1000x24" \
+            env LIBGL_ALWAYS_SOFTWARE=1 AVM_SHOWCASE_SCREENSHOT_PPM="$ppm" \
+            "$binary" --demo calculator-basic >"$log" 2>&1
 
-            "$binary" --demo calculator-basic >"$log" 2>&1 &
-            pid=$!
-            trap "kill $pid 2>/dev/null || true" EXIT
-
-            window=""
-            for _ in $(seq 1 100); do
-              if ! kill -0 "$pid" 2>/dev/null; then
-                cat "$log"
-                exit 1
-              fi
-              window=$(xdotool search --name "AVM Showcase" 2>/dev/null | head -n 1 || true)
-              if [ -n "$window" ]; then
-                break
-              fi
-              sleep 0.1
-            done
-            test -n "$window"
-            sleep 1
-
-            if ! kill -0 "$pid" 2>/dev/null; then
-              cat "$log"
-              exit 1
-            fi
-
-            import -display "$DISPLAY" -window "$window" "$screenshot"
-            test -s "$screenshot"
-            dimensions=$(identify -format "%w %h" "$screenshot")
-            colors=$(identify -format "%k" "$screenshot")
-            echo "screenshot: $dimensions, colors=$colors"
-            test "${colors:-0}" -gt 16
-          ' _ "$binary" "$output_dir"
-
-          file "$output_dir/avm-showcase-calculator-basic.png"
+          test -s "$ppm"
+          convert "$ppm" "$png"
+          test -s "$png"
+          dimensions=$(identify -format "%w %h" "$png")
+          colors=$(identify -format "%k" "$png")
+          echo "screenshot: $dimensions, colors=$colors"
+          test "${colors:-0}" -gt 16
+          file "$png"
+          rm "$ppm"
       - name: Upload calculator showcase evidence
         uses: actions/upload-artifact@v4
         with:
