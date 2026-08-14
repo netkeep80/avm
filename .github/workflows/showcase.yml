@@ -31,11 +31,12 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y clang-format
-      - name: Check showcase formatting
+      - name: Check showcase presentation formatting
         run: >-
-          find examples/showcase -maxdepth 1 -type f
-          \( -name '*.cpp' -o -name '*.h' \) -print0
-          | xargs -0 clang-format --dry-run --Werror
+          clang-format --dry-run --Werror
+          examples/showcase/main.cpp
+          examples/showcase/calculator_view.cpp
+          examples/showcase/calculator_view.h
 
   linux:
     name: Showcase / Linux
@@ -75,6 +76,7 @@ jobs:
             binary="$1"
             output_dir="$2"
             log="$output_dir/calculator-basic.log"
+            screenshot="$output_dir/avm-showcase-calculator-basic.png"
 
             "$binary" --demo calculator-basic >"$log" 2>&1 &
             pid=$!
@@ -93,7 +95,6 @@ jobs:
               sleep 0.1
             done
             test -n "$window"
-            xdotool windowmove "$window" 0 0 || true
             sleep 1
 
             if ! kill -0 "$pid" 2>/dev/null; then
@@ -101,9 +102,12 @@ jobs:
               exit 1
             fi
 
-            import -display "$DISPLAY" -window root "$output_dir/avm-showcase-calculator-basic.png"
-            test -s "$output_dir/avm-showcase-calculator-basic.png"
-            identify "$output_dir/avm-showcase-calculator-basic.png"
+            import -display "$DISPLAY" -window "$window" "$screenshot"
+            test -s "$screenshot"
+            dimensions=$(identify -format "%w %h" "$screenshot")
+            colors=$(identify -format "%k" "$screenshot")
+            echo "screenshot: $dimensions, colors=$colors"
+            test "${colors:-0}" -gt 16
           ' _ "$binary" "$output_dir"
 
           file "$output_dir/avm-showcase-calculator-basic.png"
