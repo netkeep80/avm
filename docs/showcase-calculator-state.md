@@ -60,7 +60,7 @@ entering_new_number = true | false
 
 `unit` означает отсутствие pending operation. Отдельный host enum/string registry не является authority.
 
-## Read и realize
+## Чтение и materialization
 
 ```text
 decode_calculator_state
@@ -80,7 +80,7 @@ realize_calculator_state
 read / validate != realize / write
 ```
 
-## Initial state
+## Начальное состояние
 
 Детерминированное начальное состояние:
 
@@ -93,7 +93,7 @@ entering_new_number = true
 
 Повторный clear сходится к той же canonical state identity при неизменной vocabulary.
 
-## Event entity
+## Сущность события
 
 Пользовательское действие кодируется обычной RelationEntity:
 
@@ -117,7 +117,7 @@ clear
 
 `press_digit` принимает canonical Integer `0..9`. Остальные события первого slice принимают `unit`.
 
-## Semantic state transition
+## Явный переход semantic state
 
 Calculator event требует explicit `SemanticContextView`, причём:
 
@@ -158,7 +158,7 @@ new_display = old_display * 10 + digit
 
 Checked overflow/division-by-zero semantics остаются единственными — из `IntegerVocabulary` runtime.
 
-## Operation semantics первого slice
+## Семантика операций первого slice
 
 При `press_add/subtract/multiply/divide`:
 
@@ -180,7 +180,7 @@ entering_new_number = true
 
 `clear` возвращает canonical initial state.
 
-## Failure semantics
+## Семантика ошибок
 
 Первый slice фиксирует:
 
@@ -193,7 +193,7 @@ entering_new_number = true
 
 Если event handler завершается ошибкой, next CalculatorState не публикуется через `ExecutionOutcome.semantic`.
 
-## Persistence
+## Persistent reopen
 
 Calculator vocabulary и states — обычные LinkIds.
 
@@ -209,7 +209,7 @@ SemanticContextFrame
 
 затем валидирует vocabularies и регистрирует existing Integer/calculator handlers. JSON/UI reconstruction не требуется.
 
-## Headless conformance
+## Headless-проверки
 
 `showcase_calculator_model_test.cpp` проверяет на in-memory и persistent stores:
 
