@@ -17,7 +17,7 @@ namespace avm::showcase
 class CalculatorViewport
 {
 public:
-	CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime);
+	CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime, IntegerVocabulary integers);
 
 	void draw(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
 	          std::size_t &selected_trace);
