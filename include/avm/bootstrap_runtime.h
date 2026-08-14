@@ -445,25 +445,29 @@ private:
 			    // хотя сам If остаётся тем же lazy relation и не вводит отдельный evaluator.
 			    if (context.semantic)
 			    {
-				    const ExecutionOutcome condition =
-				        executor.execute_outcome_in_context(arguments[0], context.semantic, context.entity, context.frame);
+				    const ExecutionOutcome condition = executor.execute_outcome_in_context(
+				        arguments[0], context.semantic, context.entity, context.frame);
 				    const LinkId selected = require_lookup(
 				        lookup_relation_value(store_, vocabulary_.if_relation, condition.result),
 				        "If condition is not a Boolean value");
 
 				    if (selected == vocabulary_.true_value)
-				        return executor.execute_outcome_in_context(arguments[1], condition.semantic, context.entity,
-				                                                   context.frame);
+				    {
+					    return executor.execute_outcome_in_context(arguments[1], condition.semantic, context.entity,
+					                                               context.frame);
+				    }
 				    if (selected == vocabulary_.false_value)
-				        return executor.execute_outcome_in_context(arguments[2], condition.semantic, context.entity,
-				                                                   context.frame);
+				    {
+					    return executor.execute_outcome_in_context(arguments[2], condition.semantic, context.entity,
+					                                               context.frame);
+				    }
 				    throw std::logic_error("If truth table returned a non-Boolean selector");
 			    }
 
 			    const LinkId condition = executor.execute(arguments[0], context.entity, context.frame);
-			    const LinkId selected = require_lookup(
-			        lookup_relation_value(store_, vocabulary_.if_relation, condition),
-			        "If condition is not a Boolean value");
+			    const LinkId selected =
+			        require_lookup(lookup_relation_value(store_, vocabulary_.if_relation, condition),
+			                       "If condition is not a Boolean value");
 
 			    if (selected == vocabulary_.true_value)
 				    return ExecutionOutcome{executor.execute(arguments[1], context.entity, context.frame)};
