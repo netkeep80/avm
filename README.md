@@ -273,6 +273,37 @@ AVM использует Semantic Versioning для документирован
 
 Backend не имеет права определять relations VM, query semantics, JSON rules, Anum grammar или execution semantics.
 
+## AVM Showcase — link-native калькулятор
+
+Опциональный Dear ImGui showcase демонстрирует тот же canonical runtime через графический интерфейс. Он собирается только при `AVM_BUILD_IMGUI_DEMO=ON` и не добавляет GUI-зависимости в установленный `avm::core`.
+
+Windows helper:
+
+```text
+build_showcase.bat
+```
+
+Либо CMake напрямую:
+
+```text
+cmake -S . -B build-showcase -DAVM_BUILD_IMGUI_DEMO=ON
+cmake --build build-showcase --config Release --target avm_showcase --parallel
+```
+
+Детерминированный walkthrough:
+
+```text
+avm_showcase --demo calculator-basic
+```
+
+выполняет `7 -> + -> 3 -> =` через те же calculator event helpers и тот же `Executor`, что используются интерактивными кнопками. Отдельной demo-арифметики или второго calculator state machine нет.
+
+После walkthrough UI показывает canonical `Integer(10)`. Relation graph читает фактическую выбранную `(relation, subject, object)` сущность события, а `BoundedExecutionTrace` наблюдает тот же Executor и вложенные Integer calls. Controller `context.relation` остаётся relation исполняемого события; semantic `$rel` — явное relation-state и после успешного calculator event переходит в возвращённый canonical state через `ExecutionOutcome`.
+
+Focused Linux CI запускает реальный `avm_showcase --demo calculator-basic` под Xvfb + Mesa software OpenGL и публикует screenshot/log artifact `avm-showcase-calculator-basic`. Screenshot не является mockup и не использует координатные клики для выполнения семантики.
+
+См. [детерминированный walkthrough AVM Showcase](docs/showcase-walkthrough.md).
+
 ## Воспроизводимая проверка репозитория
 
 ```bash
@@ -302,6 +333,7 @@ CI устанавливает пакет во временный prefix и со�
 - [Совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md)
 - [Semantic migrator jsonRVM → AVM](docs/jsonrvm-semantic-migrator.md)
 - [Доказательства готовности AVM 1.5](docs/avm-1.5-release-proof.md)
+- [Детерминированный walkthrough AVM Showcase](docs/showcase-walkthrough.md)
 - [Политика релизов](docs/release-policy.md)
 - [Анализ проекта](analysis.md)
 - [План развития](plan.md)
