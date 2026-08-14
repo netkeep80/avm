@@ -72,6 +72,20 @@ Json foreach_fixture(Json collection, const char *relation_name = "foreachobj", 
 	return fixture;
 }
 
+Json boolean_sequence_fixture(Json false_branch, Json true_branch,
+                              const char *relation_name = "if_rel_then_obj_else_sub")
+{
+	Json relation = Json::object();
+	relation["$obj"] = std::move(true_branch);
+	relation["$rel"] = relation_name;
+	relation["$sub"] = std::move(false_branch);
+
+	Json sequence = Json::array();
+	sequence.push_back(true);
+	sequence.push_back(std::move(relation));
+	return sequence_fixture(std::move(sequence));
+}
+
 bool migration_rejected(const Json &legacy)
 {
 	try
@@ -109,8 +123,11 @@ std::vector<std::int64_t> decode_integer_list(const avm::LinkStore &store, avm::
 
 int main(int argc, char **argv)
 {
-	if (argc != 5)
-		throw std::runtime_error("expected arithmetic, sequence-order, pure-composition and foreach fixture paths");
+	if (argc != 6)
+	{
+		throw std::runtime_error(
+		    "expected arithmetic, sequence-order, pure-composition, foreach and Boolean fixture paths");
+	}
 
 	avm::InMemoryLinkStore store;
 	avm::BootstrapRuntime runtime(store);
@@ -135,8 +152,11 @@ int main(int argc, char **argv)
 	symbols.emplace("integer_divide", integers.divide_relation);
 	symbols.emplace("bootstrap_unit", runtime.vocabulary().unit);
 	symbols.emplace("bootstrap_nil", runtime.vocabulary().nil);
+	symbols.emplace("bootstrap_true", runtime.vocabulary().true_value);
+	symbols.emplace("bootstrap_false", runtime.vocabulary().false_value);
 	symbols.emplace("bootstrap_quote", runtime.vocabulary().quote_relation);
 	symbols.emplace("bootstrap_sequence", runtime.vocabulary().sequence_relation);
+	symbols.emplace("bootstrap_if", runtime.vocabulary().if_relation);
 	symbols.emplace("semantic_commit_relation_state", semantic.commit_relation_state);
 	symbols.emplace("semantic_resolve_reference", semantic.resolve_reference_relation);
 	symbols.emplace("semantic_apply_pure_relation", semantic.apply_pure_relation);
@@ -250,6 +270,55 @@ int main(int argc, char **argv)
 	assert(repeated_foreach.semantic == foreach_outcome.semantic);
 	assert(store.size() == before_foreach_execution);
 
+	Json frozen_boolean = load_json(argv[5]);
+	const auto boolean_migration = avm::jsonrvm_migration::migrate_program(frozen_boolean);
+	assert(boolean_migration.observable_json_pointer == "/result");
+	assert(boolean_migration.document.at("$avm") == "duplet-json/1");
+	frozen_boolean.clear();
+	const avm::LinkId boolean_program = project_and_realize(store, resolver, boolean_migration.document);
+	const avm::RelationEntity boolean_sequence = avm::decode_relation_entity(store, boolean_program);
+	assert(boolean_sequence.relation == runtime.vocabulary().sequence_relation);
+	const std::vector<avm::LinkId> boolean_steps =
+	    avm::decode_link_list(store, runtime.vocabulary().nil, boolean_sequence.object);
+	assert(boolean_steps.size() == 2);
+
+	const avm::RelationEntity true_commit = avm::decode_relation_entity(store, boolean_steps[0]);
+	assert(true_commit.relation == semantic.commit_relation_state);
+	const avm::RelationEntity true_quote = avm::decode_relation_entity(store, true_commit.object);
+	assert(true_quote.relation == runtime.vocabulary().quote_relation);
+	assert(true_quote.object == runtime.vocabulary().true_value);
+
+	const avm::RelationEntity branch_commit = avm::decode_relation_entity(store, boolean_steps[1]);
+	assert(branch_commit.relation == semantic.commit_relation_state);
+	const avm::RelationEntity conditional = avm::decode_relation_entity(store, branch_commit.object);
+	assert(conditional.relation == runtime.vocabulary().if_relation);
+	const std::vector<avm::LinkId> branch_arguments =
+	    avm::decode_link_list(store, runtime.vocabulary().nil, conditional.object);
+	assert(branch_arguments.size() == 3);
+	const avm::RelationEntity branch_condition = avm::decode_relation_entity(store, branch_arguments[0]);
+	assert(branch_condition.relation == semantic.resolve_reference_relation);
+	assert(branch_condition.object == current_relation_state_reference);
+	const avm::RelationEntity true_branch = avm::decode_relation_entity(store, branch_arguments[1]);
+	const avm::RelationEntity false_branch = avm::decode_relation_entity(store, branch_arguments[2]);
+	assert(true_branch.relation == runtime.vocabulary().quote_relation);
+	assert(false_branch.relation == runtime.vocabulary().quote_relation);
+	assert(avm::decode_integer(store, integers, true_branch.object) == 42);
+	assert(avm::decode_integer(store, integers, false_branch.object) == 13);
+
+	const std::size_t before_boolean_execution = store.size();
+	const avm::ExecutionOutcome boolean_outcome =
+	    runtime.executor().execute_outcome_in_context(boolean_program, initial);
+	assert(avm::decode_integer(store, integers, boolean_outcome.result) == 42);
+	assert(boolean_outcome.semantic.role(avm::SemanticContextRole::RelationState) == boolean_outcome.result);
+	assert(initial.role(avm::SemanticContextRole::RelationState) == zero);
+	assert(store.size() == before_boolean_execution);
+
+	const avm::ExecutionOutcome repeated_boolean =
+	    runtime.executor().execute_outcome_in_context(boolean_program, initial);
+	assert(repeated_boolean.result == boolean_outcome.result);
+	assert(repeated_boolean.semantic == boolean_outcome.semantic);
+	assert(store.size() == before_boolean_execution);
+
 	assert(migration_rejected(Json::array()));
 	assert(migration_rejected(Json::object()));
 	assert(migration_rejected(arithmetic_fixture("%", 7, 3)));
@@ -289,6 +358,20 @@ int main(int argc, char **argv)
 	Json ambiguous_foreach = foreach_fixture(Json::array({1, 2, 3}));
 	ambiguous_foreach["$rel/result"]["extra"] = true;
 	assert(migration_rejected(ambiguous_foreach));
+
+	assert(migration_rejected(boolean_sequence_fixture("thirteen", 42)));
+	assert(migration_rejected(boolean_sequence_fixture(13, 42, "if_rel_then_sub_else_obj")));
+	Json ambiguous_boolean = boolean_sequence_fixture(13, 42);
+	ambiguous_boolean["$rel/result"][1]["extra"] = true;
+	assert(migration_rejected(ambiguous_boolean));
+
+	Json incomplete_boolean = Json::object();
+	incomplete_boolean["$rel"] = "if_rel_then_obj_else_sub";
+	incomplete_boolean["$sub"] = 13;
+	Json incomplete_boolean_sequence = Json::array();
+	incomplete_boolean_sequence.push_back(true);
+	incomplete_boolean_sequence.push_back(std::move(incomplete_boolean));
+	assert(migration_rejected(sequence_fixture(std::move(incomplete_boolean_sequence))));
 
 	return 0;
 }
