@@ -112,8 +112,7 @@ int main(int argc, char **argv)
 	const avm::LinkId text_root = avm::realize_projection(store, text_description).root;
 	assert(avm::decode_text(store, text, text_root) == utf8_bytes("Привет, AVM"));
 
-	const std::string unknown_symbol =
-	    R"({"$avm":"duplet-json/1","$root":{"$symbol":"not_declared"}})";
+	const std::string unknown_symbol = R"({"$avm":"duplet-json/1","$root":{"$symbol":"not_declared"}})";
 	const std::size_t before_unknown = store.size();
 	bool rejected = false;
 	try
