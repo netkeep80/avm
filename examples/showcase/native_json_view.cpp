@@ -28,13 +28,13 @@ constexpr const char *integer_add_source = R"json({
 
 json_duplet::SymbolAnchors native_symbols(const BootstrapVocabulary &bootstrap, const IntegerVocabulary &integers)
 {
-	return {
-	    {"false", bootstrap.false_value},
-	    {"integer_add", integers.add_relation},
-	    {"nil", bootstrap.nil},
-	    {"true", bootstrap.true_value},
-	    {"unit", bootstrap.unit},
-	};
+	json_duplet::SymbolAnchors symbols;
+	symbols.emplace_back("false", bootstrap.false_value);
+	symbols.emplace_back("integer_add", integers.add_relation);
+	symbols.emplace_back("nil", bootstrap.nil);
+	symbols.emplace_back("true", bootstrap.true_value);
+	symbols.emplace_back("unit", bootstrap.unit);
+	return symbols;
 }
 
 } // namespace
@@ -56,8 +56,8 @@ ProjectionDescription NativeJsonViewport::project_source() const
 	return description;
 }
 
-void NativeJsonViewport::find_only(LinkId &selected_entity, std::optional<LinkId> &last_result,
-                                   std::string &last_error, std::size_t &selected_trace)
+void NativeJsonViewport::find_only(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
+                                   std::size_t &selected_trace)
 {
 	selected_trace = std::numeric_limits<std::size_t>::max();
 	last_error.clear();
