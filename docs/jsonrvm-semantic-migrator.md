@@ -1,4 +1,4 @@
-# Semantic migrator jsonRVM → AVM
+# Семантический мигратор jsonRVM → AVM
 
 Родительская задача: #174. Первый executable gate: #195. Native Duplet JSON umbrella: #169.
 
@@ -129,7 +129,7 @@ value computation != state transition
 
 остаётся истинным и после полной миграции.
 
-## Observable output metadata
+## Метаданные наблюдаемого результата
 
 `MigrationResult` содержит:
 
@@ -163,7 +163,7 @@ observable_json_pointer
 
 Runtime arithmetic failures, например division by zero, остаются ответственностью canonical Integer relation и не эмулируются migrator-ом.
 
-## Lifetime boundary
+## Граница владения и времени жизни
 
 После `migrate_program` исходный legacy JSON DOM больше не нужен.
 
@@ -171,7 +171,7 @@ Native document является самостоятельным внешним a
 
 Это исключает возврат старой архитектуры, где JSON одновременно был AST, data model и mutable runtime state.
 
-## Differential evidence
+## Дифференциальные доказательства
 
 Для каждого поддержанного construct нужны два независимых доказательства:
 
