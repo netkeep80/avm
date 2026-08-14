@@ -73,8 +73,9 @@ void expect_state(const CalculatorSession &session, std::int64_t display, std::i
 	assert(avm::decode_integer(session.store, session.integers, state.display) == display);
 	assert(avm::decode_integer(session.store, session.integers, state.accumulator) == accumulator);
 	assert(state.pending_operation == pending_operation);
-	const avm::LinkId expected_flag = entering_new_number ? session.runtime.vocabulary().true_value
-	                                                      : session.runtime.vocabulary().false_value;
+	avm::LinkId expected_flag = session.runtime.vocabulary().false_value;
+	if (entering_new_number)
+		expected_flag = session.runtime.vocabulary().true_value;
 	assert(state.entering_new_number == expected_flag);
 	assert(session.semantic.role(avm::SemanticContextRole::RelationState) == state.entity);
 }
