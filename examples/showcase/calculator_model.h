@@ -198,8 +198,9 @@ inline LinkId apply_calculator_pending_operation(const ExecutionContext &context
                                                  const BootstrapVocabulary &bootstrap,
                                                  const IntegerVocabulary &integers, const CalculatorState &state)
 {
-	if (state.pending_operation == bootstrap.unit)
-		throw std::invalid_argument("calculator state has no pending arithmetic operation");
+	if (!is_calculator_pending_operation(bootstrap, integers, state.pending_operation) ||
+	    state.pending_operation == bootstrap.unit)
+		throw std::invalid_argument("calculator state has no canonical pending arithmetic operation");
 	return execute_calculator_integer_relation(context, executor, state.pending_operation, state.accumulator,
 	                                           state.display);
 }
