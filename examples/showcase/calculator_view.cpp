@@ -8,9 +8,8 @@
 namespace avm::showcase
 {
 
-CalculatorViewport::CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime)
-    : store_(store), runtime_(runtime), integers_(IntegerVocabulary::create(store)),
-      calculator_(CalculatorVocabulary::create(store))
+CalculatorViewport::CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime, IntegerVocabulary integers)
+    : store_(store), runtime_(runtime), integers_(integers), calculator_(CalculatorVocabulary::create(store))
 {
 	register_integer_arithmetic(runtime_.executor(), integers_);
 	register_calculator_runtime(runtime_.executor(), runtime_.vocabulary(), integers_, calculator_);
