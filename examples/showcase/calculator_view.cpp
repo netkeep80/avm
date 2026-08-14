@@ -52,19 +52,18 @@ bool CalculatorViewport::execute_event(LinkId relation, LinkId input, LinkId &se
 	}
 }
 
-bool CalculatorViewport::press_digit(std::int64_t value, LinkId &selected_entity,
-                                     std::optional<LinkId> &last_result, std::string &last_error,
-                                     std::size_t &selected_trace)
+bool CalculatorViewport::press_digit(std::int64_t value, LinkId &selected_entity, std::optional<LinkId> &last_result,
+                                     std::string &last_error, std::size_t &selected_trace)
 {
 	return execute_event(calculator_.press_digit_relation, realize_integer(store_, integers_, value), selected_entity,
 	                     last_result, last_error, selected_trace);
 }
 
-bool CalculatorViewport::press_operation(LinkId relation, LinkId &selected_entity,
-                                         std::optional<LinkId> &last_result, std::string &last_error,
-                                         std::size_t &selected_trace)
+bool CalculatorViewport::press_operation(LinkId relation, LinkId &selected_entity, std::optional<LinkId> &last_result,
+                                         std::string &last_error, std::size_t &selected_trace)
 {
-	return execute_event(relation, runtime_.vocabulary().unit, selected_entity, last_result, last_error, selected_trace);
+	return execute_event(relation, runtime_.vocabulary().unit, selected_entity, last_result, last_error,
+	                     selected_trace);
 }
 
 void CalculatorViewport::run_basic_demo(LinkId &selected_entity, std::optional<LinkId> &last_result,
@@ -82,8 +81,8 @@ void CalculatorViewport::run_basic_demo(LinkId &selected_entity, std::optional<L
 	    press_operation(calculator_.press_add_relation, selected_entity, last_result, last_error, selected_trace);
 	require_step(add_succeeded, "+");
 	require_step(press_digit(3, selected_entity, last_result, last_error, selected_trace), "3");
-	const bool equals_succeeded =
-	    press_operation(calculator_.press_equals_relation, selected_entity, last_result, last_error, selected_trace);
+	const bool equals_succeeded = press_operation(calculator_.press_equals_relation, selected_entity, last_result,
+	                                              last_error, selected_trace);
 	require_step(equals_succeeded, "=");
 
 	const CalculatorState state =
@@ -168,8 +167,7 @@ void CalculatorViewport::draw(LinkId &selected_entity, std::optional<LinkId> &la
 			                selected_trace);
 		ImGui::TableNextColumn();
 		if (ImGui::Button("/", key_size))
-			press_operation(calculator_.press_divide_relation, selected_entity, last_result, last_error,
-			                selected_trace);
+			press_operation(calculator_.press_divide_relation, selected_entity, last_result, last_error, selected_trace);
 		ImGui::TableNextColumn();
 		if (ImGui::Button("=", key_size))
 			press_operation(calculator_.press_equals_relation, selected_entity, last_result, last_error, selected_trace);
