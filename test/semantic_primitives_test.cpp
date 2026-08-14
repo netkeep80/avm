@@ -7,7 +7,6 @@
 
 #include <cassert>
 #include <filesystem>
-#include <functional>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -15,11 +14,11 @@
 namespace
 {
 
-bool rejected(const std::function<void()> &operation)
+bool execution_rejected(avm::Executor &executor, avm::LinkId entity, const avm::SemanticContextView &context)
 {
 	try
 	{
-		operation();
+		static_cast<void>(executor.execute_outcome_in_context(entity, context));
 		return false;
 	}
 	catch (const std::exception &)
@@ -174,8 +173,7 @@ int main()
 	    semantic_object,
 	});
 	const std::size_t before_missing_reference = store.size();
-	const auto execute_with_missing_reference = [&] { executor.execute_outcome_in_context(program.second_apply, missing_state); };
-	assert(rejected(execute_with_missing_reference));
+	assert(execution_rejected(executor, program.second_apply, missing_state));
 	assert(store.size() == before_missing_reference);
 
 	avm::ProgramBuilder builder = runtime.builder();
@@ -184,8 +182,7 @@ int main()
 	const avm::LinkId stateful_operand = avm::materialize_relation_state_commit(store, semantic, unit, quote_one);
 	const avm::LinkId invalid_pure_application =
 	    avm::materialize_pure_relation_application(store, semantic, integers.add_relation, stateful_operand, quote_one);
-	const auto execute_stateful_operand = [&] { executor.execute_outcome_in_context(invalid_pure_application, root); };
-	assert(rejected(execute_stateful_operand));
+	assert(execution_rejected(executor, invalid_pure_application, root));
 
 	const avm::LinkId stateful_target = store.create_point();
 	const auto stateful_handler = [one](const avm::ExecutionContext &context, avm::Executor &)
@@ -197,8 +194,7 @@ int main()
 	executor.register_native(stateful_target, stateful_handler);
 	const avm::LinkId invalid_pure_target =
 	    avm::materialize_pure_relation_application(store, semantic, stateful_target, quote_one, quote_one);
-	const auto execute_stateful_target = [&] { executor.execute_outcome_in_context(invalid_pure_target, root); };
-	assert(rejected(execute_stateful_target));
+	assert(execution_rejected(executor, invalid_pure_target, root));
 
 	const std::filesystem::path persistent_path =
 	    std::filesystem::temp_directory_path() / "avm_semantic_primitives_test.links";
