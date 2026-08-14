@@ -7,9 +7,23 @@
 
 namespace avm::showcase
 {
+namespace
+{
+
+IntegerVocabulary create_showcase_integers(LinkStore &store)
+{
+	return IntegerVocabulary::create(store);
+}
+
+TextVocabulary create_showcase_text(LinkStore &store)
+{
+	return TextVocabulary::create(store);
+}
+
+} // namespace
 
 CalculatorViewport::CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime)
-    : store_(store), runtime_(runtime), integers_(IntegerVocabulary::create(store)), text_(TextVocabulary::create(store)),
+    : store_(store), runtime_(runtime), integers_(create_showcase_integers(store)), text_(create_showcase_text(store)),
       calculator_(CalculatorVocabulary::create(store)), native_json_view_(store, runtime, integers_, text_)
 {
 	register_integer_arithmetic(runtime_.executor(), integers_);
