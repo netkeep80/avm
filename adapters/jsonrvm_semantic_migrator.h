@@ -10,6 +10,7 @@
 namespace avm::jsonrvm_migration
 {
 
+// Это классификация ошибок именно legacy-adapter boundary, а не общая runtime error ontology AVM.
 enum class MigrationFailureKind
 {
 	InvalidSource,
@@ -382,6 +383,7 @@ template <typename Json> MigrationResult<Json> migrate_program(const Json &legac
 		if (!reference.is_string())
 			throw MigrationError("$.$rel/result.$ref: legacy named reference must be a string");
 
+		// Текстовое имя без caller-owned binding не является LinkId: завершаем migration до projection/realize.
 		const std::string identity = reference.template get<std::string>();
 		throw MigrationError(MigrationFailureKind::UnresolvedReference, "$.$rel/result.$ref", identity,
 		                     "$.$rel/result.$ref: unresolved legacy named reference: " + identity);
