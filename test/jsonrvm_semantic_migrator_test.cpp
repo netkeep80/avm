@@ -14,6 +14,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -24,11 +25,11 @@ namespace
 
 using Json = nlohmann::ordered_json;
 
-Json load_json(const char *path)
+Json load_json(const std::filesystem::path &path)
 {
 	std::ifstream stream(path);
 	if (!stream)
-		throw std::runtime_error(std::string("cannot open fixture: ") + path);
+		throw std::runtime_error("cannot open fixture: " + path.string());
 	Json value;
 	stream >> value;
 	return value;
@@ -317,6 +318,50 @@ int main(int argc, char **argv)
 	assert(repeated_boolean.result == boolean_outcome.result);
 	assert(repeated_boolean.semantic == boolean_outcome.semantic);
 	assert(store.size() == before_boolean_execution);
+
+	const std::filesystem::path fixture_directory = std::filesystem::path(argv[1]).parent_path();
+	Json frozen_missing_reference = load_json(fixture_directory / "missing-reference.json");
+	const Json &missing_body = frozen_missing_reference.at("$rel/result");
+	assert(missing_body.is_object());
+	assert(missing_body.size() == 1);
+	assert(missing_body.contains("$ref"));
+	const std::string missing_identity = missing_body.at("$ref").template get<std::string>();
+	assert(missing_identity == "__avm_missing_reference_oracle__");
+
+	const std::size_t before_missing_reference = store.size();
+	bool missing_reference_rejected = false;
+	try
+	{
+		static_cast<void>(avm::jsonrvm_migration::migrate_program(frozen_missing_reference));
+	}
+	catch (const avm::jsonrvm_migration::MigrationError &error)
+	{
+		missing_reference_rejected = true;
+		assert(error.kind() == avm::jsonrvm_migration::MigrationFailureKind::UnresolvedReference);
+		assert(error.source_path() == "$.$rel/result.$ref");
+		assert(error.source_identity() == missing_identity);
+		assert(std::string(error.what()).find(missing_identity) != std::string::npos);
+	}
+	assert(missing_reference_rejected);
+	assert(store.size() == before_missing_reference);
+
+	Json malformed_reference_body = Json::object();
+	malformed_reference_body["$ref"] = 42;
+	Json malformed_reference = Json::object();
+	malformed_reference["$rel/result"] = std::move(malformed_reference_body);
+	bool malformed_reference_rejected = false;
+	try
+	{
+		static_cast<void>(avm::jsonrvm_migration::migrate_program(malformed_reference));
+	}
+	catch (const avm::jsonrvm_migration::MigrationError &error)
+	{
+		malformed_reference_rejected = true;
+		assert(error.kind() == avm::jsonrvm_migration::MigrationFailureKind::InvalidSource);
+		assert(error.source_identity().empty());
+	}
+	assert(malformed_reference_rejected);
+	assert(store.size() == before_missing_reference);
 
 	assert(migration_rejected(Json::array()));
 	assert(migration_rejected(Json::object()));
