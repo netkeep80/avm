@@ -41,7 +41,7 @@ json_duplet::SymbolAnchors native_symbols(const BootstrapVocabulary &bootstrap, 
 
 NativeJsonViewport::NativeJsonViewport(LinkStore &store, BootstrapRuntime &runtime, IntegerVocabulary integers,
                                        TextVocabulary text)
-    : store_(store), runtime_(runtime), integers_(integers), text_(text),
+    : store_(store), runtime_(runtime), integers_(integers),
       resolver_(integers, text, native_symbols(runtime.vocabulary(), integers))
 {
 }
