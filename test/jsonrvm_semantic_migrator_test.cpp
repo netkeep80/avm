@@ -63,8 +63,7 @@ int main(int argc, char **argv)
 		throw std::runtime_error("expected arithmetic fixture path");
 
 	const Json frozen = load_json(argv[1]);
-	const avm::jsonrvm_migration::MigrationResult<Json> migration =
-	    avm::jsonrvm_migration::migrate_program(frozen);
+	const avm::jsonrvm_migration::MigrationResult<Json> migration = avm::jsonrvm_migration::migrate_program(frozen);
 
 	assert(migration.observable_json_pointer == "/result");
 	assert(migration.document.is_object());
