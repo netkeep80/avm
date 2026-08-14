@@ -2,6 +2,7 @@
 #include "jsonrvm_semantic_migrator.h"
 
 #include "avm/bootstrap_runtime.h"
+#include "avm/foreach_runtime.h"
 #include "avm/integer_value.h"
 #include "avm/projection.h"
 #include "avm/reference.h"
@@ -16,6 +17,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -51,6 +53,25 @@ Json sequence_fixture(Json sequence)
 	return fixture;
 }
 
+Json foreach_fixture(Json collection, const char *relation_name = "foreachobj", const char *reference = "$obj")
+{
+	Json item_reference = Json::object();
+	item_reference["$ref"] = reference;
+
+	Json body = Json::object();
+	body["$obj"] = std::move(item_reference);
+	body["$rel"] = "=";
+
+	Json relation = Json::object();
+	relation["$obj"] = std::move(collection);
+	relation["$rel"] = relation_name;
+	relation["$sub"] = std::move(body);
+
+	Json fixture = Json::object();
+	fixture["$rel/result"] = std::move(relation);
+	return fixture;
+}
+
 bool migration_rejected(const Json &legacy)
 {
 	try
@@ -75,12 +96,21 @@ avm::LinkId project_and_realize(avm::LinkStore &store, const avm::json_duplet::N
 	return avm::realize_projection(store, description).root;
 }
 
+std::vector<std::int64_t> decode_integer_list(const avm::LinkStore &store, avm::LinkId list_nil, avm::LinkId head,
+                                              const avm::IntegerVocabulary &integers)
+{
+	std::vector<std::int64_t> values;
+	for (const avm::LinkId item : avm::decode_link_list(store, list_nil, head))
+		values.push_back(avm::decode_integer(store, integers, item));
+	return values;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
 {
-	if (argc != 4)
-		throw std::runtime_error("expected arithmetic, sequence-order and pure-composition fixture paths");
+	if (argc != 5)
+		throw std::runtime_error("expected arithmetic, sequence-order, pure-composition and foreach fixture paths");
 
 	avm::InMemoryLinkStore store;
 	avm::BootstrapRuntime runtime(store);
@@ -88,11 +118,15 @@ int main(int argc, char **argv)
 	const avm::TextVocabulary text = avm::TextVocabulary::create(store);
 	const avm::ReferenceVocabulary references = avm::ReferenceVocabulary::create(store);
 	const avm::SemanticExecutionVocabulary semantic = avm::SemanticExecutionVocabulary::create(store);
+	const avm::ForeachVocabulary foreach = avm::ForeachVocabulary::create(store);
 	avm::register_integer_arithmetic(runtime.executor(), integers);
 	avm::register_semantic_execution_primitives(runtime.executor(), semantic, references, runtime.vocabulary().unit);
+	avm::register_foreach_runtime(runtime.executor(), foreach, runtime.vocabulary().nil);
 
 	const avm::LinkId current_relation_state_reference =
 	    avm::realize_context_role_reference(store, references, avm::ReferenceRole::RelationState);
+	const avm::LinkId current_object_reference =
+	    avm::realize_context_role_reference(store, references, avm::ReferenceRole::Object);
 
 	avm::json_duplet::SymbolAnchors symbols;
 	symbols.emplace("integer_add", integers.add_relation);
@@ -107,6 +141,8 @@ int main(int argc, char **argv)
 	symbols.emplace("semantic_resolve_reference", semantic.resolve_reference_relation);
 	symbols.emplace("semantic_apply_pure_relation", semantic.apply_pure_relation);
 	symbols.emplace("current_relation_state_reference", current_relation_state_reference);
+	symbols.emplace("current_object_reference", current_object_reference);
+	symbols.emplace("foreach_object", foreach.object_relation);
 	const avm::json_duplet::NativeLeafResolver resolver(integers, text, symbols);
 
 	Json frozen_arithmetic = load_json(argv[1]);
@@ -175,11 +211,44 @@ int main(int argc, char **argv)
 	assert(composition_outcome.semantic.role(avm::SemanticContextRole::RelationState) == composition_outcome.result);
 	assert(initial.role(avm::SemanticContextRole::RelationState) == zero);
 
-	const std::size_t converged_size = store.size();
-	const avm::ExecutionOutcome repeated = runtime.executor().execute_outcome_in_context(composition_program, initial);
-	assert(repeated.result == composition_outcome.result);
-	assert(repeated.semantic == composition_outcome.semantic);
-	assert(store.size() == converged_size);
+	const std::size_t composition_converged_size = store.size();
+	const avm::ExecutionOutcome repeated_composition =
+	    runtime.executor().execute_outcome_in_context(composition_program, initial);
+	assert(repeated_composition.result == composition_outcome.result);
+	assert(repeated_composition.semantic == composition_outcome.semantic);
+	assert(store.size() == composition_converged_size);
+
+	Json frozen_foreach = load_json(argv[4]);
+	const auto foreach_migration = avm::jsonrvm_migration::migrate_program(frozen_foreach);
+	assert(foreach_migration.observable_json_pointer == "/result");
+	assert(foreach_migration.document.at("$avm") == "duplet-json/1");
+	frozen_foreach.clear();
+	const avm::LinkId foreach_program = project_and_realize(store, resolver, foreach_migration.document);
+	const avm::RelationEntity foreach_entity = avm::decode_relation_entity(store, foreach_program);
+	assert(foreach_entity.relation == foreach.object_relation);
+	assert(decode_integer_list(store, runtime.vocabulary().nil, foreach_entity.object, integers) ==
+	       std::vector<std::int64_t>({1, 2, 3}));
+
+	const avm::RelationEntity foreach_body = avm::decode_relation_entity(store, foreach_entity.subject);
+	assert(foreach_body.relation == semantic.resolve_reference_relation);
+	assert(foreach_body.subject == runtime.vocabulary().unit);
+	assert(foreach_body.object == current_object_reference);
+
+	const std::size_t before_foreach_execution = store.size();
+	const avm::ExecutionOutcome foreach_outcome =
+	    runtime.executor().execute_outcome_in_context(foreach_program, initial);
+	assert(foreach_outcome.result == foreach_entity.object);
+	assert(decode_integer_list(store, runtime.vocabulary().nil, foreach_outcome.result, integers) ==
+	       std::vector<std::int64_t>({1, 2, 3}));
+	assert(foreach_outcome.semantic == initial);
+	assert(initial.role(avm::SemanticContextRole::RelationState) == zero);
+	assert(store.size() == before_foreach_execution);
+
+	const avm::ExecutionOutcome repeated_foreach =
+	    runtime.executor().execute_outcome_in_context(foreach_program, initial);
+	assert(repeated_foreach.result == foreach_outcome.result);
+	assert(repeated_foreach.semantic == foreach_outcome.semantic);
+	assert(store.size() == before_foreach_execution);
 
 	assert(migration_rejected(Json::array()));
 	assert(migration_rejected(Json::object()));
@@ -207,6 +276,19 @@ int main(int argc, char **argv)
 	Json unsupported_sequence = Json::array();
 	unsupported_sequence.push_back(std::move(unsupported_relation.at("$rel/result")));
 	assert(migration_rejected(sequence_fixture(std::move(unsupported_sequence))));
+
+	assert(migration_rejected(foreach_fixture(Json::array({1, 2, 3}), "foreachsub")));
+	assert(migration_rejected(foreach_fixture(Json::array({1, 2, 3}), "foreachobj", "$sub")));
+	assert(migration_rejected(foreach_fixture(Json::array({1, "two", 3}))));
+	assert(migration_rejected(foreach_fixture(Json::array())));
+
+	Json modified_foreach = foreach_fixture(Json::array({1, 2, 3}));
+	modified_foreach["$rel/result"]["$sub"]["$sub"] = 0;
+	assert(migration_rejected(modified_foreach));
+
+	Json ambiguous_foreach = foreach_fixture(Json::array({1, 2, 3}));
+	ambiguous_foreach["$rel/result"]["extra"] = true;
+	assert(migration_rejected(ambiguous_foreach));
 
 	return 0;
 }
