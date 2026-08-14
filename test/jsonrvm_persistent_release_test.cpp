@@ -82,12 +82,12 @@ avm::json_duplet::SymbolAnchors release_symbols(const PersistedReleaseState &sta
 void register_release_handlers(avm::BootstrapRuntime &runtime, const PersistedReleaseState &state)
 {
 	avm::LinkStore &store = runtime.executor().store();
+	avm::Executor &executor = runtime.executor();
 	avm::validate_integer_vocabulary(store, state.integers);
 	avm::validate_reference_vocabulary(store, state.references);
 	avm::validate_semantic_execution_vocabulary(store, state.semantic);
-	avm::register_integer_arithmetic(runtime.executor(), state.integers);
-	avm::register_semantic_execution_primitives(runtime.executor(), state.semantic, state.references,
-	                                           state.bootstrap.unit);
+	avm::register_integer_arithmetic(executor, state.integers);
+	avm::register_semantic_execution_primitives(executor, state.semantic, state.references, state.bootstrap.unit);
 }
 
 avm::SemanticContextView initial_context(const PersistedReleaseState &state)
@@ -195,7 +195,8 @@ int main(int argc, char **argv)
 		state = import_once(store, argv[1]);
 	}
 
-	// Reopen-фаза намеренно получает только canonical LinkIds одного logical store: source JSON и projection уже уничтожены.
+	// Reopen-фаза получает только canonical LinkIds одного logical store.
+	// Source JSON и projection к этому моменту уже уничтожены.
 	{
 		avm::PersistentLinkStore reopened(path);
 		assert_reopen_executes_without_remigration(reopened, state);
