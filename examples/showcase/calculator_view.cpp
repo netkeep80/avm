@@ -23,7 +23,7 @@ CalculatorViewport::CalculatorViewport(LinkStore &store, BootstrapRuntime &runti
 	});
 }
 
-void CalculatorViewport::execute_event(LinkId relation, LinkId input, LinkId &selected_entity,
+bool CalculatorViewport::execute_event(LinkId relation, LinkId input, LinkId &selected_entity,
                                        std::optional<LinkId> &last_result, std::string &last_error,
                                        std::size_t &selected_trace)
 {
@@ -42,27 +42,54 @@ void CalculatorViewport::execute_event(LinkId relation, LinkId input, LinkId &se
 		current_state_ = outcome.result;
 		semantic_ = outcome.semantic;
 		last_result = outcome.result;
+		return true;
 	}
 	catch (const std::exception &error)
 	{
 		// Ошибка остаётся только presentation-данными: предыдущее canonical state/context сохраняет authority.
 		last_error = error.what();
+		return false;
 	}
 }
 
-void CalculatorViewport::press_digit(std::int64_t value, LinkId &selected_entity,
+bool CalculatorViewport::press_digit(std::int64_t value, LinkId &selected_entity,
                                      std::optional<LinkId> &last_result, std::string &last_error,
                                      std::size_t &selected_trace)
 {
-	execute_event(calculator_.press_digit_relation, realize_integer(store_, integers_, value), selected_entity,
-	              last_result, last_error, selected_trace);
+	return execute_event(calculator_.press_digit_relation, realize_integer(store_, integers_, value), selected_entity,
+	                     last_result, last_error, selected_trace);
 }
 
-void CalculatorViewport::press_operation(LinkId relation, LinkId &selected_entity,
+bool CalculatorViewport::press_operation(LinkId relation, LinkId &selected_entity,
                                          std::optional<LinkId> &last_result, std::string &last_error,
                                          std::size_t &selected_trace)
 {
-	execute_event(relation, runtime_.vocabulary().unit, selected_entity, last_result, last_error, selected_trace);
+	return execute_event(relation, runtime_.vocabulary().unit, selected_entity, last_result, last_error, selected_trace);
+}
+
+void CalculatorViewport::run_basic_demo(LinkId &selected_entity, std::optional<LinkId> &last_result,
+                                        std::string &last_error, std::size_t &selected_trace)
+{
+	const auto require_step = [&last_error](bool success, const char *step)
+	{
+		if (!success)
+			throw std::runtime_error(std::string("calculator-basic failed at ") + step + ": " + last_error);
+	};
+
+	// Детерминированный walkthrough не имеет собственной арифметики: это те же event helpers, что вызывают кнопки.
+	require_step(press_digit(7, selected_entity, last_result, last_error, selected_trace), "7");
+	require_step(press_operation(calculator_.press_add_relation, selected_entity, last_result, last_error,
+	                             selected_trace),
+	             "+");
+	require_step(press_digit(3, selected_entity, last_result, last_error, selected_trace), "3");
+	require_step(press_operation(calculator_.press_equals_relation, selected_entity, last_result, last_error,
+	                             selected_trace),
+	             "=");
+
+	const CalculatorState state =
+	    decode_calculator_state(store_, runtime_.vocabulary(), integers_, calculator_, current_state_);
+	if (decode_integer(store_, integers_, state.display) != 10)
+		throw std::logic_error("calculator-basic did not finish with canonical Integer(10)");
 }
 
 void CalculatorViewport::draw(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
