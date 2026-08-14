@@ -150,8 +150,8 @@ template <typename Json> std::string relation_name(const Json &relation_value, c
 	return encoded_relation.template get<std::string>();
 }
 
-template <typename Json> const char *require_arithmetic_relation_symbol(const Json &relation_value,
-                                                                       const std::string &path)
+template <typename Json>
+const char *require_arithmetic_relation_symbol(const Json &relation_value, const std::string &path)
 {
 	if (!relation_value.is_object())
 		throw MigrationError(path + ": arithmetic relation must be an object");
@@ -253,10 +253,8 @@ template <typename Json> Json migrate_foreach_collection(const Json &collection,
 	std::vector<Json> items;
 	items.reserve(collection.size());
 	for (std::size_t index = 0; index < collection.size(); ++index)
-	{
-		items.push_back(integer<Json>(
-		    require_integer_operand(collection.at(index), path + "[" + std::to_string(index) + "]")));
-	}
+		items.push_back(integer<Json>(require_integer_operand(collection.at(index),
+		                                                      path + "[" + std::to_string(index) + "]")));
 	return list<Json>(std::move(items));
 }
 
@@ -266,8 +264,7 @@ template <typename Json> Json migrate_foreach_object(const Json &relation_value)
 	if (!relation_value.is_object() || relation_value.size() != 3 || !relation_value.contains("$rel") ||
 	    !relation_value.contains("$sub") || !relation_value.contains("$obj"))
 		throw MigrationError(path + ": expected exactly $rel, $sub and $obj for frozen foreachobj");
-	if (!relation_value.at("$rel").is_string() ||
-	    relation_value.at("$rel").template get<std::string>() != "foreachobj")
+	if (!relation_value.at("$rel").is_string() || relation_value.at("$rel").template get<std::string>() != "foreachobj")
 		throw MigrationError(path + ".$rel: expected frozen foreachobj relation");
 
 	Json body = migrate_foreach_identity_body<Json>(relation_value.at("$sub"), path + ".$sub");
@@ -281,7 +278,8 @@ template <typename Json> Json migrate_relation(const Json &relation_value)
 	if (name == "foreachobj")
 		return migrate_foreach_object<Json>(relation_value);
 	if (name == "foreachsub")
-		throw MigrationError("$.$rel/result.$rel: legacy foreachsub is not supported by the frozen compatibility corpus");
+		throw MigrationError(
+		    "$.$rel/result.$rel: legacy foreachsub is not supported by the frozen compatibility corpus");
 	return migrate_direct_arithmetic_relation<Json>(relation_value);
 }
 
