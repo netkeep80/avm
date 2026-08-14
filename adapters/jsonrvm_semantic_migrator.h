@@ -33,6 +33,8 @@ inline constexpr const char *semantic_commit_relation_state_symbol = "semantic_c
 inline constexpr const char *semantic_resolve_reference_symbol = "semantic_resolve_reference";
 inline constexpr const char *semantic_apply_pure_relation_symbol = "semantic_apply_pure_relation";
 inline constexpr const char *current_relation_state_reference_symbol = "current_relation_state_reference";
+inline constexpr const char *current_object_reference_symbol = "current_object_reference";
+inline constexpr const char *foreach_object_symbol = "foreach_object";
 
 inline const char *integer_relation_symbol(const std::string &legacy_operator)
 {
@@ -113,10 +115,20 @@ template <typename Json> Json commit_relation_state(Json value_expression)
 	                std::move(value_expression));
 }
 
-template <typename Json> Json resolve_current_relation_state()
+template <typename Json> Json resolve_reference_symbol(const char *reference_symbol)
 {
 	return relation(symbol<Json>(semantic_resolve_reference_symbol), symbol<Json>(bootstrap_unit_symbol),
-	                symbol<Json>(current_relation_state_reference_symbol));
+	                symbol<Json>(reference_symbol));
+}
+
+template <typename Json> Json resolve_current_relation_state()
+{
+	return resolve_reference_symbol<Json>(current_relation_state_reference_symbol);
+}
+
+template <typename Json> Json resolve_current_object()
+{
+	return resolve_reference_symbol<Json>(current_object_reference_symbol);
 }
 
 template <typename Json>
@@ -126,14 +138,34 @@ Json apply_pure_relation(const char *target_relation_symbol, Json subject_expres
 	                duplet(std::move(subject_expression), std::move(object_expression)));
 }
 
-template <typename Json> const char *require_arithmetic_relation_symbol(const Json &relation, const std::string &path)
+template <typename Json> const char *require_relation_name(const Json &relation_value, const std::string &path)
 {
-	if (!relation.is_object())
+	if (!relation_value.is_object())
+		throw MigrationError(path + ": relation must be an object");
+	if (!relation_value.contains("$rel"))
+		throw MigrationError(path + ": relation is missing $rel");
+	const Json &encoded_relation = relation_value.at("$rel");
+	if (!encoded_relation.is_string())
+		throw MigrationError(path + ".$rel: relation must be a string");
+	return nullptr;
+}
+
+template <typename Json> std::string relation_name(const Json &relation_value, const std::string &path)
+{
+	require_relation_name(relation_value, path);
+	return relation_value.at("$rel").template get<std::string>();
+}
+
+template <typename Json> const char *require_arithmetic_relation_symbol(const Json &relation_value,
+                                                                       const std::string &path)
+{
+	if (!relation_value.is_object())
 		throw MigrationError(path + ": arithmetic relation must be an object");
-	if (!relation.contains("$rel") || !relation.contains("$sub") || !relation.contains("$obj") || relation.size() != 3)
+	if (!relation_value.contains("$rel") || !relation_value.contains("$sub") || !relation_value.contains("$obj") ||
+	    relation_value.size() != 3)
 		throw MigrationError(path + ": expected exactly $rel, $sub and $obj");
 
-	const Json &encoded_relation = relation.at("$rel");
+	const Json &encoded_relation = relation_value.at("$rel");
 	if (!encoded_relation.is_string())
 		throw MigrationError(path + ".$rel: arithmetic relation must be a string");
 	return integer_relation_symbol(encoded_relation.template get<std::string>());
@@ -148,10 +180,15 @@ template <typename Json> Json migrate_direct_arithmetic_relation(const Json &rel
 	return relation(symbol<Json>(relation_symbol), integer<Json>(subject), integer<Json>(object));
 }
 
-template <typename Json> bool is_current_relation_state_reference(const Json &value)
+template <typename Json> bool is_exact_current_role_reference(const Json &value, const char *legacy_role)
 {
 	return value.is_object() && value.size() == 1 && value.contains("$ref") && value.at("$ref").is_string() &&
-	       value.at("$ref").template get<std::string>() == "$rel";
+	       value.at("$ref").template get<std::string>() == legacy_role;
+}
+
+template <typename Json> bool is_current_relation_state_reference(const Json &value)
+{
+	return is_exact_current_role_reference(value, "$rel");
 }
 
 template <typename Json> Json migrate_sequence_operand(const Json &value, const std::string &path)
@@ -201,6 +238,59 @@ template <typename Json> Json migrate_sequence(const Json &sequence)
 	                list<Json>(std::move(expressions)));
 }
 
+template <typename Json> Json migrate_foreach_identity_body(const Json &body, const std::string &path)
+{
+	if (!body.is_object() || body.size() != 2 || !body.contains("$rel") || !body.contains("$obj"))
+		throw MigrationError(path + ": expected exact frozen foreach body with $rel and $obj");
+	if (!body.at("$rel").is_string() || body.at("$rel").template get<std::string>() != "=")
+		throw MigrationError(path + ".$rel: only frozen '=' foreach body is supported");
+	if (!is_exact_current_role_reference(body.at("$obj"), "$obj"))
+		throw MigrationError(path + ".$obj: expected exact {$ref:$obj} frozen foreach body");
+	return resolve_current_object<Json>();
+}
+
+template <typename Json> Json migrate_foreach_collection(const Json &collection, const std::string &path)
+{
+	if (!collection.is_array())
+		throw MigrationError(path + ": foreach collection must be an array");
+	if (collection.empty())
+		throw MigrationError(path + ": empty foreach collection is not supported by this migration gate");
+
+	std::vector<Json> items;
+	items.reserve(collection.size());
+	for (std::size_t index = 0; index < collection.size(); ++index)
+	{
+		items.push_back(integer<Json>(
+		    require_integer_operand(collection.at(index), path + "[" + std::to_string(index) + "]")));
+	}
+	return list<Json>(std::move(items));
+}
+
+template <typename Json> Json migrate_foreach_object(const Json &relation_value)
+{
+	const std::string path = "$.$rel/result";
+	if (!relation_value.is_object() || relation_value.size() != 3 || !relation_value.contains("$rel") ||
+	    !relation_value.contains("$sub") || !relation_value.contains("$obj"))
+		throw MigrationError(path + ": expected exactly $rel, $sub and $obj for frozen foreachobj");
+	if (!relation_value.at("$rel").is_string() ||
+	    relation_value.at("$rel").template get<std::string>() != "foreachobj")
+		throw MigrationError(path + ".$rel: expected frozen foreachobj relation");
+
+	Json body = migrate_foreach_identity_body<Json>(relation_value.at("$sub"), path + ".$sub");
+	Json collection = migrate_foreach_collection<Json>(relation_value.at("$obj"), path + ".$obj");
+	return relation(symbol<Json>(foreach_object_symbol), std::move(body), std::move(collection));
+}
+
+template <typename Json> Json migrate_relation(const Json &relation_value)
+{
+	const std::string name = relation_name(relation_value, "$.$rel/result");
+	if (name == "foreachobj")
+		return migrate_foreach_object<Json>(relation_value);
+	if (name == "foreachsub")
+		throw MigrationError("$.$rel/result.$rel: legacy foreachsub is not supported by the frozen compatibility corpus");
+	return migrate_direct_arithmetic_relation<Json>(relation_value);
+}
+
 } // namespace detail
 
 template <typename Json> MigrationResult<Json> migrate_program(const Json &legacy)
@@ -213,8 +303,7 @@ template <typename Json> MigrationResult<Json> migrate_program(const Json &legac
 	const Json &body = legacy.at("$rel/result");
 	Json document = Json::object();
 	document["$avm"] = "duplet-json/1";
-	document["$root"] =
-	    body.is_array() ? detail::migrate_sequence<Json>(body) : detail::migrate_direct_arithmetic_relation<Json>(body);
+	document["$root"] = body.is_array() ? detail::migrate_sequence<Json>(body) : detail::migrate_relation<Json>(body);
 	return MigrationResult<Json>{std::move(document), "/result"};
 }
 
