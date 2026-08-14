@@ -142,7 +142,7 @@ value computation != semantic state transition
 
 `$ref:"$rel"` заканчивает существование на legacy compiler boundary. Generated program содержит canonical `ReferenceRole::RelationState(Current)` identity.
 
-## Foreach object context — #200
+## Контекст foreach object — #200
 
 Frozen source:
 
@@ -245,7 +245,7 @@ false -> subject = 13
 
 Raw legacy `true` поддержан только в frozen evidence-backed executable context. Canonical AVM `false_value` существует и тестируется независимо, но raw legacy `false` не объявляется совместимым без отдельного oracle evidence.
 
-## Missing reference failure — #205
+## Ошибка отсутствующей ссылки — #205
 
 Frozen source:
 
