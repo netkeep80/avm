@@ -5,6 +5,7 @@
 
 #include <set>
 #include <stdexcept>
+#include <string>
 
 namespace avm
 {
