@@ -157,7 +157,8 @@ template <typename Json> Json conditional(Json condition, Json then_branch, Json
 	arguments.push_back(std::move(condition));
 	arguments.push_back(std::move(then_branch));
 	arguments.push_back(std::move(else_branch));
-	return relation(symbol<Json>(bootstrap_if_symbol), symbol<Json>(bootstrap_unit_symbol), list<Json>(std::move(arguments)));
+	Json encoded_arguments = list<Json>(std::move(arguments));
+	return relation(symbol<Json>(bootstrap_if_symbol), symbol<Json>(bootstrap_unit_symbol), std::move(encoded_arguments));
 }
 
 template <typename Json> std::string relation_name(const Json &relation_value, const std::string &path)
@@ -228,9 +229,9 @@ template <typename Json> Json migrate_boolean_relation(const Json &relation_valu
 
 	const std::int64_t false_branch = require_integer_operand(relation_value.at("$sub"), path + ".$sub");
 	const std::int64_t true_branch = require_integer_operand(relation_value.at("$obj"), path + ".$obj");
-	return commit_relation_state<Json>(conditional<Json>(resolve_current_relation_state<Json>(),
-	                                                     quote_integer<Json>(true_branch),
-	                                                     quote_integer<Json>(false_branch)));
+	Json branch = conditional<Json>(resolve_current_relation_state<Json>(), quote_integer<Json>(true_branch),
+	                                quote_integer<Json>(false_branch));
+	return commit_relation_state<Json>(std::move(branch));
 }
 
 template <typename Json> Json migrate_sequence_relation(const Json &relation_value, const std::string &path)
