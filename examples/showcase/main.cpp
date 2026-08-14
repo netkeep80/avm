@@ -16,6 +16,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace
 {
@@ -39,6 +40,15 @@ const char *event_kind_name(avm::ExecutionEventKind kind)
 		return "Fail";
 	}
 	return "Unknown";
+}
+
+bool calculator_basic_demo_requested(int argc, char **argv)
+{
+	if (argc == 1)
+		return false;
+	if (argc == 3 && std::string_view(argv[1]) == "--demo" && std::string_view(argv[2]) == "calculator-basic")
+		return true;
+	throw std::invalid_argument("usage: avm_showcase [--demo calculator-basic]");
 }
 
 struct ShowcaseModel
@@ -357,8 +367,19 @@ void glfw_error_callback(int error, const char *description)
 
 } // namespace
 
-int main()
+int main(int argc, char **argv)
 {
+	bool calculator_basic_demo = false;
+	try
+	{
+		calculator_basic_demo = calculator_basic_demo_requested(argc, argv);
+	}
+	catch (const std::exception &error)
+	{
+		std::cerr << error.what() << '\n';
+		return 2;
+	}
+
 	glfwSetErrorCallback(glfw_error_callback);
 	if (glfwInit() == GLFW_FALSE)
 		return 1;
@@ -398,6 +419,10 @@ int main()
 	try
 	{
 		ShowcaseModel model;
+		if (calculator_basic_demo)
+			model.calculator_view.run_basic_demo(model.selected_entity, model.last_result, model.last_error,
+			                                     model.selected_trace);
+
 		while (glfwWindowShouldClose(window) == GLFW_FALSE)
 		{
 			glfwPollEvents();
