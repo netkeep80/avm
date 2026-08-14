@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - agent/semantic-context-view
     paths:
       - 'CMakeLists.txt'
       - 'examples/showcase/**'
@@ -32,8 +31,14 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y clang-format
-      - name: Check showcase formatting
-        run: clang-format --dry-run --Werror examples/showcase/main.cpp
+      - name: Check showcase presentation formatting
+        run: >-
+          clang-format --dry-run --Werror
+          examples/showcase/main.cpp
+          examples/showcase/calculator_view.cpp
+          examples/showcase/calculator_view.h
+          examples/showcase/showcase_demo.cpp
+          examples/showcase/showcase_demo.h
 
   linux:
     name: Showcase / Linux
@@ -44,7 +49,7 @@ jobs:
       - name: Install window-system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xorg-dev libgl1-mesa-dev
+          sudo apt-get install -y xorg-dev libgl1-mesa-dev xvfb imagemagick
       - name: Configure
         run: >-
           cmake -S . -B build-showcase
@@ -57,6 +62,40 @@ jobs:
           -DAVM_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build-showcase --target avm_showcase --parallel
+      - name: Run calculator demo and capture real framebuffer
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir="$PWD/build-showcase/showcase-artifacts"
+          mkdir -p "$output_dir"
+          binary=$(find build-showcase -type f -name avm_showcase -perm -111 -print -quit)
+          test -n "$binary"
+          binary="$PWD/$binary"
+          ppm="$output_dir/avm-showcase-calculator-basic.ppm"
+          png="$output_dir/avm-showcase-calculator-basic.png"
+          log="$output_dir/calculator-basic.log"
+
+          xvfb-run -a --server-args="-screen 0 1600x1000x24" \
+            env LIBGL_ALWAYS_SOFTWARE=1 AVM_SHOWCASE_SCREENSHOT_PPM="$ppm" \
+            "$binary" --demo calculator-basic >"$log" 2>&1
+
+          test -s "$ppm"
+          convert "$ppm" "$png"
+          test -s "$png"
+          dimensions=$(identify -format "%w %h" "$png")
+          colors=$(identify -format "%k" "$png")
+          echo "screenshot: $dimensions, colors=$colors"
+          test "${colors:-0}" -gt 16
+          file "$png"
+          rm "$ppm"
+      - name: Upload calculator showcase evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: avm-showcase-calculator-basic
+          path: |
+            build-showcase/showcase-artifacts/avm-showcase-calculator-basic.png
+            build-showcase/showcase-artifacts/calculator-basic.log
+          if-no-files-found: error
 
   windows:
     name: Showcase / Windows

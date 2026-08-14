@@ -16,13 +16,15 @@ namespace avm::showcase
 // Арифметика, переходы состояния и валидация остаются в calculator_model.h и обычном Executor.
 class CalculatorViewport
 {
-  public:
+public:
 	CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime);
 
 	void draw(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
 	          std::size_t &selected_trace);
+	void run_basic_demo(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
+	                    std::size_t &selected_trace);
 
-  private:
+private:
 	LinkStore &store_;
 	BootstrapRuntime &runtime_;
 	IntegerVocabulary integers_;
@@ -30,11 +32,11 @@ class CalculatorViewport
 	LinkId current_state_ = invalid_link_id;
 	SemanticContextView semantic_;
 
-	void execute_event(LinkId relation, LinkId input, LinkId &selected_entity, std::optional<LinkId> &last_result,
+	bool execute_event(LinkId relation, LinkId input, LinkId &selected_entity, std::optional<LinkId> &last_result,
 	                   std::string &last_error, std::size_t &selected_trace);
-	void press_digit(std::int64_t value, LinkId &selected_entity, std::optional<LinkId> &last_result,
+	bool press_digit(std::int64_t value, LinkId &selected_entity, std::optional<LinkId> &last_result,
 	                 std::string &last_error, std::size_t &selected_trace);
-	void press_operation(LinkId relation, LinkId &selected_entity, std::optional<LinkId> &last_result,
+	bool press_operation(LinkId relation, LinkId &selected_entity, std::optional<LinkId> &last_result,
 	                     std::string &last_error, std::size_t &selected_trace);
 };
 

@@ -3,6 +3,7 @@
 #include "avm/triune_primitives.h"
 
 #include "calculator_view.h"
+#include "showcase_demo.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -16,6 +17,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace
 {
@@ -39,6 +41,15 @@ const char *event_kind_name(avm::ExecutionEventKind kind)
 		return "Fail";
 	}
 	return "Unknown";
+}
+
+bool calculator_basic_demo_requested(int argc, char **argv)
+{
+	if (argc == 1)
+		return false;
+	if (argc == 3 && std::string_view(argv[1]) == "--demo" && std::string_view(argv[2]) == "calculator-basic")
+		return true;
+	throw std::invalid_argument("usage: avm_showcase [--demo calculator-basic]");
 }
 
 struct ShowcaseModel
@@ -357,8 +368,27 @@ void glfw_error_callback(int error, const char *description)
 
 } // namespace
 
-int main()
+int main(int argc, char **argv)
 {
+	bool calculator_basic_demo = false;
+	std::optional<std::string> screenshot_path;
+	try
+	{
+		calculator_basic_demo = calculator_basic_demo_requested(argc, argv);
+		screenshot_path = avm::showcase::framebuffer_capture_path_from_environment();
+	}
+	catch (const std::exception &error)
+	{
+		std::cerr << error.what() << '\n';
+		return 2;
+	}
+
+	if (screenshot_path.has_value() && !calculator_basic_demo)
+	{
+		std::cerr << "AVM_SHOWCASE_SCREENSHOT_PPM requires --demo calculator-basic\n";
+		return 2;
+	}
+
 	glfwSetErrorCallback(glfw_error_callback);
 	if (glfwInit() == GLFW_FALSE)
 		return 1;
@@ -398,6 +428,11 @@ int main()
 	try
 	{
 		ShowcaseModel model;
+		if (calculator_basic_demo)
+			model.calculator_view.run_basic_demo(model.selected_entity, model.last_result, model.last_error,
+			                                     model.selected_trace);
+
+		int rendered_frames = 0;
 		while (glfwWindowShouldClose(window) == GLFW_FALSE)
 		{
 			glfwPollEvents();
@@ -420,7 +455,15 @@ int main()
 			glClearColor(0.08F, 0.08F, 0.10F, 1.0F);
 			glClear(GL_COLOR_BUFFER_BIT);
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+			++rendered_frames;
+			const bool capture_frame = screenshot_path.has_value() && rendered_frames >= 2;
+			if (capture_frame)
+				avm::showcase::write_framebuffer_ppm(*screenshot_path, display_width, display_height);
+
 			glfwSwapBuffers(window);
+			if (capture_frame)
+				glfwSetWindowShouldClose(window, GLFW_TRUE);
 		}
 	}
 	catch (const std::exception &error)

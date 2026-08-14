@@ -38,7 +38,8 @@ target_link_libraries(avm_showcase_imgui PUBLIC glfw OpenGL::GL)
 
 add_executable(avm_showcase
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/calculator_view.cpp")
+    "${CMAKE_CURRENT_SOURCE_DIR}/calculator_view.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/showcase_demo.cpp")
 target_link_libraries(avm_showcase PRIVATE avm_core avm_showcase_imgui)
 avm_apply_quality(avm_showcase)
 
