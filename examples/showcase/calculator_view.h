@@ -16,7 +16,7 @@ namespace avm::showcase
 // Арифметика, переходы состояния и валидация остаются в calculator_model.h и обычном Executor.
 class CalculatorViewport
 {
-  public:
+public:
 	CalculatorViewport(LinkStore &store, BootstrapRuntime &runtime);
 
 	void draw(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
@@ -24,7 +24,7 @@ class CalculatorViewport
 	void run_basic_demo(LinkId &selected_entity, std::optional<LinkId> &last_result, std::string &last_error,
 	                    std::size_t &selected_trace);
 
-  private:
+private:
 	LinkStore &store_;
 	BootstrapRuntime &runtime_;
 	IntegerVocabulary integers_;
