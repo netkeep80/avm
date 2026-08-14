@@ -38,10 +38,14 @@ struct CalculatorSession
 		});
 	}
 
+	avm::LinkId realize_event(avm::LinkId relation, avm::LinkId input)
+	{
+		return avm::showcase::realize_calculator_event(store, calculator, relation, current_state, input);
+	}
+
 	avm::ExecutionOutcome event(avm::LinkId relation, avm::LinkId input)
 	{
-		const avm::LinkId entity =
-		    avm::showcase::realize_calculator_event(store, calculator, relation, current_state, input);
+		const avm::LinkId entity = realize_event(relation, input);
 		const avm::ExecutionOutcome outcome = runtime.executor().execute_outcome_in_context(entity, semantic);
 		assert(outcome.semantic.role(avm::SemanticContextRole::RelationState) == outcome.result);
 		current_state = outcome.result;
@@ -69,8 +73,9 @@ void expect_state(const CalculatorSession &session, std::int64_t display, std::i
 	assert(avm::decode_integer(session.store, session.integers, state.display) == display);
 	assert(avm::decode_integer(session.store, session.integers, state.accumulator) == accumulator);
 	assert(state.pending_operation == pending_operation);
-	assert(state.entering_new_number == (entering_new_number ? session.runtime.vocabulary().true_value
-	                                                        : session.runtime.vocabulary().false_value));
+	const avm::LinkId expected_flag = entering_new_number ? session.runtime.vocabulary().true_value
+	                                                      : session.runtime.vocabulary().false_value;
+	assert(state.entering_new_number == expected_flag);
 	assert(session.semantic.role(avm::SemanticContextRole::RelationState) == state.entity);
 }
 
@@ -135,8 +140,7 @@ void verify_invalid_digit_does_not_publish_state(CalculatorSession &session)
 	const avm::LinkId before_state = session.current_state;
 	const avm::SemanticContextView before_semantic = session.semantic;
 	const avm::LinkId invalid_digit = avm::realize_integer(session.store, session.integers, 12);
-	const avm::LinkId event = avm::showcase::realize_calculator_event(
-	    session.store, session.calculator, session.calculator.press_digit_relation, before_state, invalid_digit);
+	const avm::LinkId event = session.realize_event(session.calculator.press_digit_relation, invalid_digit);
 
 	bool rejected = false;
 	try
@@ -163,9 +167,8 @@ void verify_division_by_zero_does_not_publish_state(CalculatorSession &session)
 
 	const avm::LinkId before_state = session.current_state;
 	const avm::SemanticContextView before_semantic = session.semantic;
-	const avm::LinkId event = avm::showcase::realize_calculator_event(
-	    session.store, session.calculator, session.calculator.press_equals_relation, before_state,
-	    session.runtime.vocabulary().unit);
+	const avm::LinkId event =
+	    session.realize_event(session.calculator.press_equals_relation, session.runtime.vocabulary().unit);
 
 	bool rejected = false;
 	try
@@ -188,9 +191,8 @@ void verify_malformed_state_reads_are_non_mutating(CalculatorSession &session)
 	const avm::LinkId pending_and_flag =
 	    session.store.intern(session.runtime.vocabulary().unit, session.runtime.vocabulary().true_value);
 	const avm::LinkId payload = session.store.intern(session.integers.zero, pending_and_flag);
-	const avm::LinkId malformed_integer_state = avm::encode_relation_entity(
-	    session.store,
-	    avm::RelationEntity{session.calculator.state_relation, foreign_display, payload});
+	const avm::RelationEntity bad_integer_entity{session.calculator.state_relation, foreign_display, payload};
+	const avm::LinkId malformed_integer_state = avm::encode_relation_entity(session.store, bad_integer_entity);
 	const std::size_t before_bad_integer_read = session.store.size();
 
 	bool bad_integer_rejected = false;
@@ -211,9 +213,12 @@ void verify_malformed_state_reads_are_non_mutating(CalculatorSession &session)
 	const avm::LinkId invalid_pending_and_flag =
 	    session.store.intern(invalid_pending, session.runtime.vocabulary().true_value);
 	const avm::LinkId invalid_pending_payload = session.store.intern(session.integers.zero, invalid_pending_and_flag);
-	const avm::LinkId malformed_pending_state = avm::encode_relation_entity(
-	    session.store,
-	    avm::RelationEntity{session.calculator.state_relation, session.integers.zero, invalid_pending_payload});
+	const avm::RelationEntity bad_pending_entity{
+	    session.calculator.state_relation,
+	    session.integers.zero,
+	    invalid_pending_payload,
+	};
+	const avm::LinkId malformed_pending_state = avm::encode_relation_entity(session.store, bad_pending_entity);
 	const std::size_t before_bad_pending_read = session.store.size();
 
 	bool bad_pending_rejected = false;
@@ -235,8 +240,7 @@ void verify_mismatched_semantic_state_is_rejected(CalculatorSession &session)
 {
 	session.clear();
 	const avm::LinkId digit = avm::realize_integer(session.store, session.integers, 5);
-	const avm::LinkId event = avm::showcase::realize_calculator_event(
-	    session.store, session.calculator, session.calculator.press_digit_relation, session.current_state, digit);
+	const avm::LinkId event = session.realize_event(session.calculator.press_digit_relation, digit);
 	const avm::SemanticContextView wrong = session.semantic.with_relation_state(session.store.create_point());
 
 	bool rejected = false;
@@ -314,8 +318,9 @@ void verify_persistent_reopen()
 		avm::BootstrapRuntime runtime(reopened, saved.bootstrap);
 		avm::validate_integer_vocabulary(reopened, saved.integers);
 		avm::showcase::validate_calculator_vocabulary(reopened, saved.calculator);
-		avm::register_integer_arithmetic(runtime.executor(), saved.integers);
-		avm::showcase::register_calculator_runtime(runtime.executor(), saved.bootstrap, saved.integers, saved.calculator);
+		avm::Executor &executor = runtime.executor();
+		avm::register_integer_arithmetic(executor, saved.integers);
+		avm::showcase::register_calculator_runtime(executor, saved.bootstrap, saved.integers, saved.calculator);
 		assert(reopened.size() == before_restore);
 
 		const avm::showcase::CalculatorState restored = avm::showcase::decode_calculator_state(
