@@ -138,7 +138,7 @@ Json apply_pure_relation(const char *target_relation_symbol, Json subject_expres
 	                duplet(std::move(subject_expression), std::move(object_expression)));
 }
 
-template <typename Json> const char *require_relation_name(const Json &relation_value, const std::string &path)
+template <typename Json> std::string relation_name(const Json &relation_value, const std::string &path)
 {
 	if (!relation_value.is_object())
 		throw MigrationError(path + ": relation must be an object");
@@ -147,13 +147,7 @@ template <typename Json> const char *require_relation_name(const Json &relation_
 	const Json &encoded_relation = relation_value.at("$rel");
 	if (!encoded_relation.is_string())
 		throw MigrationError(path + ".$rel: relation must be a string");
-	return nullptr;
-}
-
-template <typename Json> std::string relation_name(const Json &relation_value, const std::string &path)
-{
-	require_relation_name(relation_value, path);
-	return relation_value.at("$rel").template get<std::string>();
+	return encoded_relation.template get<std::string>();
 }
 
 template <typename Json> const char *require_arithmetic_relation_symbol(const Json &relation_value,
