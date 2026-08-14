@@ -133,8 +133,8 @@ int main()
 		assert(event.context.entity != failing_branch);
 
 	const avm::LinkId stateful_condition_relation = store.create_point();
-	const avm::LinkId stateful_condition = avm::encode_relation_entity(
-	    store, avm::RelationEntity{stateful_condition_relation, v.unit, v.nil});
+	const avm::RelationEntity stateful_condition_entity{stateful_condition_relation, v.unit, v.nil};
+	const avm::LinkId stateful_condition = avm::encode_relation_entity(store, stateful_condition_entity);
 	runtime.executor().register_native(
 	    stateful_condition_relation,
 	    [&v](const avm::ExecutionContext &context, avm::Executor &)
@@ -173,8 +173,7 @@ int main()
 
 	runtime.executor().set_observer(nullptr);
 	const std::size_t converged_size = store.size();
-	const avm::ExecutionOutcome repeated =
-	    runtime.executor().execute_outcome_in_context(threaded_condition, initial);
+	const avm::ExecutionOutcome repeated = runtime.executor().execute_outcome_in_context(threaded_condition, initial);
 	assert(repeated.result == threaded_outcome.result);
 	assert(repeated.semantic == threaded_outcome.semantic);
 	assert(store.size() == converged_size);
