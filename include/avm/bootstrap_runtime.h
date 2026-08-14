@@ -434,22 +434,46 @@ private:
 			                          "OR operands are not Boolean values");
 		    });
 
-		executor_.register_native(vocabulary_.if_relation,
-		                          [this](const ExecutionContext &context, Executor &executor)
-		                          {
-			                          const std::vector<LinkId> arguments = expression_arguments(context, 3);
-			                          const LinkId condition =
-			                              executor.execute(arguments[0], context.entity, context.frame);
-			                          const LinkId selected = require_lookup(
-			                              lookup_relation_value(store_, vocabulary_.if_relation, condition),
-			                              "If condition is not a Boolean value");
+		executor_.register_native(
+		    vocabulary_.if_relation,
+		    [this](const ExecutionContext &context, Executor &executor) -> ExecutionOutcome
+		    {
+			    const std::vector<LinkId> arguments = expression_arguments(context, 3);
 
-			                          if (selected == vocabulary_.true_value)
-				                          return executor.execute(arguments[1], context.entity, context.frame);
-			                          if (selected == vocabulary_.false_value)
-				                          return executor.execute(arguments[2], context.entity, context.frame);
-			                          throw std::logic_error("If truth table returned a non-Boolean selector");
-		                          });
+			    // В semantic execution условие и выбранная ветвь обязаны оставаться в одной
+			    // линии контекста. Иначе вложенная canonical reference теряет `$rel/$sub/$obj`,
+			    // хотя сам If остаётся тем же lazy relation и не вводит отдельный evaluator.
+			    if (context.semantic)
+			    {
+				    const ExecutionOutcome condition = executor.execute_outcome_in_context(
+				        arguments[0], context.semantic, context.entity, context.frame);
+				    const auto selector = lookup_relation_value(store_, vocabulary_.if_relation, condition.result);
+				    const LinkId selected = require_lookup(selector, "If condition is not a Boolean value");
+
+				    if (selected == vocabulary_.true_value)
+				    {
+					    return executor.execute_outcome_in_context(arguments[1], condition.semantic, context.entity,
+					                                               context.frame);
+				    }
+				    if (selected == vocabulary_.false_value)
+				    {
+					    return executor.execute_outcome_in_context(arguments[2], condition.semantic, context.entity,
+					                                               context.frame);
+				    }
+				    throw std::logic_error("If truth table returned a non-Boolean selector");
+			    }
+
+			    const LinkId condition = executor.execute(arguments[0], context.entity, context.frame);
+			    const LinkId selected =
+			        require_lookup(lookup_relation_value(store_, vocabulary_.if_relation, condition),
+			                       "If condition is not a Boolean value");
+
+			    if (selected == vocabulary_.true_value)
+				    return ExecutionOutcome{executor.execute(arguments[1], context.entity, context.frame)};
+			    if (selected == vocabulary_.false_value)
+				    return ExecutionOutcome{executor.execute(arguments[2], context.entity, context.frame)};
+			    throw std::logic_error("If truth table returned a non-Boolean selector");
+		    });
 
 		executor_.register_native(
 		    vocabulary_.function_relation,
