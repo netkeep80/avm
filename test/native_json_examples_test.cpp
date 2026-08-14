@@ -14,6 +14,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -96,7 +97,7 @@ int main(int argc, char **argv)
 
 	const avm::ProjectionDescription relation_description = project_example(store, read_text(argv[2]), resolver);
 	const avm::LinkId relation_root = avm::realize_projection(store, relation_description).root;
-	assert(avm::decode_relation_entity(store, relation_root) == avm::RelationEntity{relation, subject, object});
+	assert((avm::decode_relation_entity(store, relation_root) == avm::RelationEntity{relation, subject, object}));
 
 	const avm::ProjectionDescription integer_description = project_example(store, read_text(argv[3]), resolver);
 	const avm::LinkId integer_root = avm::realize_projection(store, integer_description).root;
