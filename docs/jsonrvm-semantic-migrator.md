@@ -68,7 +68,7 @@ compat/jsonrvm-oracle-golden.json
 
 Таблица означает **поддержанный semantic migration corpus**, а не полную совместимость со всем старым `base.rm.h`.
 
-## Arithmetic vertical slice — #196
+## Арифметический vertical slice — #196
 
 Frozen source:
 
@@ -146,7 +146,7 @@ value computation != state transition
 
 `$ref:"$rel"` существует только в legacy compiler boundary. Generated program содержит canonical `ReferenceRole::RelationState(Current)` identity; runtime не парсит `$rel` strings.
 
-## Ordered sequence — #198
+## Упорядоченный sequence — #198
 
 Legacy source array в executable position:
 
@@ -160,7 +160,7 @@ Existing sequence runtime thread-ит `ExecutionOutcome.semantic` между chi
 
 Это отличается от ordinary data list: JSON array интерпретируется как sequence **только в доказанном legacy executable context**.
 
-## Foreach object context — #199
+## Перенос foreach object context — #199
 
 Frozen source:
 
@@ -252,7 +252,7 @@ ExecutionOutcome {
 
 Здесь не используются `quote` или `commit_relation_state`. Это важная source-context distinction: одинаковая JSON array surface form не определяет одну universal runtime semantics.
 
-## Symbol anchors
+## Символьные anchors
 
 Generated `duplet-json/1` может содержать protocol-level symbolic anchors, например:
 
@@ -312,7 +312,7 @@ execute
 
 Для #199 identity foreach входной и выходной ordered list сходятся к одной canonical identity, поэтому successful execution после realization не требует дополнительных list nodes.
 
-## Lifetime boundary
+## Граница времени жизни
 
 После `migrate_program` исходный legacy JSON DOM больше не нужен.
 
@@ -342,7 +342,7 @@ Migrator детерминированно отвергает неподдерж�
 
 Runtime failures canonical relations не эмулируются migrator-ом.
 
-## Differential evidence
+## Дифференциальные доказательства
 
 Для каждого supported construct нужны два независимых доказательства:
 
