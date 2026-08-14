@@ -439,13 +439,15 @@ private:
 		    [this](const ExecutionContext &context, Executor &executor) -> ExecutionOutcome
 		    {
 			    const std::vector<LinkId> arguments = expression_arguments(context, 3);
-			    const ExecutionOutcome condition = context.semantic
-			                                           ? executor.execute_outcome_in_context(
-			                                                 arguments[0], context.semantic, context.entity, context.frame)
-			                                           : executor.execute_outcome(arguments[0], context.entity, context.frame);
-			    const LinkId selected = require_lookup(
-			        lookup_relation_value(store_, vocabulary_.if_relation, condition.result),
-			        "If condition is not a Boolean value");
+			    ExecutionOutcome condition{invalid_link_id};
+			    if (context.semantic)
+				    condition = executor.execute_outcome_in_context(arguments[0], context.semantic, context.entity,
+				                                                    context.frame);
+			    else
+				    condition = executor.execute_outcome(arguments[0], context.entity, context.frame);
+
+			    const auto selector = lookup_relation_value(store_, vocabulary_.if_relation, condition.result);
+			    const LinkId selected = require_lookup(selector, "If condition is not a Boolean value");
 
 			    LinkId selected_branch = invalid_link_id;
 			    if (selected == vocabulary_.true_value)
@@ -459,7 +461,8 @@ private:
 				    return executor.execute_outcome(selected_branch, context.entity, context.frame);
 
 			    // If переносит только явно возвращённое condition semantic state; скрытой мутации `$rel` здесь нет.
-			    return executor.execute_outcome_in_context(selected_branch, condition.semantic, context.entity, context.frame);
+			    return executor.execute_outcome_in_context(selected_branch, condition.semantic, context.entity,
+			                                               context.frame);
 		    });
 
 		executor_.register_native(
