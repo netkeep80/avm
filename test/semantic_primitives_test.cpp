@@ -174,10 +174,7 @@ int main()
 	    semantic_object,
 	});
 	const std::size_t before_missing_reference = store.size();
-	const auto execute_with_missing_reference = [&]
-	{
-		static_cast<void>(executor.execute_outcome_in_context(program.second_apply, missing_state));
-	};
+	const auto execute_with_missing_reference = [&] { executor.execute_outcome_in_context(program.second_apply, missing_state); };
 	assert(rejected(execute_with_missing_reference));
 	assert(store.size() == before_missing_reference);
 
@@ -187,10 +184,7 @@ int main()
 	const avm::LinkId stateful_operand = avm::materialize_relation_state_commit(store, semantic, unit, quote_one);
 	const avm::LinkId invalid_pure_application =
 	    avm::materialize_pure_relation_application(store, semantic, integers.add_relation, stateful_operand, quote_one);
-	const auto execute_stateful_operand = [&]
-	{
-		static_cast<void>(executor.execute_outcome_in_context(invalid_pure_application, root));
-	};
+	const auto execute_stateful_operand = [&] { executor.execute_outcome_in_context(invalid_pure_application, root); };
 	assert(rejected(execute_stateful_operand));
 
 	const avm::LinkId stateful_target = store.create_point();
@@ -203,10 +197,7 @@ int main()
 	executor.register_native(stateful_target, stateful_handler);
 	const avm::LinkId invalid_pure_target =
 	    avm::materialize_pure_relation_application(store, semantic, stateful_target, quote_one, quote_one);
-	const auto execute_stateful_target = [&]
-	{
-		static_cast<void>(executor.execute_outcome_in_context(invalid_pure_target, root));
-	};
+	const auto execute_stateful_target = [&] { executor.execute_outcome_in_context(invalid_pure_target, root); };
 	assert(rejected(execute_stateful_target));
 
 	const std::filesystem::path persistent_path =
