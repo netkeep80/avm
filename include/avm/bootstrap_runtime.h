@@ -434,22 +434,33 @@ private:
 			                          "OR operands are not Boolean values");
 		    });
 
-		executor_.register_native(vocabulary_.if_relation,
-		                          [this](const ExecutionContext &context, Executor &executor)
-		                          {
-			                          const std::vector<LinkId> arguments = expression_arguments(context, 3);
-			                          const LinkId condition =
-			                              executor.execute(arguments[0], context.entity, context.frame);
-			                          const LinkId selected = require_lookup(
-			                              lookup_relation_value(store_, vocabulary_.if_relation, condition),
-			                              "If condition is not a Boolean value");
+		executor_.register_native(
+		    vocabulary_.if_relation,
+		    [this](const ExecutionContext &context, Executor &executor) -> ExecutionOutcome
+		    {
+			    const std::vector<LinkId> arguments = expression_arguments(context, 3);
+			    const ExecutionOutcome condition = context.semantic
+			                                           ? executor.execute_outcome_in_context(
+			                                                 arguments[0], context.semantic, context.entity, context.frame)
+			                                           : executor.execute_outcome(arguments[0], context.entity, context.frame);
+			    const LinkId selected = require_lookup(
+			        lookup_relation_value(store_, vocabulary_.if_relation, condition.result),
+			        "If condition is not a Boolean value");
 
-			                          if (selected == vocabulary_.true_value)
-				                          return executor.execute(arguments[1], context.entity, context.frame);
-			                          if (selected == vocabulary_.false_value)
-				                          return executor.execute(arguments[2], context.entity, context.frame);
-			                          throw std::logic_error("If truth table returned a non-Boolean selector");
-		                          });
+			    LinkId selected_branch = invalid_link_id;
+			    if (selected == vocabulary_.true_value)
+				    selected_branch = arguments[1];
+			    else if (selected == vocabulary_.false_value)
+				    selected_branch = arguments[2];
+			    else
+				    throw std::logic_error("If truth table returned a non-Boolean selector");
+
+			    if (!context.semantic)
+				    return executor.execute_outcome(selected_branch, context.entity, context.frame);
+
+			    // If переносит только явно возвращённое condition semantic state; скрытой мутации `$rel` здесь нет.
+			    return executor.execute_outcome_in_context(selected_branch, condition.semantic, context.entity, context.frame);
+		    });
 
 		executor_.register_native(
 		    vocabulary_.function_relation,
