@@ -38,7 +38,7 @@
 - удаление pointer-based `rel_t`, JSON semantic interpreter и protocol-only Anum bridge;
 - portable/package-consumer/warnings-as-errors/ASan+UBSan/benchmark gates.
 
-### AVM 1.1 — read-only Relations queries ✅
+### AVM 1.1 — read-only Relations queries без материализации ✅
 
 `RelationQuery` использует только существующие `find/outgoing/incoming/get/contains`, не materialize-ит данные и не создаёт отдельный semantic index.
 
@@ -56,7 +56,7 @@ pair_intern
 
 Derived behavior по возможности выражается обычными AVM functions, а не новыми native handlers.
 
-### AVM 1.3 — execution observability ✅
+### AVM 1.3 — наблюдаемость execution ✅
 
 Принят deterministic read-only observer contract:
 
@@ -68,7 +68,7 @@ Fail(ExecutionContext,phase)
 
 `BoundedExecutionTrace` не является VM state и не управляет исполнением.
 
-### AVM 1.4 — inspection tooling ✅
+### AVM 1.4 — инструменты inspection ✅
 
 `InspectionSession`, persistent inspection и scripted `avm-inspect` используют существующие canonical APIs и один `Executor`. Textual commands остаются presentation layer.
 
