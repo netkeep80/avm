@@ -1,0 +1,7 @@
+{
+  "$avm": "duplet-json/1",
+  "$root": {
+    "<<": {"$symbol": "left"},
+    ">>": {"$symbol": "right"}
+  }
+}

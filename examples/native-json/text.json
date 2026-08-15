@@ -1,0 +1,4 @@
+{
+  "$avm": "duplet-json/1",
+  "$root": {"$text": "Привет, AVM"}
+}

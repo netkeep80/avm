@@ -1,0 +1,10 @@
+{
+  "$avm": "duplet-json/1",
+  "$root": {
+    "<<": {"$symbol": "integer_add"},
+    ">>": {
+      "<<": {"$integer": 7},
+      ">>": {"$integer": 3}
+    }
+  }
+}

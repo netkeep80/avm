@@ -1,0 +1,10 @@
+{
+  "$avm": "duplet-json/1",
+  "$root": {
+    "<<": {"$symbol": "relation"},
+    ">>": {
+      "<<": {"$symbol": "subject"},
+      ">>": {"$symbol": "object"}
+    }
+  }
+}

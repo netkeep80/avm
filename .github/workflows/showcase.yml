@@ -6,13 +6,16 @@ on:
       - main
     paths:
       - 'CMakeLists.txt'
+      - 'examples/native-json/**'
       - 'examples/showcase/**'
+      - 'test/native_json_examples_test.cpp'
       - 'include/avm/execution_observer.h'
       - 'include/avm/execution_trace.h'
       - 'include/avm/executor.h'
       - 'include/avm/relations_model.h'
       - 'include/avm/semantic_context.h'
       - 'include/avm/triune_primitives.h'
+      - 'adapters/json_duplet_*.h'
       - '.github/workflows/showcase.yml'
   workflow_dispatch:
 
@@ -37,8 +40,11 @@ jobs:
           examples/showcase/main.cpp
           examples/showcase/calculator_view.cpp
           examples/showcase/calculator_view.h
+          examples/showcase/native_json_view.cpp
+          examples/showcase/native_json_view.h
           examples/showcase/showcase_demo.cpp
           examples/showcase/showcase_demo.h
+          test/native_json_examples_test.cpp
 
   linux:
     name: Showcase / Linux
@@ -61,7 +67,12 @@ jobs:
           -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
           -DAVM_WARNINGS_AS_ERRORS=ON
       - name: Build
-        run: cmake --build build-showcase --target avm_showcase --parallel
+        run: >-
+          cmake --build build-showcase
+          --target avm_showcase avm_native_json_examples_test
+          --parallel
+      - name: Run Native JSON examples
+        run: ctest --test-dir build-showcase -R "^native_json_examples_tests$" --output-on-failure
       - name: Run calculator demo and capture real framebuffer
         shell: bash
         run: |
@@ -113,4 +124,9 @@ jobs:
           -DAVM_BUILD_ANUM_ADAPTER_TESTS=OFF
           -DAVM_WARNINGS_AS_ERRORS=ON
       - name: Build
-        run: cmake --build build-showcase --config Release --target avm_showcase --parallel
+        run: >-
+          cmake --build build-showcase --config Release
+          --target avm_showcase avm_native_json_examples_test
+          --parallel
+      - name: Run Native JSON examples
+        run: ctest --test-dir build-showcase -C Release -R "^native_json_examples_tests$" --output-on-failure
