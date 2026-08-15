@@ -1,10 +1,17 @@
 # Совместимость jsonRVM и AVM
 
-Родительская задача: #123. Epic: #122.
+Родительский audit: #123. Epic AVM 1.5: #122.
 
-## Происхождение данных
+Этот документ отвечает на два разных вопроса:
 
-Аудит привязан к фиксированной версии исходного runtime:
+1. **что исторический `jsonRVM` реально делал**;
+2. **какая часть этого поведения доказана или намеренно не перенесена в AVM**.
+
+Эти вопросы нельзя смешивать. Historical behavior сам по себе не является текущим AVM contract.
+
+## Источник evidence
+
+Аудит привязан к фиксированной версии legacy runtime:
 
 ```text
 repository: netkeep80/jsonRVM
@@ -12,307 +19,286 @@ commit:     843b3326141e090ccd1a106ba0a4a21ce72805b7
 runtime:    jsonRVM 3.0.0
 ```
 
-Машиночитаемый companion: `compat/jsonrvm-semantics.json`. Frozen assertions: `compat/jsonrvm-golden.json`.
+Машиночитаемые источники:
 
-Цель — не source compatibility со старым C++/JSON interpreter. Нужно определить:
+- `compat/jsonrvm-semantics.json` — semantic inventory;
+- `compat/jsonrvm-semantics-details.json` — подробный inventory;
+- `compat/jsonrvm-golden.json` — frozen assertions;
+- `compat/jsonrvm-oracle-golden.json` — исполняемый oracle evidence.
 
-- какая observable semantics Модели Отношений должна сохраниться в AVM;
-- какой старый syntax должен остаться только frontend projection;
-- какие operations являются explicit host effects;
-- какие детали являются implementation artifacts и не должны мигрировать.
+Если prose и machine-readable frozen evidence расходятся, сначала проверяется manifest/oracle и соответствующие tests.
 
-## Триединая сущность Модели Отношений
+## Центральный архитектурный вывод
 
-`jsonRVM` использует три роли:
-
-```text
-(relation, subject, object)
-```
-
-JSON projection:
-
-```json
-{
-  "$rel": "relation",
-  "$sub": "subject",
-  "$obj": "object"
-}
-```
-
-Концептуальная модель трактует:
-
-```text
-relation = controller
-subject  = view / receiver / manifestation
-object   = model / input
-```
-
-Эта execution semantics богаче простого структурного encoding и является предметом #124.
-
-## Каноническое представление дуплетами
-
-AVM использует один порядок:
-
-```text
-subject_object = Link(subject, object)
-entity         = Link(relation, subject_object)
-```
-
-Следовательно:
+Проблемой legacy runtime было не представление триплета через дуплеты. AVM использует каноническое encoding:
 
 ```text
 (relation, subject, object)
-= (relation, (subject, object))
+= Link(relation, Link(subject, object))
 ```
 
-Отдельная физическая triplet record ядру AVM не нужна.
+Сложность `jsonRVM` состояла в другом: `nlohmann::json` одновременно играл роли syntax, runtime values, mutable execution context и database/view layer.
 
-Для materialized triplet `t`:
+AVM переносит **observable semantics**, а не эту архитектурную связанность.
+
+Нормативная boundary:
 
 ```text
-encode(t) -> entity LinkId
-decode(entity LinkId) -> t
+legacy/source syntax
+ -> frontend / semantic adapter
+ -> canonical denotation
+ -> find | explicit realize
+ -> LinkStore
+ -> ordinary Executor
 ```
 
-сохраняет все три роли. Inner и outer pairs каноничны, поэтому repeated encoding возвращает те же identities внутри одного logical store.
+Нет JSON semantic interpreter после projection и нет второго compatibility runtime.
 
-`find_relation_entity(relation, subject, object)` принципиально отличается от encode/materialize: сначала ищет `(subject, object)`, затем outer pair и при miss ничего не создаёт.
-
-Это тот же общий инвариант:
-
-```text
-description/query != realization/write
-```
-
-## Центральный результат аудита
-
-Исторический blocker — **не** математическое представление triplet через dyads. Эта задача проста и уже решена.
-
-Сложность в том, что старый `jsonRVM` заставляет `nlohmann::json` одновременно играть роли:
-
-1. syntax программы;
-2. runtime scalar/collection values;
-3. mutable execution context;
-4. in-memory view Модели Отношений/database.
-
-Execution semantics поэтому переплетена с JSON references, mutable containers, host concurrency и external modules.
-
-AVM 1.0–1.4 уже устранил главную архитектурную связанность: execution identity — `LinkId`, программы/functions/frames живут в links. AVM 1.5 занимается **semantic migration**, а не очередной заменой storage.
-
-## Категории совместимости
-
-Каждая запись `compat/jsonrvm-semantics.json` относится к одной категории.
+## Категории legacy behavior
 
 ### `canonical-semantic`
 
-Поведение принадлежит смыслу Relations Model/VM и должно существовать независимо от surface syntax: triune roles, parent contexts, ordered sequence, pure arithmetic и т. п.
+Поведение относится к смыслу Relations Model/VM и должно быть выражено независимо от frontend syntax: triune roles, contexts, ordered sequence, Boolean control, pure arithmetic и т. п.
 
 ### `projection-syntax`
 
-Полезный внешний syntax, который frontend обязан скомпилировать/спроецировать в canonical links до execution: `$ent`, `$$obj`, JSON `$ref`, named/path addressing.
+Полезная surface syntax, которую frontend компилирует в canonical structure до execution: context pronouns, textual references, legacy addressing forms.
 
 ### `effect-adapter`
 
-Поведение взаимодействует с external process state и требует явной capability/effect boundary: filesystem, HTTP, clock/sleep, stdout, plugins, lazy external entity retrieval.
+Поведение взаимодействует с host/process state и требует explicit authority: filesystem, HTTP, clock/sleep, stdout, plugins, lazy external entity retrieval.
 
 ### `implementation-artifact`
 
-Деталь, существующая из-за mutable JSON runtime и не являющаяся semantics AVM: JSON type tags, mutexes containers, literal `operator[]` create-on-access и т. п.
+Деталь mutable JSON implementation, которую нельзя превращать в AVM semantics: JSON type tags, mutex containers, implicit `operator[]` create-on-access и подобное.
 
 ### `defer`
 
-Идея может быть полезна, но небезопасна до появления lower-level contracts. Главный пример — automatic parallel projection: сначала требуется purity/effect ordering.
+Поведение не переносится до появления достаточного lower-level contract/evidence. Главный пример — implicit parallel projection до доказанного effect/purity ordering.
 
-## Что реально исполняет jsonRVM
+## Исходный baseline #123
 
-### Триединый execution context
+Первоначальная compatibility matrix была **planning snapshot до реализации AVM 1.5**. Поэтому статусы вида `partial`/`missing` из старой версии документа нельзя читать как состояние текущего `main`.
 
-`vm_ctx` несёт:
+Ниже приведён актуальный overlay поверх того baseline.
+
+## Текущее состояние доказанной совместимости
+
+| Область | Legacy evidence | Текущий AVM status | Граница обещания |
+|---|---|---|---|
+| triune `ent/rel/sub/obj` | RM-TRIUNE-001 | contract proven | meaningful non-unit subject/object/relation execution |
+| current/parent context | CTX-CURRENT-001, CTX-PARENT-001 | contract proven | immutable compositional context chain |
+| `$ent/$rel/$sub/$obj` | REF-PRONOUN-001 | compiler/contract proven | canonical Current/Parent references |
+| arbitrary textual/named/path addressing | REF-ABSOLUTE-001 | partial evidence only | не обобщать beyond proven compiler cases |
+| missing textual reference | frozen missing-reference oracle | exact typed failure proven | exact marker -> `UnresolvedReference`; arbitrary unknown name remains unsupported |
+| ordered executable sequence | EXEC-ARRAY-SEQ-001 | proven subset | deterministic canonical sequence semantics |
+| foreach child context | EXEC-FOREACH-OBJ-001 subset | proven frozen case | deterministic sibling context; generic assignment не выводится автоматически |
+| Boolean branch | CTRL-IF-001 | proven frozen case | lazy branch with threaded semantic context |
+| Integer arithmetic | VALUE-ARITH-001 subset | canonical denotation + frozen arithmetic proven | только supported Integer operations/cases |
+| Boolean/value equality | VALUE-COMPARE-001 subset | canonical Boolean/value contracts | без наследования JSON coercion quirks |
+| Text denotation | VALUE-STRING-001 foundation | canonical Text proven | string library parity не заявляется |
+| ordered list/value denotation | VALUE-COLLECTION-001 foundation | canonical list/value contract | полный `where/union/...` parity не заявляется |
+| JSON get/set/erase quirks | VALUE-GETSET-001 | intentionally not migrated | implementation artifact |
+| lazy external entity retrieval | REF-LAZY-DB-001 | capability boundary proven | explicit provider; реальный DB protocol не входит в contract |
+| stdout/print | DISPLAY-PRINT-001 | tooling/effect only | не implicit core side effect |
+| filesystem | EFFECT-FS-001 | capability architecture available | реальный FS adapter не доказан |
+| HTTP | EFFECT-HTTP-001 | capability architecture available | реальный HTTP adapter не доказан |
+| clock/sleep | EFFECT-TIME-001 | capability architecture available | wall-clock semantics не доказана |
+| native/dynamic plugins | EFFECT-DLL-001 | capability architecture available | loader/ABI/plugin semantics не доказаны |
+| parallel object projection | EXEC-OBJECT-PAR-001 | deferred | требуется отдельный purity/effect ordering proof |
+| JSON как code/data/context | IMPL-JSON-AST-001 | removed | не возвращать второй semantic path |
+
+Эта таблица описывает **уровень доказательства**, а не процент перенесённых строк legacy code.
+
+## Доказанный AVM 1.5 corpus
+
+Pinned executable migration ladder:
 
 ```text
-ent
-rel
-sub
-obj
-$
+CASE-ARITHMETIC                  -> 2
+CASE-SEQUENCE-ORDER              -> 3
+CASE-PURE-RELATION-COMPOSITION   -> 5
+CASE-FOREACH-CONTEXT             -> [1,2,3]
+CASE-BOOLEAN-BRANCH              -> 42
+CASE-MISSING-REFERENCE           -> typed source failure
 ```
 
-где `$` — parent/outer context. Старый runtime меняет `$.sub`/`$.rel`, а nested relations могут выполняться в `$.$`, `$.$.$` и более внешних contexts.
+Это минимальный sufficient corpus для release proof. Он не является обещанием полного operator vocabulary старого runtime.
 
-Текущий AVM структурно декодирует все роли, но bootstrap expressions в основном используют `subject = unit`. Это хороший minimal kernel, но не полный replacement исходной triune semantics. Поэтому #124 предшествует массовой миграции vocabulary.
+## Context и reference semantics
 
-### Context pronouns и parent traversal
+Legacy `vm_ctx` нес `ent/rel/sub/obj` и parent `$`. AVM заменяет mutable JSON context на canonical/immutable execution context contracts.
 
-Старый resolver распознаёт `$ent/$rel/$sub/$obj` и hard-coded `$$`, `$$$`, `$$$$`. Fixture `relative_addressing.json` проверяет эти формы.
+Важное различие:
 
-Сохранять нужно **смысл**, а не четырёхуровневое текстовое ограничение. AVM должен представить parent traversal композиционно, а frontend — компилировать `$...` в canonical reference structure (#125/#126).
+```text
+ExecutionContext.relation
+!=
+semantic relation_state
+```
 
-### Named и absolute references
+И pure result не означает скрытое:
 
-`absolute_addressing.json` показывает named entities, nested paths и `add_entity`. Старый resolver также мог вызвать `database_api::get_entity`, если named entity отсутствовала.
+```text
+$rel := result
+```
 
-В одном path смешивались:
+State transition выполняется только явной semantic relation/outcome.
 
-- pure lookup;
-- syntax/path parsing;
-- external lazy retrieval;
-- lvalue creation/mutation.
-
-В AVM эти concerns разделяются:
+Для references действует:
 
 ```text
 parse/project reference
- -> non-mutating resolve/find
- -> optional explicit external lookup effect
+ -> pure resolve/find
+ -> optional explicit host lookup effect
  -> optional explicit realization/write
 ```
 
-Read miss никогда не создаёт links.
+Read miss не создаёт links.
 
-### Sequence, projection и foreach
+## Граница отсутствующей ссылки
 
-Executable JSON arrays в старой модели играют роль ordered lambda-vectors. `foreachobj`/`foreachsub` создают child contexts для collection items.
+Exact frozen compatibility:
 
-Смысл относится к canonical semantics, JSON array — нет. AVM уже имеет canonical link lists и `sequence`; #127 расширяет их до deterministic projection/foreach semantics.
+```text
+__avm_missing_reference_oracle__
+ -> MigrationFailureKind::UnresolvedReference
+```
 
-### Параллельное исполнение object projection
+Произвольный неизвестный textual `$ref` не превращается в synthetic `LinkId`. Пока нет evidence/contract, он остаётся `InvalidSource` / unsupported.
 
-Старый runtime экспериментировал с parallel object-like projections через C++ execution policies и mutex-protected mutable JSON.
+Это сознательно более узкое обещание, чем «любой legacy name lookup работает».
 
-Scheduler semantics намеренно не переносится сейчас. При materialization/effects порядок может быть observable. Parallel execution допустим только после explicit purity/effect model.
+## Sequence, projection и foreach
 
-### Чистый value vocabulary
+Executable JSON arrays в legacy runtime играли роль ordered execution structure. AVM сохраняет порядок через canonical link-native sequence/projection contracts.
 
-Старый `import_relations_model_to` регистрирует большой vocabulary:
+Foreach доказан через deterministic child/sibling contexts. Frozen `CASE-FOREACH-CONTEXT` подтверждает точный migrated behavior; из него нельзя автоматически выводить весь legacy mutation vocabulary.
 
-- conversions: `int`, `integer`, `float`, `double`, `null`;
-- data: `where`, `union`, `size`, `get`, `set`, `erase`, `sequence/integer`;
-- arithmetic: `*`, `:`, `+`, `-`, `pow`, `sqrt`, `sum`;
-- logic/comparison: `^`, `==`, `!=`, `<`, `>`, `&&`;
-- strings: conversion, append, find, split, join;
-- control: foreach, if variants, then/else, while, typed switch, throw/catch;
-- rendering: print, tag, XML, HTML;
-- time: sleep и steady clock.
+Implicit parallel execution не переносится. Параллелизм допустим только после отдельного contract, который делает observable ordering/effects явными.
 
-Нельзя механически port-ить эти operators до определения canonical value denotation. Coercion/type behavior `nlohmann::json` не является автоматически нормативным. Это gate #128.
+## Values
 
-### Внешний vocabulary
+Legacy `nlohmann::json` coercion rules не являются нормативными для AVM.
 
-Filesystem, HTTP и dynamic dictionary loading являются capabilities. Они не являются основанием для implicit host calls внутри core. #129 вводит explicit capabilities и deterministic fake providers до масштабной effect-vocabulary migration.
+AVM сначала определяет canonical denotation:
 
-## Сводная compatibility matrix
+```text
+Boolean
+Integer
+Text
+ordered list/value structure
+```
 
-| ID | Поведение jsonRVM | Категория | AVM сейчас | Решение | Gate |
-|---|---|---|---|---|---|
-| RM-TRIUNE-001 | роли `ent/rel/sub/obj` | canonical | partial | сохранить полный triune contract | #124 |
-| CTX-CURRENT-001 | current context roles | canonical | partial | canonical context access | #125 |
-| CTX-PARENT-001 | `$` parent chain | canonical | partial | unbounded compositional traversal | #125 |
-| REF-PRONOUN-001 | `$ent`, `$$obj`, ... | projection | missing | compile в reference links | #126 |
-| REF-ABSOLUTE-001 | named/path addressing | projection | missing | canonical reference algebra | #126 |
-| REF-LAZY-DB-001 | lazy DB retrieval | effect | missing | explicit lookup capability | #129 |
-| REF-LVALUE-001 | create-on-write traversal | projection/write | missing | разделить resolve и write | #126 |
-| EXEC-ARRAY-SEQ-001 | ordered executable arrays | canonical | partial | canonical link sequence | #127 |
-| EXEC-OBJECT-PAR-001 | parallel object projection | defer | missing | ждать effect/purity model | #127 |
-| EXEC-FOREACH-OBJ-001 | `foreachobj` | canonical | missing | deterministic link-list map | #127 |
-| EXEC-FOREACH-SUB-001 | `foreachsub` | canonical | missing | после triune contract | #127 |
-| CTRL-IF-001 | Boolean conditional | canonical | partial | differential parity baseline | #131 |
-| CTRL-WHILE-001 | while | canonical | missing | после ordering contract | #127 |
-| CTRL-SWITCH-001 | typed switch | canonical | missing | canonical keys/values | #128 |
-| ERROR-THROW-CATCH-001 | program error handling | canonical | partial | deterministic semantic failures | #131 |
-| VALUE-COPY-001 | copy/view | canonical | partial | identity + explicit projection | #124 |
-| VALUE-ARITH-001 | arithmetic | canonical | missing | сначала numeric denotation | #128 |
-| VALUE-COMPARE-001 | compare/Boolean | canonical | partial | structural/value equality | #128 |
-| VALUE-COLLECTION-001 | size/where/union | canonical | partial | canonical list semantics | #128 |
-| VALUE-GETSET-001 | JSON get/set/erase | artifact | none | буквально не переносить | #126 |
-| VALUE-STRING-001 | string operations | canonical | missing | canonical byte/text denotation | #128 |
-| VALUE-TYPE-PRED-001 | JSON type predicates | artifact | n/a | только обоснованные structural predicates | #128 |
-| DISPLAY-PRINT-001 | stdout | effect | tooling only | explicit effect/frontend | #129 |
-| DISPLAY-MARKUP-001 | tag/XML/HTML | projection | missing | после text/projection semantics | #128 |
-| EFFECT-TIME-001 | clock/sleep | effect | missing | explicit clock capability | #129 |
-| EFFECT-FS-001 | filesystem | effect | missing | explicit FS capability | #129 |
-| EFFECT-HTTP-001 | HTTP | effect | missing | сначала fake provider | #129 |
-| EFFECT-DLL-001 | native dictionary loading | effect | missing | plugin/capability boundary | #129 |
-| IMPL-JSON-MUTEX-001 | JSON mutexes | artifact | n/a | удалить из модели | #127 |
-| IMPL-JSON-AST-001 | JSON как code/data/context | artifact | removed | не возвращать | #130 |
+и только затем переносит behavior поверх этих identities.
 
-Authoritative tooling representation — JSON manifest; таблица здесь предназначена для человека.
+Поэтому наличие старых operators `sqrt`, `split`, `join`, `where`, `union`, typed switch и других в legacy vocabulary **не означает**, что AVM обязан иметь одноимённый native handler.
 
-## Дифференциальный корпус
+Если operation выражается link-native composition, предпочтителен обычный AVM program/function.
 
-### `CASE-RELATIVE-ADDRESSING`
+## Explicit host effects
 
-Источник: `modules/console/test/relative_addressing.json`.
+Legacy runtime мог смешивать pure lookup и external/database retrieval. После #129 это разделено архитектурно.
 
-Проверяет context roles и parent-depth forms. В AVM resolution context pronoun обязан быть observational и не менять `LinkStore::size()`.
+Первый доказанный effect slice — `REF-LAZY-DB-001`:
 
-### `CASE-ABSOLUTE-ADDRESSING`
+```text
+canonical effect RelationEntity
+ -> ordinary Executor
+ -> explicit capability policy
+ -> ExternalEntityProvider
+ -> existing LinkId | deterministic failure
+```
 
-Источник: `modules/console/test/absolute_addressing.json`.
+Доказаны:
 
-Старый fixture смешивает pure named lookup и `add_entity`. AVM должен разделить эти semantics.
+- allow/deny authority;
+- deterministic fake provider;
+- provider miss/failure boundary;
+- no-growth/read-vs-realize invariant;
+- отсутствие provider dependency у pure programs;
+- request/success/failure observability через existing observer;
+- отсутствие второго EffectExecutor.
 
-### `CASE-BOOLEAN-BRANCH`
+Не доказаны автоматически реальные filesystem paths, URLs, wall-clock behavior, DLL ABI или network protocol semantics.
 
-AVM уже имеет canonical Boolean values и link-native `if`. Это дешёвый differential baseline после фиксации точного legacy oracle.
+См. [effect-capabilities.md](effect-capabilities.md).
 
-### `CASE-FOREACH-CONTEXT`
+## JSON ↔ Anum convergence
 
-Минимальная old-style program должна доказать child-context propagation до более сложной projection migration.
+Native JSON и canonical Anum L3 сходятся к общему:
 
-### `CASE-ARITHMETIC`
+```text
+ProjectionDescription
+ -> find | realize
+ -> canonical LinkStore
+```
 
-Фиксируются только deterministic scalar cases после выбора integer denotation в #128. Raw JSON numeric representation не является equality criterion.
+Versioned corpus:
 
-### `CASE-MISSING-REFERENCE`
+```text
+avm/frontend-common-denotation/v1
+```
 
-Нужно зафиксировать semantic failure category/context, а не byte-for-byte JSON exception rendering.
+проверяет в том числе shared-substructure convergence. Разная frontend topology может обозначать один canonical graph после realization.
 
-## Что уже frozen в main
+## Persistent release proof
 
-`compat/jsonrvm-golden.json` содержит assertions, извлечённые из реальных legacy doctest для:
+Финальный proof использует context-sensitive program:
 
-- relative addressing;
-- absolute addressing;
-- `where`;
-- runtime-version provenance.
+```text
+1 + 1
+$rel + 3
+ -> 5
+```
 
-Остальные cases остаются `derive-fixture`, пока их expected behavior не будет подтверждено исполняемым legacy fixture/assertion или воспроизводимым oracle. Очевидность результата вроде «1+1=2» недостаточна как доказательство differential migration VM.
+После первого explicit realization тот же `PersistentLinkStore` открывается заново. Existing root исполняется без legacy fixture, semantic migrator, reprojection и повторного realize.
 
-## Явные non-goals совместимости
+Нормативный итог:
+
+> После canonical realization source syntax не является runtime dependency AVM.
+
+См. [avm-1.5-release-proof.md](avm-1.5-release-proof.md).
+
+## Явные non-goals
 
 AVM не обещает:
 
 - одинаковые numeric `LinkId` в independent stores;
-- одинаковое внутреннее JSON tree;
+- одинаковый JSON tree/layout;
 - одинаковый C++ exception type/text;
-- quirks coercion `nlohmann::json`;
-- automatic JSON member creation на read;
-- hard limit в четыре parent-context levels;
+- quirks `nlohmann::json` coercion;
+- automatic member/link creation на read;
+- arbitrary textual-reference compatibility без evidence;
 - implicit database/network/filesystem access;
-- automatic parallel execution до effect model.
+- automatic parallel execution;
+- полный `jsonRVM` operator parity;
+- сохранение legacy implementation artifacts только ради source similarity.
 
-## Связь с Anum/МТС
+## Как расширять compatibility дальше
 
-Для обоих frontend действует одна boundary:
+Новая migration задача должна начинаться не с поиска одноимённого C++ handler, а с evidence:
 
 ```text
-raw(A) != den(A)
-find(A) не создаёт den(A)
-realize(A) выполняется явно
-interpret(F) не означает realize(F)
+legacy behavior
+ -> exact observable fixture/oracle
+ -> категория semantics/projection/effect/artifact
+ -> existing AVM lower-level contract?
+ -> минимальный canonical vertical slice
+ -> deterministic success/failure conformance
+ -> full CI
 ```
 
-JSON text и Anum raw structure различны, но после projection должны быть способны обозначать одну canonical link denotation. Это задача #130.
+Если evidence нет, behavior не считается обязательным. Если contract уже существует, новый слой не должен создавать parallel runtime path.
 
-## Порядок дальнейшей реализации
+## Связанные документы
 
-1. завершить #123: representative deterministic corpus и полная metadata классификации;
-2. #124: meaningful non-unit subject без mutable host references;
-3. #125: canonical current/parent execution contexts;
-4. #126: reference algebra и non-mutating lookup;
-5. #127/#128: projection/sequence и canonical values;
-6. #129: explicit effects;
-7. #130: frontend convergence;
-8. #131: end-to-end differential program.
-
-Назначение inventory — не дать миграции превратиться в копирование `base.rm.h`: каждое сохранённое свойство должно ссылаться на observable legacy behavior, а каждое отброшенное — иметь явную причину.
+- [README документации](README.md) — карта нормативных и evidence документов;
+- [triune-execution-contract.md](triune-execution-contract.md);
+- [semantic-context-contract.md](semantic-context-contract.md);
+- [reference-algebra.md](reference-algebra.md);
+- [value-denotation-v1.md](value-denotation-v1.md);
+- [jsonrvm-legacy-oracle.md](jsonrvm-legacy-oracle.md);
+- [jsonrvm-semantic-migrator.md](jsonrvm-semantic-migrator.md);
+- [avm-1.5-release-proof.md](avm-1.5-release-proof.md);
+- [effect-capabilities.md](effect-capabilities.md).
