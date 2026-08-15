@@ -53,8 +53,8 @@ struct EffectFixture
 	{
 		const std::vector<std::uint8_t> bytes(name.begin(), name.end());
 		const avm::LinkId text_value = avm::realize_text(store, text, bytes);
-		return avm::encode_relation_entity(
-		    store, avm::RelationEntity{lookup_relation, runtime.vocabulary().unit, text_value});
+		const avm::RelationEntity entity{lookup_relation, runtime.vocabulary().unit, text_value};
+		return avm::encode_relation_entity(store, entity);
 	}
 
 	avm::ExternalEntityLookupEffect effect() const
@@ -76,7 +76,9 @@ void test_effect_capability_boundary()
 	const avm::LinkId entity = fixture.request("known");
 	const std::size_t before = fixture.store.size();
 	const avm::EffectCapabilityPolicy policy({fixture.lookup_capability});
-	avm::register_external_entity_lookup_effect(fixture.runtime.executor(), fixture.effect(), policy, &fixture.provider);
+	avm::Executor &executor = fixture.runtime.executor();
+	const avm::ExternalEntityLookupEffect effect = fixture.effect();
+	avm::register_external_entity_lookup_effect(executor, effect, policy, &fixture.provider);
 	avm::BoundedExecutionTrace trace(8);
 	fixture.runtime.executor().set_observer(&trace);
 
@@ -96,7 +98,9 @@ void test_denied_effect_never_calls_provider()
 	const avm::LinkId entity = fixture.request("known");
 	const std::size_t before = fixture.store.size();
 	const avm::EffectCapabilityPolicy policy;
-	avm::register_external_entity_lookup_effect(fixture.runtime.executor(), fixture.effect(), policy, &fixture.provider);
+	avm::Executor &executor = fixture.runtime.executor();
+	const avm::ExternalEntityLookupEffect effect = fixture.effect();
+	avm::register_external_entity_lookup_effect(executor, effect, policy, &fixture.provider);
 	avm::BoundedExecutionTrace trace(8);
 	fixture.runtime.executor().set_observer(&trace);
 
@@ -124,7 +128,9 @@ void test_external_lookup_never_realizes_provider_data()
 	const avm::LinkId miss_entity = fixture.request("missing");
 	const std::size_t before_miss = fixture.store.size();
 	const avm::EffectCapabilityPolicy policy({fixture.lookup_capability});
-	avm::register_external_entity_lookup_effect(fixture.runtime.executor(), fixture.effect(), policy, &fixture.provider);
+	avm::Executor &executor = fixture.runtime.executor();
+	const avm::ExternalEntityLookupEffect effect = fixture.effect();
+	avm::register_external_entity_lookup_effect(executor, effect, policy, &fixture.provider);
 
 	bool missed = false;
 	try
@@ -143,8 +149,10 @@ void test_external_lookup_never_realizes_provider_data()
 	const avm::LinkId unknown_entity = unknown_fixture.request("foreign");
 	const std::size_t before_unknown = unknown_fixture.store.size();
 	const avm::EffectCapabilityPolicy unknown_policy({unknown_fixture.lookup_capability});
+	avm::Executor &unknown_executor = unknown_fixture.runtime.executor();
+	const avm::ExternalEntityLookupEffect unknown_effect = unknown_fixture.effect();
 	avm::register_external_entity_lookup_effect(
-	    unknown_fixture.runtime.executor(), unknown_fixture.effect(), unknown_policy, &unknown_fixture.provider);
+	    unknown_executor, unknown_effect, unknown_policy, &unknown_fixture.provider);
 
 	bool rejected = false;
 	try
