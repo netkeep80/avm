@@ -43,11 +43,17 @@ add_executable(avm_showcase
     "${CMAKE_CURRENT_SOURCE_DIR}/showcase_demo.cpp")
 target_link_libraries(avm_showcase PRIVATE avm_showcase_imgui)
 avm_add_json_adapter_includes(avm_showcase)
+target_include_directories(avm_showcase PRIVATE
+    "${PROJECT_SOURCE_DIR}/3p"
+    "${PROJECT_SOURCE_DIR}/adapters")
 avm_apply_quality(avm_showcase)
 
 add_executable(avm_native_json_examples_test
     "${CMAKE_CURRENT_SOURCE_DIR}/../../test/native_json_examples_test.cpp")
 avm_add_json_adapter_includes(avm_native_json_examples_test)
+target_include_directories(avm_native_json_examples_test PRIVATE
+    "${PROJECT_SOURCE_DIR}/3p"
+    "${PROJECT_SOURCE_DIR}/adapters")
 avm_apply_quality(avm_native_json_examples_test)
 avm_enable_test_assertions(avm_native_json_examples_test)
 add_test(
