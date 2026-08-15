@@ -28,13 +28,13 @@ constexpr const char *integer_add_source = R"json({
 
 json_duplet::SymbolAnchors native_symbols(const BootstrapVocabulary &bootstrap, const IntegerVocabulary &integers)
 {
-	json_duplet::SymbolAnchors symbols;
-	symbols.emplace_back("false", bootstrap.false_value);
-	symbols.emplace_back("integer_add", integers.add_relation);
-	symbols.emplace_back("nil", bootstrap.nil);
-	symbols.emplace_back("true", bootstrap.true_value);
-	symbols.emplace_back("unit", bootstrap.unit);
-	return symbols;
+	return {
+	    {"false", bootstrap.false_value},
+	    {"integer_add", integers.add_relation},
+	    {"nil", bootstrap.nil},
+	    {"true", bootstrap.true_value},
+	    {"unit", bootstrap.unit},
+	};
 }
 
 } // namespace
