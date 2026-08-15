@@ -188,18 +188,6 @@ if(AVM_BUILD_INSPECT_TOOL)
     target_link_libraries(avm_inspect PRIVATE avm_core)
     target_include_directories(avm_inspect PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
     avm_apply_quality(avm_inspect)
-
-    function(avm_add_inspection_cli_test test_name test_case)
-        add_test(
-            NAME ${test_name}
-            COMMAND ${CMAKE_COMMAND}
-                -DAVM_INSPECT_EXECUTABLE=$<TARGET_FILE:avm_inspect>
-                -DCASE=${test_case}
-                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/run_inspection_cli_test.cmake")
-    endfunction()
-
-    avm_add_inspection_cli_test(inspection_cli_success success)
-    avm_add_inspection_cli_test(inspection_cli_parser_error parser-error)
 endif()
 
 if(AVM_BUILD_CORE_TESTS)
@@ -282,6 +270,20 @@ if(AVM_BUILD_CORE_TESTS)
     avm_apply_quality(avm_inspection_runner_test)
     avm_enable_test_assertions(avm_inspection_runner_test)
     add_test(NAME inspection_runner_tests COMMAND avm_inspection_runner_test)
+
+    if(AVM_BUILD_INSPECT_TOOL)
+        function(avm_add_inspection_cli_test test_name test_case)
+            add_test(
+                NAME ${test_name}
+                COMMAND ${CMAKE_COMMAND}
+                    -DAVM_INSPECT_EXECUTABLE=$<TARGET_FILE:avm_inspect>
+                    -DCASE=${test_case}
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/run_inspection_cli_test.cmake")
+        endfunction()
+
+        avm_add_inspection_cli_test(inspection_cli_success success)
+        avm_add_inspection_cli_test(inspection_cli_parser_error parser-error)
+    endif()
 
     add_executable(avm_vertical_slice_test "${CMAKE_CURRENT_SOURCE_DIR}/test/vertical_slice_test.cpp")
     avm_add_json_includes(avm_vertical_slice_test)
@@ -387,6 +389,10 @@ if(AVM_BUILD_CORE_TESTS)
         avm_jsonrvm_semantic_migrator_test
         avm_jsonrvm_persistent_release_test
         avm_showcase_calculator_model_test)
+
+    if(AVM_BUILD_INSPECT_TOOL)
+        add_dependencies(avm_core_tests avm_inspect)
+    endif()
 endif()
 
 if(AVM_BUILD_ANUM_ADAPTER_TESTS)
