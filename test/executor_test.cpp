@@ -151,8 +151,8 @@ void test_external_lookup_never_realizes_provider_data()
 	const avm::EffectCapabilityPolicy unknown_policy({unknown_fixture.lookup_capability});
 	avm::Executor &unknown_executor = unknown_fixture.runtime.executor();
 	const avm::ExternalEntityLookupEffect unknown_effect = unknown_fixture.effect();
-	avm::register_external_entity_lookup_effect(
-	    unknown_executor, unknown_effect, unknown_policy, &unknown_fixture.provider);
+	avm::ExternalEntityProvider *unknown_provider = &unknown_fixture.provider;
+	avm::register_external_entity_lookup_effect(unknown_executor, unknown_effect, unknown_policy, unknown_provider);
 
 	bool rejected = false;
 	try
