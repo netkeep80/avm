@@ -28,6 +28,7 @@ target_include_directories(avm_core INTERFACE
 set(AVM_CORE_PUBLIC_HEADERS
     include/avm/avm.h
     include/avm/bootstrap_runtime.h
+    include/avm/effect_capability.h
     include/avm/execution_observer.h
     include/avm/execution_outcome.h
     include/avm/execution_trace.h
