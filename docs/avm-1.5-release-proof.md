@@ -1,14 +1,14 @@
 # Доказательства готовности AVM 1.5
 
-Epic: #122. Финальный release gate: #131/#213.
+Epic: #122. Финальный pure release gate: #131/#213.
 
-AVM 1.5 доказывает перенос ограниченного, явно зафиксированного subset семантики Relations Model из historical `jsonRVM` в один link-native runtime AVM.
+AVM 1.5 доказывает перенос **ограниченного, явно зафиксированного subset** семантики Relations Model из historical `jsonRVM` в один canonical link-native runtime AVM.
 
-Это **не** заявление о полной совместимости со всем `base.rm.h`.
+Это не заявление о полной совместимости со всем `base.rm.h` и не обещание автоматического переноса любого legacy relation.
 
-## Канонический runtime
+## Что именно является release proof
 
-После frontend/migration boundary существует только один путь:
+После frontend/migration boundary существует один путь:
 
 ```text
 source / frontend
@@ -20,6 +20,8 @@ source / frontend
 ```
 
 Legacy JSON interpreter, compatibility Executor и второй storage universe отсутствуют.
+
+Release proof намеренно использует pure deterministic corpus. Host effects проверяются отдельным capability contract и не нужны для доказательства того, что canonical AVM runtime больше не зависит от legacy source после realization.
 
 ## Замороженный semantic corpus
 
@@ -54,17 +56,17 @@ __avm_missing_reference_oracle__
 
 Произвольный неподтверждённый textual `$ref` остаётся `InvalidSource` / unsupported.
 
-Не создаются synthetic LinkId и runtime miss только ради представления неизвестного source name.
+AVM не создаёт synthetic `LinkId` и не вводит runtime miss только ради представления неизвестного source name.
 
 ## Независимость от frontend provenance
 
-#212 добавил versioned test-only corpus:
+#212 добавил versioned corpus:
 
 ```text
 avm/frontend-common-denotation/v1
 ```
 
-Native JSON и canonical Anum L3 независимо строят `ProjectionDescription`, после чего доказывается одна canonical graph semantics.
+Native JSON и canonical Anum L3 независимо строят `ProjectionDescription`, после чего проверяется одна canonical graph semantics.
 
 Ключевой case:
 
@@ -80,7 +82,7 @@ root.begin == root.end == p
 p == Link(a,b)
 ```
 
-Один ordinary `BootstrapRuntime::Executor` исполняет общий `quote` root независимо от frontend provenance.
+Один ordinary `Executor` исполняет общий `quote` root независимо от frontend provenance.
 
 ## Persistent reopen без remigration
 
@@ -104,7 +106,7 @@ legacy source
  -> result 5 / relation_state = result
 ```
 
-Между scopes сохраняются только opaque LinkIds того же logical `PersistentLinkStore`:
+Между scopes сохраняются только opaque `LinkId` того же logical `PersistentLinkStore`:
 
 ```text
 BootstrapVocabulary
@@ -133,13 +135,30 @@ Reopen path не читает legacy fixture, не вызывает semantic mig
 
 > После canonical realization source syntax не является runtime dependency AVM.
 
-## Граница effects
+## Граница host effects после release proof
 
-Pure AVM 1.5 release proof не использует filesystem/HTTP/time/database/native host effects как semantic operations.
+Pure AVM 1.5 release corpus по-прежнему не использует filesystem/HTTP/time/database/native host effects как semantic operations. Это свойство proof, а не пробел в архитектуре.
 
-Issue #129 остаётся отдельным обязательным prerequisite **до переноса первого реального host effect**. Dummy effect ради release checklist не добавляется.
+После завершения pure release gate отдельный #129 доказал первый explicit capability boundary на evidence case `REF-LAZY-DB-001`:
 
-## Запреты release gate
+```text
+canonical effect RelationEntity
+ -> ordinary Executor
+ -> explicit capability policy
+ -> explicit ExternalEntityProvider
+ -> existing LinkId | deterministic failure
+```
+
+Таким образом теперь доказаны **две разные вещи**:
+
+1. pure AVM 1.5 runtime не зависит от legacy source после canonical realization;
+2. host authority может быть добавлена к тому же ordinary `Executor` явно, без второго runtime и без hidden materialization.
+
+#129 не расширяет frozen pure corpus и не означает готовность реальных DB/FS/HTTP/clock/native adapters. Он фиксирует архитектурный контракт, поверх которого такие adapters могут появляться по отдельным evidence-backed задачам.
+
+См. [capability boundary](effect-capabilities.md).
+
+## Запреты release proof
 
 - никакого второго Executor/interpreter;
 - никакой remigration после reopen;
@@ -148,11 +167,12 @@ Issue #129 остаётся отдельным обязательным prerequi
 - никакого synthetic release-only opcode;
 - никакой полной jsonRVM parity без evidence;
 - никакой автоматической совместимости arbitrary textual `$ref`;
-- никакого cross-store сравнения numeric LinkId как универсального значения.
+- никакого cross-store сравнения numeric `LinkId` как универсального значения;
+- никакого скрытого host lookup внутри pure reference resolver.
 
 ## Проверки CI
 
-Финальный merge AVM 1.5 требует exact-head green:
+Принятый gate требует exact-head green для применимых workflow:
 
 - Quality gates;
 - Core warnings-as-errors;
@@ -164,3 +184,11 @@ Issue #129 остаётся отдельным обязательным prerequi
 - Documentation language;
 - Benchmark;
 - Showcase, если workflow triggered.
+
+## Связанные документы
+
+- [README документации](README.md) — карта contract/evidence документов;
+- [jsonrvm-compatibility.md](jsonrvm-compatibility.md) — границы совместимости и frozen evidence;
+- [jsonrvm-semantic-migrator.md](jsonrvm-semantic-migrator.md) — semantic migration boundary;
+- [effect-capabilities.md](effect-capabilities.md) — explicit authority для host effects;
+- `../compat/jsonrvm-semantics.json` — machine-readable inventory.
