@@ -1,7 +1,6 @@
 #pragma once
 
 #include "avm/bootstrap_runtime.h"
-#include "avm/effect_capability.h"
 #include "avm/execution_observer.h"
 #include "avm/execution_outcome.h"
 #include "avm/execution_trace.h"
