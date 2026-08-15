@@ -33,7 +33,7 @@ explicit AVM realization
 
 Provider первого slice вообще не имеет API для `intern/create_point`. Если он возвращает identity, которой нет в текущем `LinkStore`, handler отклоняет результат. Поэтому внешнее чтение не может автоматически materialize-ить graph.
 
-## Authority model
+## Модель authority
 
 Host/session обязан явно предоставить четыре независимые части:
 
@@ -46,7 +46,7 @@ Program structure сама по себе authority не выдаёт. Налич
 
 Capability policy хранится вне semantic graph как execution/session policy. Relation и capability identities должны уже существовать в выбранном store и передаются caller-ом; core не создаёт глобальный effect universe и не выводит identity из строковых имён.
 
-## Request/result contract
+## Контракт request/result
 
 Request первого slice — canonical Text в object роли relation entity:
 
@@ -64,7 +64,7 @@ Handler декодирует только существующий canonical Tex
 
 Диагностические тексты исключений не являются semantic identity или compatibility contract.
 
-## Observability
+## Наблюдаемость effect
 
 Отдельный effect observer не добавляется. Existing `ExecutionObserver` уже даёт достаточный deterministic boundary:
 
@@ -76,7 +76,7 @@ Fail(effect relation, Handler) = denied/provider/miss failure
 
 Canonical relation identity в event позволяет отличить effect от других executions. Observer остаётся read-only и не управляет execution.
 
-## Pure execution
+## Pure execution без provider
 
 Pure AVM программы не требуют capability policy или provider. Effect binding добавляется только явным вызовом `register_external_entity_lookup_effect` к существующему `Executor`.
 
