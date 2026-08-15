@@ -74,7 +74,7 @@ Fail(ExecutionContext,phase)
 
 Русский язык закреплён как нормативный для project-owned документации.
 
-### AVM 1.5 — evidence-backed Relations Model migration ✅
+### AVM 1.5 — доказанный перенос Relations Model semantics ✅
 
 Epic #122 завершён как ограниченный доказанный subset, а не как бесконечный operator-porting backlog.
 
@@ -120,7 +120,7 @@ textual frontend name != canonical LinkId
 
 См. [доказательства AVM 1.5](docs/avm-1.5-release-proof.md).
 
-## Capability/effect boundary ✅
+## Capability/effect boundary завершён ✅
 
 Gate #129 завершён после pure AVM 1.5 release proof.
 
