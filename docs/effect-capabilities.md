@@ -46,6 +46,8 @@ Program structure сама по себе authority не выдаёт. Налич
 
 Capability policy хранится вне semantic graph как execution/session policy. Relation и capability identities должны уже существовать в выбранном store и передаются caller-ом; core не создаёт глобальный effect universe и не выводит identity из строковых имён.
 
+При binding policy копируется в handler как immutable authority snapshot, поэтому lifetime локального policy не влияет на дальнейшее исполнение. Provider остаётся caller-owned host adapter и обязан жить не меньше зарегистрированного handler; `nullptr` используется как явное состояние «provider не предоставлен».
+
 ## Контракт request/result
 
 Request первого slice — canonical Text в object роли relation entity:
