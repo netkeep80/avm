@@ -1,52 +1,50 @@
 # План развития AVM
 
+Этот файл — **status/roadmap overview**, а не замена архитектурным контрактам. Нормативные границы подсистем находятся в `docs/`; карта документации — [docs/README.md](docs/README.md).
+
 ## Правило планирования
 
-Работа ведётся последовательными gates с явными зависимостями. Новый слой начинается только после того, как его зависимости получили стабильный контракт и зелёные CI-проверки.
+Работа ведётся последовательными evidence-backed gates с явными зависимостями. Новый semantic слой начинается только после того, как нижележащие contracts доказаны тестами и полным CI.
 
-Неизменный архитектурный инвариант:
+Неизменный runtime path:
 
 ```text
 внешняя проекция / semantic adapter
-  -> canonical denotation / ProjectionDescription
-  -> find | explicit realize
-  -> канонический LinkStore
-  -> программа как LinkId
-  -> BootstrapRuntime / Executor
-  -> LinkId / ExecutionOutcome результата
+ -> canonical denotation / ProjectionDescription
+ -> find | explicit realize
+ -> LinkStore
+ -> программа как LinkId
+ -> BootstrapRuntime / Executor
+ -> LinkId / ExecutionOutcome
 ```
 
-Запрещены второй semantic path, скрытая база программ, legacy storage universe, compatibility Executor и backend-specific semantic index.
+Запрещены второй semantic path, скрытая база программ, compatibility Executor, legacy storage universe и backend-specific semantic index.
 
 ## Завершённые этапы
 
 ### AVM 1.0 — архитектурный фундамент ✅
 
-Доказаны и приняты:
+Доказаны:
 
-- один физический primitive `LinkId -> (begin,end)`;
+- `LinkId -> (begin,end)` как единый физический primitive;
 - canonical pair identity;
-- `find` как наблюдение и `intern/realize` как явная материализация;
+- `find` как наблюдение и `intern/realize` как явная materialization;
 - `(relation,subject,object) = Link(relation,Link(subject,object))`;
-- один link-native `Executor` с dispatch по relation `LinkId`;
+- один link-native `Executor`;
 - programs/functions/bindings/call frames как links;
 - parser-independent projection boundary;
 - structural Anum L3→L4 adapter;
 - `PersistentLinkStore` и reopen identity;
 - удаление pointer-based `rel_t`, JSON semantic interpreter и protocol-only Anum bridge;
-- portable Linux/Windows/macOS, package consumer, warnings-as-errors, ASan/UBSan и benchmark gates.
+- portable/package-consumer/warnings-as-errors/ASan+UBSan/benchmark gates.
 
-### AVM 1.1 — ассоциативные read-only queries ✅
+### AVM 1.1 — read-only Relations queries без материализации ✅
 
-Epic #83, реализация #84–#87.
+`RelationQuery` использует только существующие `find/outgoing/incoming/get/contains`, не materialize-ит данные и не создаёт отдельный semantic index.
 
-`RelationQuery` использует только существующие `find/outgoing/incoming/get/contains`, не материализует данные и не создаёт отдельный semantic index. Дополнительные physical indexes отложены до реального workload/SLA.
+### AVM 1.2 — структурная standard library ✅
 
-### AVM 1.2 — структурная стандартная библиотека ✅
-
-Epic #88, реализация #89–#94.
-
-Приняты:
+Приняты link-native primitives:
 
 ```text
 link_begin
@@ -58,11 +56,9 @@ pair_intern
 
 Derived behavior по возможности выражается обычными AVM functions, а не новыми native handlers.
 
-### AVM 1.3 — наблюдаемость исполнения ✅
+### AVM 1.3 — наблюдаемость execution ✅
 
-Epic #95, реализация #96–#105.
-
-Приняты:
+Принят deterministic read-only observer contract:
 
 ```text
 Enter(ExecutionContext)
@@ -70,28 +66,17 @@ Return(ExecutionContext,result)
 Fail(ExecutionContext,phase)
 ```
 
-Observer не управляет исполнением. `BoundedExecutionTrace` ограничен, детерминирован и не является VM state. Persistent reopen сохраняет exact trace identity в одном logical store; независимые stores сравниваются с точностью до переименования opaque LinkIds.
+`BoundedExecutionTrace` не является VM state и не управляет исполнением.
 
-### AVM 1.4 — инструменты инспекции ✅
+### AVM 1.4 — инструменты inspection ✅
 
-Типизированная `InspectionSession`, persistent inspection и scripted tooling используют существующие canonical APIs и один `Executor`; textual commands остаются presentation layer.
+`InspectionSession`, persistent inspection и scripted `avm-inspect` используют существующие canonical APIs и один `Executor`. Textual commands остаются presentation layer.
 
-Persistent mutation path переведён в faulted state при неуспешной guarded mutation; tagged release зависит от полной portable matrix.
+Русский язык закреплён как нормативный для project-owned документации.
 
-Документационный gate #134 также завершён: русский язык закреплён как нормативный для project-owned документации.
+### AVM 1.5 — доказанный перенос Relations Model semantics ✅
 
-## AVM 1.5 — evidence-backed перенос Relations Model semantics ✅
-
-Epic #122.
-
-Главный вывод AVM 1.5:
-
-```text
-representation theorem
-(rel,sub,obj) = Link(rel,Link(sub,obj))
-```
-
-сам по себе не переносит execution semantics. Поэтому перенос выполнен evidence-driven слоями поверх одного canonical runtime.
+Epic #122 завершён как ограниченный доказанный subset, а не как бесконечный operator-porting backlog.
 
 Pinned historical oracle:
 
@@ -100,16 +85,27 @@ netkeep80/jsonRVM@843b3326141e090ccd1a106ba0a4a21ce72805b7
 runtime 3.0.0
 ```
 
-### Базовые gates #123–#128 ✅
+Завершённые semantic gates:
 
-Завершены:
-
-- #123 — versioned semantic inventory и frozen differential corpus;
+- #123 — semantic inventory и frozen corpus;
 - #124 — triune execution contract;
-- #125 — immutable `SemanticContextView`;
-- #126 — canonical Current/Parent reference algebra и frontend compiler boundary;
+- #125 — immutable semantic context;
+- #126 — current/parent reference algebra и frontend compiler boundary;
 - #127 — ordered sequence/projection/foreach semantics;
-- #128 — canonical Boolean/Integer/Text/ordered-list value denotation.
+- #128 — canonical Boolean/Integer/Text/list denotation;
+- #130 — JSON ↔ Anum common denotation convergence;
+- #131/#213 — persistent release proof без remigration/reprojection после reopen.
+
+Доказанный pure corpus:
+
+```text
+CASE-ARITHMETIC                  -> 2
+CASE-SEQUENCE-ORDER              -> 3
+CASE-PURE-RELATION-COMPOSITION   -> 5
+CASE-FOREACH-CONTEXT             -> [1,2,3]
+CASE-BOOLEAN-BRANCH              -> 42
+CASE-MISSING-REFERENCE           -> typed source failure
+```
 
 Ключевые invariants:
 
@@ -120,172 +116,78 @@ find/resolve/query != realize/write/effect
 textual frontend name != canonical LinkId
 ```
 
-### Лестница frozen semantic migration ✅
+После canonical realization source syntax не является runtime dependency AVM.
 
-Доказанный subset:
+См. [доказательства AVM 1.5](docs/avm-1.5-release-proof.md).
 
-```text
-CASE-ARITHMETIC                  -> 2       #196
-CASE-SEQUENCE-ORDER              -> 3       #198
-CASE-PURE-RELATION-COMPOSITION   -> 5       #198
-CASE-FOREACH-CONTEXT             -> [1,2,3] #200
-CASE-BOOLEAN-BRANCH              -> 42      #203
-CASE-MISSING-REFERENCE           -> typed source failure #206/#211
-```
+## Capability/effect boundary завершён ✅
 
-#174 semantic-migrator umbrella закрыт после этого минимального corpus и не является endless operator-porting backlog.
+Gate #129 завершён после pure AVM 1.5 release proof.
 
-#### Арифметика, sequence и state
+Первый evidence-driven slice выбран по frozen semantic inventory: `REF-LAZY-DB-001`, historical lazy external entity retrieval.
 
-Pure Integer operations не мутируют semantic `$rel`. Legacy stateful composition выражается explicit canonical relations:
+Доказанный contract:
 
 ```text
-commit_relation_state
-resolve_reference_relation
-apply_pure_relation
-```
-
-#### Семантика foreach
-
-Используется существующий deterministic sibling-context runtime. Exact frozen body `{"$rel":"=","$obj":{"$ref":"$obj"}}` доказан только как Current.Object identity projection; generic assignment semantics не выводится из одного fixture.
-
-#### Булево управление
-
-Existing lazy `if_relation` исправлен так, чтобы condition и выбранная branch сохраняли/thread-или `SemanticContextView`. Второй conditional executor не создан.
-
-#### Отсутствующая reference
-
-После #211 evidence boundary точная:
-
-```text
-__avm_missing_reference_oracle__
- -> MigrationFailureKind::UnresolvedReference
-
-arbitrary unproven textual $ref
- -> InvalidSource / unsupported
-```
-
-Unknown textual name не превращается в synthetic LinkId.
-
-### Gate #130 — общее представление JSON ↔ Anum ✅
-
-PR #212 добавил versioned test-only corpus:
-
-```text
-avm/frontend-common-denotation/v1
-```
-
-Доказаны в обоих порядках JSON-first и Anum-first:
-
-- anchor;
-- ordered pair;
-- nested pair;
-- shared substructure;
-- RelationEntity;
-- executable `quote` root;
-- non-mutating failure/miss matrix;
-- repeated realization без роста store.
-
-Ключевой proof:
-
-```text
-p = Link(a,b)
-root = Link(p,p)
-```
-
-JSON может иметь две equal tree-occurrences `p`, Anum — один explicit shared node. `ProjectionDescription` topology может различаться, но canonical realization обязана сходиться к одной graph identity.
-
-Один ordinary `Executor` исполняет общий root независимо от frontend provenance.
-
-### Gate #131/#213 — persistent доказательство release ✅
-
-Финальный context-sensitive program:
-
-```text
-1 + 1
-$rel + 3
- -> 5
-```
-
-Import phase:
-
-```text
-legacy fixture
- -> existing semantic migrator
- -> duplet-json/1
- -> ProjectionDescription
- -> explicit realize exactly once
+canonical effect RelationEntity
  -> ordinary Executor
+ -> explicit capability policy
+ -> explicit provider
+ -> existing LinkId | deterministic failure
 ```
 
-После convergence сохраняются opaque LinkIds того же logical `PersistentLinkStore`:
+Принципиальные свойства:
 
-- `BootstrapVocabulary`;
-- `IntegerVocabulary`;
-- `ReferenceVocabulary`;
-- `SemanticExecutionVocabulary`;
-- canonical Current.RelationState reference;
-- program root;
-- initial semantic-frame identities.
+- program structure не выдаёт authority;
+- capability policy задаётся host/session явно;
+- denied capability не вызывает provider;
+- pure programs работают без provider;
+- provider не materialize-ит arbitrary graph;
+- foreign `LinkId` отклоняется;
+- effect request/success/failure наблюдаются через существующий read-only observer contract;
+- generic `Executor` остаётся effect-neutral.
 
-Reopen phase:
+Этот gate доказывает **архитектуру effects**, но не объявляет готовыми реальные filesystem/HTTP/clock/native adapters.
 
-```text
-BootstrapRuntime(reopened,saved_bootstrap)
- -> validate saved vocabularies
- -> register existing handlers
- -> execute existing persisted root
-```
+См. [effect capability contract](docs/effect-capabilities.md).
 
-Reopen не читает legacy JSON, не вызывает semantic migrator, не строит `ProjectionDescription` и не вызывает `realize_projection`.
+## Текущее состояние
 
-Два последовательных reopen подтверждают:
+После #129 закрыт весь ранее заведённый dependency-ordered backlog AVM 1.0–1.5. Новые задачи должны появляться из реальных consumer requirements, новых frozen semantic evidence или доказанной необходимости расширить нижележащий contract.
 
-- result = Integer(5);
-- final semantic relation-state = result;
-- exact canonical Current.RelationState identity сохранена;
-- runtime restore не создаёт replacement vocabularies;
-- repeated converged execution не увеличивает store.
+Не следует создавать «следующую версию» только ради номера.
 
-Нормативный итог AVM 1.5:
+## Направления дальнейшего развития
 
-> После canonical realization source syntax не является runtime dependency AVM.
+При наличии реального use-case наиболее естественные направления:
 
-См. `docs/avm-1.5-release-proof.md`.
-
-## Отдельный будущий gate — capabilities/effects #129 🚧
-
-#129 **не блокирует завершение pure AVM 1.5**, потому что доказанный release corpus не использует filesystem/HTTP/time/database/native host effects как semantic operations.
-
-Но #129 обязателен **до переноса первого реального host effect**.
-
-Требуемый будущий контракт:
-
-```text
-canonical request
- -> explicit capability
- -> deterministic result / effect outcome
-```
-
-Запрещено добавлять dummy effect только ради закрытия release checklist.
-
-## Дальнейшие направления после AVM 1.5
-
-После закрытия pure AVM 1.5 можно рассматривать по реальным consumer requirements:
-
-1. capability/effect model #129 перед первым host effect;
-2. дополнительные evidence-backed Relations Model constructs;
-3. interactive debugger с отдельным control contract;
-4. дополнительные frontends поверх общего denotation contract;
-5. production persistence backends;
-6. visualization/GUI;
-7. scheduler/parallel execution только после purity/effect proof;
+1. дополнительные host-effect adapters поверх уже доказанного capability contract — отдельно для FS, HTTP, clock/time, native plugins или storage services;
+2. дополнительные Relations Model constructs только через evidence-backed migration;
+3. interactive debugger, если потребуется control contract поверх существующей read-only inspection boundary;
+4. новые frontends поверх общего `ProjectionDescription -> find | realize` contract;
+5. production persistence backends с отдельными crash-consistency/WAL/concurrency guarantees;
+6. visualization/GUI как consumer существующих inspection APIs;
+7. scheduler/parallel execution только после явного purity/effect ordering proof;
 8. distributed execution/storage;
 9. JIT/native compilation;
-10. дальнейшее расширение standard library через link-native composition.
+10. расширение standard library преимущественно через link-native composition.
+
+## Как выбирать следующую задачу
+
+Приоритет задаётся не размером feature, а силой evidence:
+
+```text
+real consumer problem
+ -> exact observable requirement
+ -> существующий lower-level contract?
+ -> минимальный vertical slice
+ -> conformance + failure cases
+ -> full CI
+ -> только затем расширение surface
+```
+
+Если behavior можно выразить существующими links/functions, новый native handler не добавляется без причины. Если операция читает host state, она не маскируется под pure resolve. Если исторический jsonRVM behavior не подтверждён frozen evidence, он не считается обязательной semantics AVM.
 
 ## Правило зависимостей
 
-Если gate зависит от незавершённого PR, независимая подготовка допустима, но dependent code не merge-ится до зелёного dependency gate.
-
-После доказанной миграции legacy implementation удаляется, а не сохраняется вторым production path. Историю хранит Git.
+Dependent code не merge-ится раньше dependency gate. После доказанной миграции legacy implementation удаляется, а не сохраняется вторым production path. Историю хранит Git.
