@@ -235,9 +235,10 @@ inline void register_external_entity_lookup_effect(Executor &executor, const Ext
 		throw std::invalid_argument("effect unit is not present in LinkStore");
 	validate_text_vocabulary(store, effect.text);
 
+	// Authority фиксируется в момент binding: handler не должен зависеть от lifetime локального policy объекта.
 	executor.register_native(
 	    effect.relation,
-	    [effect, &policy, provider](const ExecutionContext &context, Executor &runtime) -> ExecutionOutcome
+	    [effect, policy, provider](const ExecutionContext &context, Executor &runtime) -> ExecutionOutcome
 	    {
 		    if (context.subject != effect.unit)
 			    throw std::runtime_error("external entity lookup is not an executable effect expression");
@@ -251,6 +252,8 @@ inline void register_external_entity_lookup_effect(Executor &executor, const Ext
 		    const std::optional<LinkId> result = provider->lookup(name);
 		    if (!result)
 			    throw EffectLookupMiss();
+
+		    // Внешний lookup наблюдает host data, но не получает права materialize-ить graph AVM.
 		    if (!runtime.store().contains(*result))
 			    throw std::runtime_error("external entity provider returned an unknown LinkId");
 
