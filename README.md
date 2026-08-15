@@ -2,192 +2,97 @@
 
 # AVM — ассоциативная виртуальная машина
 
-AVM — экспериментальная виртуальная машина на C++20, построенная поверх Модели Отношений и канонического хранилища направленных связей.
+AVM — экспериментальная виртуальная машина на C++20, в которой данные, программы и execution identities представлены через каноническую сеть направленных связей.
 
-**Текущая публичная версия: 1.3.0.** Архитектурное развитие репозитория прошло этапы AVM 1.0–1.4; AVM 1.5 собирает доказанный перенос выбранной семантики `jsonRVM` в единый link-native runtime без legacy fallback.
+**Публичная версия пакета: 1.3.0.** В `main` также завершены архитектурные development gates AVM 1.4–1.5, включая inspection tooling, evidence-backed перенос выбранной семантики `jsonRVM` и первый explicit capability boundary для host effects. Это не означает полного `jsonRVM` parity и не меняет опубликованную SemVer-версию автоматически.
 
-## Главная идея
+## В двух словах
 
-AVM использует один производственный семантический путь:
-
-```text
-внешнее представление
-  -> проекция / адаптер
-  -> канонический LinkStore
-  -> кодек Модели Отношений
-  -> программа как LinkId
-  -> BootstrapRuntime / Executor
-  -> LinkId результата
-```
-
-JSON является внешней проекцией и протоколом совместимости. Грамматика Anum/МТС и контекстная денотация остаются канонически определёнными в `netkeep80/anum_docs`; AVM принимает только структурный, независимый от физического хранилища результат проекции. Ни JSON, ни Anum не являются внутренним AST виртуальной машины.
-
-Физический примитив AVM — канонический направленный дуплет:
+Физический примитив AVM:
 
 ```text
 LinkId -> (begin: LinkId, end: LinkId)
 ```
 
-`LinkId` — непрозрачная идентичность. Операции чтения не материализуют отсутствующие связи, а `intern(a,b)` возвращает канонический `LinkId` точной пары в пределах одного логического хранилища.
+`LinkId` — непрозрачная identity. Для одной точной пары в пределах одного logical store существует одна canonical link identity.
 
-## Модель Отношений поверх дуплетов
-
-Триединая сущность Модели Отношений имеет роли:
+Модель Отношений кодируется без отдельного физического типа «триплет»:
 
 ```text
 (relation, subject, object)
+= Link(relation, Link(subject, object))
 ```
 
-В AVM используется один канонический порядок вложения:
+Основной runtime path один:
 
 ```text
-subject_object = Link(subject, object)
-entity         = Link(relation, subject_object)
+внешнее представление
+ -> projection / semantic adapter
+ -> canonical denotation
+ -> find | explicit realize
+ -> LinkStore
+ -> программа как LinkId
+ -> BootstrapRuntime / Executor
+ -> LinkId / ExecutionOutcome
 ```
 
-то есть:
+JSON и Anum являются frontends/projections. Они не являются внутренним AST виртуальной машины.
+
+## Главные архитектурные инварианты
+
+AVM намеренно держит несколько границ жёсткими:
 
 ```text
-(relation, subject, object)
-= (relation, (subject, object))
+find / resolve / query / read
+!=
+realize / intern / write
+!=
+host effect
 ```
 
-Такое представление сохраняет все три роли без отдельного физического типа «триплет».
+Из этого следуют практические правила:
 
-## AVM 1.0 — архитектурный фундамент завершён
+- чтение не материализует отсутствующие связи;
+- program structure сама по себе не выдаёт host authority;
+- execution dispatch идёт по canonical relation `LinkId`;
+- нет второго compatibility Executor или JSON semantic interpreter;
+- observer и inspection tooling не управляют execution;
+- frontend syntax после canonical realization не является runtime dependency;
+- backend не определяет VM semantics;
+- numeric `LinkId` нельзя считать универсальным cross-store значением.
 
-AVM 1.0 сформировал и проверил:
+Подробно: [архитектурный контракт](docs/architecture.md).
 
-- `LinkStore` как единый контракт хранения, с эталонными in-memory и persistent реализациями;
-- каноническое представление `(relation, subject, object) = (relation, (subject, object))`;
-- явные идентичности bootstrap-словаря;
-- link-native исполнение через `BootstrapRuntime` и `Executor`;
-- программы, функции, bindings и call frames как связи;
-- независимую от parser/grammar границу внешних проекций;
-- структурный мост Anum L3→L4 без дублирования грамматики МТС внутри AVM;
-- отдельные адаптеры JSON-значений и JSON-программ;
-- сохранение идентичности после закрытия и повторного открытия persistent backend;
-- проверку установленного пакета на Linux, Windows и macOS;
-- warnings-as-errors, ASan/UBSan, архитектурные CI-guards и benchmark baselines.
+## Что уже доказано
 
-Исторические pointer-based `rel_t`, JSON semantic interpreter и временный protocol-only Anum bridge удалены после миграции потребителей. История остаётся в Git; в рабочей архитектуре существует один семантический путь.
+### AVM 1.0–1.4
 
-## AVM 1.1 — ассоциативные запросы только для чтения завершены
+Завершены:
 
-AVM 1.1 добавил независимый от backend слой запросов к Модели Отношений:
+- canonical `LinkStore` и Relations Model codec;
+- один link-native `Executor`;
+- programs, functions, bindings и call frames как links;
+- structural Anum L3→L4 boundary;
+- JSON projection adapters без JSON AST внутри executor;
+- `PersistentLinkStore` с reopen/identity proof;
+- read-only Relations Model queries;
+- structural standard library;
+- deterministic execution observer и bounded trace;
+- typed inspection session и scripted `avm-inspect` tooling;
+- portable/package-consumer CI на Linux, Windows и macOS.
 
-```cpp
-avm::RelationQuery query{
-    .relation = relation,
-    .subject = std::nullopt,
-    .object = object,
-};
+### AVM 1.5 — evidence-backed semantic migration
 
-const auto matches = avm::query_relation_entities(store, query);
-```
+AVM 1.5 не пытается механически перенести весь старый `base.rm.h`. Вместо этого semantics переносится только через frozen evidence.
 
-Хотя бы одно из полей `relation/subject/object` должно быть ограничено. Запросы используют только существующие операции `LinkStore`: `find`, `outgoing`, `incoming`, `get`, `contains`. Они не вызывают `intern` и `create_point` и не создают второй мир индексов.
-
-Запросы структурны, а не registry-based. AVM не хранит скрытый список связей, которые «были созданы как сущности». Более узкие домены должны задаваться самими связями и отношениями.
-
-Измерения fan-out 1/8/64/256 показали ожидаемый рост стоимости расширения кандидатов, но не дали оснований добавлять дополнительный persistent physical index без реального workload/SLA.
-
-См. [контракт запросов Модели Отношений](docs/relations-query.md).
-
-## AVM 1.2 — структурная стандартная библиотека завершена
-
-AVM 1.2 сделал структуру дуплетов непосредственно доступной link-native программам.
-
-Минимальное нативное ядро:
-
-```text
-link_begin(expr)       -> begin-полюс
-link_end(expr)         -> end-полюс
-identity_equal(a,b)    -> каноническое Boolean-значение
-link_exists(a,b)       -> каноническое Boolean-значение, только наблюдение
-pair_intern(a,b)       -> канонический LinkId(a,b), явный эффект
-```
-
-`link_exists` не использует `nil` как признак отсутствия, потому что `nil` сам является допустимой self-link. `pair_intern` — явная граница материализации и идемпотентен благодаря `LinkStore::intern`.
-
-Операции, выражаемые через это ядро, реализуются обычными функциями AVM, а не новыми C++ handlers. Например:
-
-```text
-is_self_link(x) = identity_equal(link_begin(x), link_end(x))
-```
-
-См. [структурную стандартную библиотеку](docs/structural-standard-library.md).
-
-## AVM 1.3 — наблюдаемость исполнения завершена
-
-AVM 1.3 добавил детерминированное наблюдение к существующему `Executor::execute` без возможности управлять исполнением.
-
-`ExecutionEvent` содержит только канонические данные AVM:
-
-```text
-Enter(ExecutionContext)
-Return(ExecutionContext, result LinkId)
-Fail(ExecutionContext, phase)
-```
-
-Для отказов используется конечная классификация фаз:
-
-```text
-Dispatch
-Handler
-ResultValidation
-```
-
-Наблюдатель не может заменить handler, пропустить исполнение или подменить результат. Его исключения изолированы от программы. Наблюдение не материализует связи.
-
-`BoundedExecutionTrace` хранит ограниченный префикс событий в памяти host-среды и явно сообщает о truncation.
-
-Для одного и того же `PersistentLinkStore` после reopen требуется точное совпадение LinkId-based traces. Для независимо построенных backends сравнение выполняется с точностью до биективного переименования непрозрачных `LinkId`.
-
-CLI использует тот же executor:
-
-```text
-avm program.json
-avm --trace program.json
-avm --trace-limit 64 program.json
-```
-
-См. [контракт наблюдаемости исполнения](docs/execution-observability.md).
-
-## AVM 1.4 — инспекция и диагностический tooling завершены
-
-AVM 1.4 построил слой инспекции поверх существующих публичных API, не создавая второго executor или отдельной семантики.
-
-`InspectionSession` объединяет:
-
-- наблюдение связей и сущностей;
-- запросы Модели Отношений;
-- запуск через существующий `BootstrapRuntime`;
-- сбор `BoundedExecutionTrace`;
-- persistent reopen scenarios.
-
-Текстовые inspection-команды являются только интерфейсом tooling: после parsing они превращаются в типизированные команды и используют тот же runtime.
-
-См. [сессию инспекции](docs/inspection-session.md), [команды инспекции](docs/inspection-commands.md) и [persistent inspection session](docs/persistent-inspection-session.md).
-
-## AVM 1.5 — доказанный перенос семантики Relations Model из jsonRVM
-
-AVM 1.5 отвечает на более сильный вопрос: может ли AVM исполнять существенную семантику старого `jsonRVM` через один canonical link-native runtime, не возвращая JSON interpreter?
-
-Representation problem уже решён:
-
-```text
-(relation, subject, object) = Link(relation, Link(subject, object))
-```
-
-Execution semantics переносилась evidence-driven gates. Pinned historical oracle:
+Pinned historical oracle:
 
 ```text
 netkeep80/jsonRVM@843b3326141e090ccd1a106ba0a4a21ce72805b7
 runtime 3.0.0
 ```
 
-Доказанный frozen corpus:
+Доказанный pure corpus:
 
 ```text
 CASE-ARITHMETIC                  -> 2
@@ -198,27 +103,33 @@ CASE-BOOLEAN-BRANCH              -> 42
 CASE-MISSING-REFERENCE           -> typed source failure
 ```
 
-Контексты `ent/rel/sub/obj`, current/parent references, ordered sequence, explicit relation-state transitions, foreach child contexts, lazy control и canonical values реализованы как link-native contracts. Pure result не означает скрытое `$rel := result`: semantic state меняется только через явный `ExecutionOutcome`.
+Persistent release proof показывает более сильное свойство: canonical root materialize-ится один раз, store закрывается и открывается снова, после чего существующий root исполняется без legacy JSON, remigration, reprojection или повторного realize.
 
-Для отсутствующей textual reference точная compatibility boundary доказана только для frozen marker `__avm_missing_reference_oracle__`, который даёт `MigrationFailureKind::UnresolvedReference`. Произвольный неподтверждённый `$ref` остаётся `InvalidSource` / unsupported; synthetic LinkId не создаётся.
+Подробно: [доказательства AVM 1.5](docs/avm-1.5-release-proof.md) и [карта совместимости jsonRVM](docs/jsonrvm-compatibility.md).
 
-Native JSON и canonical Anum L3 сходятся к одной `ProjectionDescription -> find | realize -> LinkStore` semantics. Versioned `frontend-common-denotation/v1` доказывает в том числе shared-substructure convergence и исполнение общего `quote` root одним обычным `Executor` независимо от frontend provenance.
+### Explicit host-effect capability boundary
 
-Финальный persistent release proof использует context-sensitive program `1+1; $rel+3 -> 5`: canonical root materialize-ится один раз, затем тот же `PersistentLinkStore` открывается заново и existing root исполняется с сохранёнными vocabulary identities **без legacy JSON, remigration, reprojection и повторного realize**.
+Первый host-effect contract завершён отдельно от pure AVM 1.5 proof. Evidence source — `REF-LAZY-DB-001`, historical lazy external entity retrieval.
 
-Host effects не входят в proven pure AVM 1.5 subset. До переноса первого filesystem/HTTP/time/database/native effect обязателен отдельный capability gate #129.
+Нормативный путь:
 
-См. [совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md), [semantic migrator](docs/jsonrvm-semantic-migrator.md) и [доказательства готовности AVM 1.5](docs/avm-1.5-release-proof.md).
-
-## Публичный API ядра
-
-Независимый от JSON C++ API доступен через:
-
-```cpp
-#include <avm/avm.h>
+```text
+canonical effect RelationEntity
+ -> ordinary Executor
+ -> explicit capability policy
+ -> explicit ExternalEntityProvider
+ -> existing LinkId | deterministic failure
 ```
 
-Минимальный пример link-native исполнения:
+Provider не имеет права автоматически materialize-ить arbitrary graph. Он может вернуть только identity, уже существующую в текущем store; foreign identity отклоняется. Pure programs не требуют provider вообще.
+
+Это доказывает архитектурную границу effects, но **не** заявляет готовность реальных filesystem/HTTP/clock/native adapters.
+
+Подробно: [capability boundary](docs/effect-capabilities.md).
+
+## Минимальный C++ пример
+
+Публичный JSON-independent API доступен через umbrella-header:
 
 ```cpp
 #include <avm/avm.h>
@@ -237,9 +148,9 @@ int main()
 }
 ```
 
-Umbrella-header намеренно не включает JSON adapters. JSON не является зависимостью `avm::core`.
+`<avm/avm.h>` намеренно не превращает JSON adapters в зависимость `avm::core`.
 
-## Установка и использование через CMake
+## Установка через CMake
 
 ```bash
 cmake -S . -B build-install \
@@ -257,104 +168,81 @@ find_package(avm 1.3 CONFIG REQUIRED)
 target_link_libraries(my_program PRIVATE avm::core)
 ```
 
-`avm::core` — header-only C++20 target. Установленный interface указывает только на install prefix и не зависит от repository-relative путей или `3p`.
+`avm::core` — header-only C++20 target. Installed package проверяется отдельными consumers на Ubuntu, Windows и macOS.
 
-## Версионирование и совместимость
+## CLI и inspection tooling
 
-AVM использует Semantic Versioning для документированных публичных контрактов ядра. Версии в CMake и `include/avm/version.h` обязаны совпадать. CI отклоняет tagged build, если тег не равен `v<project-version>`.
-
-Совместимость внутри AVM 1.x относится к документированным контрактам через `<avm/avm.h>` и `avm::core`. Внутренняя структура header-only реализации не является ABI-обещанием.
-
-См. [политику релизов AVM 1.x](docs/release-policy.md).
-
-## Физические backends
-
-`InMemoryLinkStore` — эталонный backend. `PersistentLinkStore` доказывает reopen/identity semantics. Другие физические backends должны реализовывать тот же контракт `LinkStore`.
-
-Backend не имеет права определять relations VM, query semantics, JSON rules, Anum grammar или execution semantics.
-
-## AVM Showcase — link-native калькулятор
-
-Опциональный Dear ImGui showcase демонстрирует тот же canonical runtime через графический интерфейс. Он собирается только при `AVM_BUILD_IMGUI_DEMO=ON` и не добавляет GUI-зависимости в установленный `avm::core`.
-
-Windows helper:
+Обычный JSON frontend запускается через тот же canonical executor:
 
 ```text
-build_showcase.bat
+avm program.json
+avm --trace program.json
+avm --trace-limit 64 program.json
 ```
 
-Либо CMake напрямую:
+Для read-only/diagnostic сценариев есть `avm-inspect`. Его textual commands являются presentation layer: после parsing используются типизированные inspection APIs, а не второй runtime.
+
+См. [inspection session](docs/inspection-session.md), [inspection commands](docs/inspection-commands.md) и [inspection runner](docs/inspection-runner.md).
+
+## Документация
+
+Начинать лучше с [карты документации](docs/README.md). В ней документы разделены по статусу и назначению: архитектурные контракты, semantic contracts, persistence/release proofs, frontend adapters, jsonRVM evidence и tooling.
+
+Рекомендуемый маршрут:
 
 ```text
-cmake -S . -B build-showcase -DAVM_BUILD_IMGUI_DEMO=ON
-cmake --build build-showcase --config Release --target avm_showcase --parallel
+README
+ -> docs/architecture.md
+ -> docs/execution-kernel.md
+ -> docs/projection-boundary.md
+ -> docs/triune-execution-contract.md
+ -> docs/semantic-context-contract.md
+ -> docs/avm-1.5-release-proof.md
+ -> docs/effect-capabilities.md
 ```
 
-Детерминированный walkthrough:
+Текущий dependency/status overview находится в [plan.md](plan.md).
+
+## Связь с Anum/МТС
+
+AVM не дублирует грамматику и полную теорию Anum/МТС внутри storage/runtime layer. Канонический источник этих правил — `netkeep80/anum_docs`.
+
+Для frontend boundary сохраняется принцип:
 
 ```text
-avm_showcase --demo calculator-basic
+raw(A) != den(A)
+find(A) не создаёт den(A)
+realize(A) выполняется явно
 ```
 
-выполняет `7 -> + -> 3 -> =` через те же calculator event helpers и тот же `Executor`, что используются интерактивными кнопками. Отдельной demo-арифметики или второго calculator state machine нет.
+AVM принимает структурный результат проекции и работает дальше только с canonical links.
 
-После walkthrough UI показывает canonical `Integer(10)`. Relation graph читает фактическую выбранную `(relation, subject, object)` сущность события, а `BoundedExecutionTrace` наблюдает тот же Executor и вложенные Integer calls. Controller `context.relation` остаётся relation исполняемого события; semantic `$rel` — явное relation-state и после успешного calculator event переходит в возвращённый canonical state через `ExecutionOutcome`.
+## Версионирование
 
-Focused Linux CI запускает реальный `avm_showcase --demo calculator-basic` под Xvfb + Mesa software OpenGL и публикует screenshot/log artifact `avm-showcase-calculator-basic`. Screenshot не является mockup и не использует координатные клики для выполнения семантики.
+AVM использует Semantic Versioning для документированных публичных контрактов ядра. Версии в CMake и `include/avm/version.h` должны совпадать; tagged release дополнительно проверяется CI.
 
-См. [детерминированный walkthrough AVM Showcase](docs/showcase-walkthrough.md).
+Важно различать:
 
-## Воспроизводимая проверка репозитория
+- **public package version** — опубликованный SemVer contract;
+- **development gate** — завершённая архитектурная работа в `main`;
+- **historical evidence** — зафиксированное поведение legacy runtime, которое не становится AVM contract автоматически.
+
+См. [release policy](docs/release-policy.md).
+
+## Разработка и проверки
+
+Типовая проверка:
 
 ```bash
-git clone https://github.com/netkeep80/avm.git
-cd avm
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+cmake -S . -B build
+cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-CI устанавливает пакет во временный prefix и собирает внешний consumer на Linux, Windows и macOS через `find_package` и `avm::core`. Полная portable matrix также выполняет conformance tests CLI и адаптеров.
+CI дополнительно проверяет warnings-as-errors, ASan/UBSan, portable builds, installed-package consumers, documentation language, architecture guards, benchmarks и showcase там, где workflow применим.
 
-## Основные документы
-
-- [Архитектурный контракт AVM](docs/architecture.md)
-- [Ядро исполнения](docs/execution-kernel.md)
-- [Модель link-native программ](docs/program-model.md)
-- [Функции, bindings и call frames](docs/functions-and-frames.md)
-- [Структурная стандартная библиотека](docs/structural-standard-library.md)
-- [Запросы Модели Отношений](docs/relations-query.md)
-- [Наблюдаемость исполнения](docs/execution-observability.md)
-- [Сессия инспекции](docs/inspection-session.md)
-- [Контракт адаптера внешнего протокола](docs/protocol-adapter-contract.md)
-- [Граница проекции](docs/projection-boundary.md)
-- [Мост Anum L3→L4](docs/anum-l3-l4-bridge.md)
-- [Persistent LinkStore](docs/persistent-link-store.md)
-- [Совместимость jsonRVM и AVM](docs/jsonrvm-compatibility.md)
-- [Semantic migrator jsonRVM → AVM](docs/jsonrvm-semantic-migrator.md)
-- [Доказательства готовности AVM 1.5](docs/avm-1.5-release-proof.md)
-- [Детерминированный walkthrough AVM Showcase](docs/showcase-walkthrough.md)
-- [Политика релизов](docs/release-policy.md)
-- [Анализ проекта](analysis.md)
-- [План развития](plan.md)
-
-## Язык документации
-
-Нормативный язык проектной документации AVM — русский. Имена публичного API, identifiers, форматы, команды, имена внешних проектов и кодовые примеры сохраняются в исходном техническом виде.
-
-Лицензия и документация вендорного кода не переводятся как часть документации AVM.
-
-## Зависимости
-
-Ядро:
-
-- компилятор C++20;
-- CMake 3.20+.
-
-Опциональная JSON boundary / CLI:
-
-- встроенный `nlohmann/json`.
+Подробно: [CI contract](docs/ci.md).
 
 ## Лицензия
 
-MIT License. Copyright © 2022 Vertushkin Roman Pavlovich.
+Проект распространяется на условиях лицензии из [LICENSE](LICENSE).
