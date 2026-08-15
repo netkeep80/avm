@@ -177,7 +177,7 @@ Foreach доказан через deterministic child/sibling contexts. Frozen `
 
 Implicit parallel execution не переносится. Параллелизм допустим только после отдельного contract, который делает observable ordering/effects явными.
 
-## Values
+## Values и canonical denotation
 
 Legacy `nlohmann::json` coercion rules не являются нормативными для AVM.
 
@@ -196,7 +196,7 @@ ordered list/value structure
 
 Если operation выражается link-native composition, предпочтителен обычный AVM program/function.
 
-## Explicit host effects
+## Explicit host effects и capability boundary
 
 Legacy runtime мог смешивать pure lookup и external/database retrieval. После #129 это разделено архитектурно.
 
@@ -224,7 +224,7 @@ canonical effect RelationEntity
 
 См. [effect-capabilities.md](effect-capabilities.md).
 
-## JSON ↔ Anum convergence
+## Сходимость JSON ↔ Anum
 
 Native JSON и canonical Anum L3 сходятся к общему:
 
@@ -242,7 +242,7 @@ avm/frontend-common-denotation/v1
 
 проверяет в том числе shared-substructure convergence. Разная frontend topology может обозначать один canonical graph после realization.
 
-## Persistent release proof
+## Persistent release proof после reopen
 
 Финальный proof использует context-sensitive program:
 
