@@ -69,7 +69,7 @@ JSON и Anum находятся **до** canonical runtime и не являют�
 - [legacy-reference-compiler.md](legacy-reference-compiler.md) — компиляция legacy textual references;
 - [legacy-interpreter-removal.md](legacy-interpreter-removal.md) — доказательство удаления второго semantic path.
 
-## jsonRVM migration evidence
+## Evidence миграции jsonRVM
 
 Эти документы нужны для ответа на вопрос **«почему именно такая semantics была перенесена?»**, а не для восстановления старого runtime как второго production path.
 
