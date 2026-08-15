@@ -72,6 +72,7 @@ install(FILES
 
 option(AVM_BUILD_CLI "Build the AVM JSON CLI" ON)
 option(AVM_BUILD_JSON_TOOLS "Build AVM JSON conversion tools" ON)
+option(AVM_BUILD_INSPECT_TOOL "Build the AVM scripted inspection tool" ON)
 option(AVM_BUILD_CORE_TESTS "Build AVM core tests" ON)
 option(AVM_BUILD_JSON_COMPAT_TESTS "Build JSON projection/session tests" ON)
 option(AVM_BUILD_ANUM_ADAPTER_TESTS "Build canonical Anum denotation adapter tests" ON)
@@ -181,6 +182,26 @@ if(AVM_BUILD_JSON_TOOLS)
     avm_apply_quality(avm_json_convert)
 endif()
 
+if(AVM_BUILD_INSPECT_TOOL)
+    add_executable(avm_inspect "${CMAKE_CURRENT_SOURCE_DIR}/src/inspect.cpp")
+    set_target_properties(avm_inspect PROPERTIES OUTPUT_NAME "avm-inspect")
+    target_link_libraries(avm_inspect PRIVATE avm_core)
+    target_include_directories(avm_inspect PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+    avm_apply_quality(avm_inspect)
+
+    function(avm_add_inspection_cli_test test_name test_case)
+        add_test(
+            NAME ${test_name}
+            COMMAND ${CMAKE_COMMAND}
+                -DAVM_INSPECT_EXECUTABLE=$<TARGET_FILE:avm_inspect>
+                -DCASE=${test_case}
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/run_inspection_cli_test.cmake")
+    endfunction()
+
+    avm_add_inspection_cli_test(inspection_cli_success success)
+    avm_add_inspection_cli_test(inspection_cli_parser_error parser-error)
+endif()
+
 if(AVM_BUILD_CORE_TESTS)
     function(avm_add_core_test target source test_name)
         add_executable(${target} "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
@@ -254,6 +275,13 @@ if(AVM_BUILD_CORE_TESTS)
     avm_apply_quality(avm_persistent_inspection_session_test)
     avm_enable_test_assertions(avm_persistent_inspection_session_test)
     add_test(NAME persistent_inspection_session_tests COMMAND avm_persistent_inspection_session_test)
+
+    add_executable(avm_inspection_runner_test "${CMAKE_CURRENT_SOURCE_DIR}/test/inspection_runner_test.cpp")
+    target_link_libraries(avm_inspection_runner_test PRIVATE avm_core)
+    target_include_directories(avm_inspection_runner_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+    avm_apply_quality(avm_inspection_runner_test)
+    avm_enable_test_assertions(avm_inspection_runner_test)
+    add_test(NAME inspection_runner_tests COMMAND avm_inspection_runner_test)
 
     add_executable(avm_vertical_slice_test "${CMAKE_CURRENT_SOURCE_DIR}/test/vertical_slice_test.cpp")
     avm_add_json_includes(avm_vertical_slice_test)
@@ -350,6 +378,7 @@ if(AVM_BUILD_CORE_TESTS)
         avm_legacy_reference_compiler_test
         avm_inspection_session_test
         avm_persistent_inspection_session_test
+        avm_inspection_runner_test
         avm_vertical_slice_test
         avm_json_value_codec_test
         avm_json_duplet_converter_test
