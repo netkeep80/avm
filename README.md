@@ -81,7 +81,7 @@ host effect
 - typed inspection session и scripted `avm-inspect` tooling;
 - portable/package-consumer CI на Linux, Windows и macOS.
 
-### AVM 1.5 — evidence-backed semantic migration
+### AVM 1.5 — доказанный semantic migration
 
 AVM 1.5 не пытается механически перенести весь старый `base.rm.h`. Вместо этого semantics переносится только через frozen evidence.
 
@@ -107,7 +107,7 @@ Persistent release proof показывает более сильное свой
 
 Подробно: [доказательства AVM 1.5](docs/avm-1.5-release-proof.md) и [карта совместимости jsonRVM](docs/jsonrvm-compatibility.md).
 
-### Explicit host-effect capability boundary
+### Explicit capability boundary для host effects
 
 Первый host-effect contract завершён отдельно от pure AVM 1.5 proof. Evidence source — `REF-LAZY-DB-001`, historical lazy external entity retrieval.
 
