@@ -27,8 +27,8 @@ inline std::string_view trim_left(std::string_view line) noexcept
 inline int run_inspection_script(InspectionSession &session, std::istream &input, std::ostream &output,
                                  std::ostream &errors)
 {
-	// Runner отвечает только за построчное framing и остановку при ошибке; parsing/execution/rendering остаются
-	// в существующем typed tooling API и не образуют второй runtime path.
+	// Runner владеет только framing; parsing/execution/rendering остаются в существующем typed tooling API.
+	// Поэтому process wrapper не образует второй runtime path.
 	std::string line;
 	std::size_t line_number = 0;
 	while (std::getline(input, line))
