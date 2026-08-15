@@ -46,7 +46,7 @@ avm-inspect
 
 Поддерживаемый набор команд определяется только `parse_inspection_command`; runner его не копирует и не расширяет собственной строковой диспетчеризацией.
 
-## Exit status
+## Коды завершения процесса
 
 ```text
 0  весь скрипт выполнен успешно
@@ -54,7 +54,7 @@ avm-inspect
 2  ошибка process-level usage или открытия файла
 ```
 
-## Backend policy
+## Политика backend
 
 Первая версия `avm-inspect` запускается только с новым in-memory store и явным созданием bootstrap vocabulary для этой сессии. Это self-contained tooling mode для скриптов и CI, а не способ открыть произвольную persistent database.
 
@@ -62,7 +62,7 @@ Persistent CLI mode пока намеренно отсутствует. Если
 
 Numeric `LinkId` в командах является непрозрачным store-local идентификатором. Runner не добавляет sidecar symbolic registry и не превращает строковые имена в скрытые semantic identities.
 
-## Read/write boundary
+## Граница чтения и записи
 
 Inspection-команды `link`, `find`, `outgoing`, `incoming`, `relation`, `query`, `function`, `frame` используют существующие observational APIs. Они не materialize-ят отсутствующие links.
 
