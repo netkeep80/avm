@@ -26,9 +26,8 @@ void test_read_only_script_is_ordered_and_non_mutating()
 	std::ostringstream errors;
 
 	assert(avm::tooling::run_inspection_script(fixture.session, input, output, errors) == 0);
-	assert(output.str() ==
-	       "find begin=999999 end=999998 id=-\n"
-	       "outgoing endpoint=999999 ids=[]\n");
+	const std::string expected = "find begin=999999 end=999998 id=-\noutgoing endpoint=999999 ids=[]\n";
+	assert(output.str() == expected);
 	assert(errors.str().empty());
 	assert(fixture.store.size() == before);
 }
